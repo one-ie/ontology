@@ -129,7 +129,7 @@ type MembershipConnectionType =
 
 ## Ontology Mapping
 
-### 4-Table Structure
+### 6-Dimension Structure
 
 **Things Involved:**
 - `creator` - Platform owner, org owner, org user (with role property)
@@ -1146,7 +1146,7 @@ const content = await Promise.all(
 ---
 
 **Related Documentation:**
-- [Ontology.md](../ontology.md) - Complete 4-table specification
+- [Ontology.md](../ontology.md) - Complete 6-dimension specification
 - [Multitenant.md](../multitenant.md) - Multi-tenant architecture patterns
 - [Owner.md](../things/owner.md) - Platform owner role and revenue tracking
 - [Organisation.md](../things/organisation.md) - Organization entity details

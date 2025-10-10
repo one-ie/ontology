@@ -94,7 +94,7 @@ This document covers **both approaches** with complete implementation guides.
 
 **Data Backend:**
 - Convex (real-time database)
-- 4-table ontology (entities, connections, events, tags)
+- 6-dimension ontology (things, connections, events, knowledge, people, protocols)
 
 **Deployment:**
 - Cloudflare Pages (Astro frontend)
@@ -403,7 +403,7 @@ api/
 │       ├── auth.ts           # Auth middleware
 │       └── cors.ts           # CORS configuration
 ├── convex/                   # Shared Convex backend
-│   ├── schema.ts             # 4-table ontology schema
+│   ├── schema.ts             # 6-dimension ontology schema
 │   ├── queries/
 │   │   ├── auth.ts           # Auth queries (for Better Auth adapter)
 │   │   ├── entities.ts
@@ -1920,7 +1920,7 @@ wrangler pages deploy dist --project-name=one-platform
 - Deploy custom frontends to subdomains
 - Share same Hono API + Convex backend
 
-## Integration with 4-Table Ontology
+## Integration with 6-Dimension Ontology
 
 The Hono API fully respects the ontology:
 
@@ -2095,7 +2095,7 @@ Separate API (Cloudflare Workers):
 
 **Both approaches use:**
 - Hono for routing
-- Convex for data storage (4-table ontology)
+- Convex for data storage (6-dimension ontology)
 - Effect.ts for business logic (optional but recommended)
 - Type-safe validation (Zod)
 - CORS middleware

@@ -1194,9 +1194,9 @@ ${ind}yield* Effect.promise(() =>
 ${ind}  ctx.db.insert("events", {
 ${ind}    entityId: ${this.compileExpression(step.event.entity)},
 ${ind}    eventType: "${step.event.type}",
+${ind}    actorId: ${this.compileExpression(step.event.actor || '"system"')},
 ${ind}    timestamp: Date.now(),
 ${ind}    actorType: "${step.event.actor ? "user" : "system"}",
-${ind}    actorId: ${this.compileExpression(step.event.actor || "undefined")},
 ${ind}    metadata: ${metadataStr},
 ${ind}  })
 ${ind});

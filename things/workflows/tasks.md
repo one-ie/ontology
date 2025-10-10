@@ -1,7 +1,7 @@
 # Task Organization System
 
 **Version:** 1.0.0
-**Purpose:** Define how the director agent assigns, tracks, and completes tasks using the 4-table ontology
+**Purpose:** Define how the director agent assigns, tracks, and completes tasks using the 6-dimension ontology
 
 ---
 
@@ -9,7 +9,7 @@
 
 The task organization system enables the director agent to break down strategic goals (OKRs) into actionable tasks, delegate them to business agents, track progress, and ensure completion. Every task is a **thing** with **delegated** connections and **task_event** logging.
 
-**Key Principle:** Tasks are entities in the ontology, not custom tables. This ensures consistency, auditability, and alignment with the 4-table universe.
+**Key Principle:** Tasks are entities in the ontology, not custom tables. This ensures consistency, auditability, and alignment with the 6-dimension universe.
 
 ---
 

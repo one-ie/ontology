@@ -447,7 +447,7 @@ const taskId = await agent.createTask({
 
 ### Integration with Ontology
 
-Map ACP concepts to our 4-table ontology:
+Map ACP concepts to our 6-dimension ontology:
 
 **Entities**:
 - Agent entities with ACP endpoint and capabilities

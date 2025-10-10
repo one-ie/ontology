@@ -19,7 +19,7 @@
 
 ---
 
-## The 4-Table Ontology (MEMORIZE THIS)
+## The 6-Dimension Ontology (MEMORIZE THIS)
 
 ```
 ┌─────────────┐
@@ -377,7 +377,7 @@ purchaseTokens: (args) => { ... }
 ### Ingestor Agent
 **Responsibilities:**
 - Migrate data from old sites (one.ie, bullfm)
-- Transform data to 4-table ontology
+- Transform data to 6-dimension ontology
 - Preserve relationships
 - Generate migration reports
 
@@ -438,9 +438,9 @@ Effect.gen(function* () {
     db.insert("events", {
       entityId,
       eventType: "course_created",
+      actorId: args.creatorId,
       timestamp: Date.now(),
       actorType: "user",
-      actorId: args.creatorId,
       metadata: { /* ... */ },
     })
   );
@@ -481,7 +481,7 @@ const result = yield* Effect.all(
 ).pipe(
   Effect.tap(([r1, r2, r3]) => 
     // All succeeded, save to DB
-    Effect.tryPromise(() => db.insert("events", { /* ... */ }))
+    Effect.tryPromise(() => db.insert("events", { actorId: userId, /* ... */ }))
   ),
   Effect.onError(() =>
     // Any failed, rollback all
@@ -572,7 +572,7 @@ After generating code, verify:
 5. No tests → AI doesn't know if it broke something
 
 **ONE platform solutions:**
-1. 4-table ontology → AI always knows data structure
+1. 6-dimension ontology → AI always knows data structure
 2. Agent specialization → AI stays in its lane
 3. Explicit types → AI catches errors at compile time
 4. Effect.ts services → AI composes existing functions

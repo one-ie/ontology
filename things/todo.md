@@ -97,7 +97,7 @@ Human
 **Location:** `convex/services/agents/specialized/ingestor/`
 - [ ] Create ingestor agent implementation
 - [ ] Implement data extraction from old systems
-- [ ] Implement data transformation (to 4-table ontology)
+- [ ] Implement data transformation (to 6-dimension ontology)
 - [ ] Implement data validation
 - [ ] Implement migration reports
 - [ ] Tools: `extract_data`, `transform_data`, `validate_migration`
@@ -171,7 +171,7 @@ Human
 - [ ] **Runtime hook:** Validate all secrets are encrypted (Better Auth, Stripe, etc.)
 
 ### Ontology Hooks
-**Purpose:** Enforce 4-table ontology patterns
+**Purpose:** Enforce 6-dimension ontology patterns
 - [ ] **Pre-mutation hook:** Validate entity type exists in ontology
 - [ ] **Pre-mutation hook:** Validate connection type exists in ontology
 - [ ] **Pre-mutation hook:** Validate event type exists in ontology
@@ -478,7 +478,7 @@ Human
 
 #### ✅ Completed
 - [x] Create documentation ecosystem (90 .md files, 73k lines) - **DONE**
-- [x] Define ontology (4 tables, 66 things, 25 connections, 67 events) - **DONE**
+- [x] Define ontology (6 dimensions: things, connections, events, knowledge, people, protocols) - **DONE**
 - [x] Define architecture (Effect.ts, Convex, Astro, Hono) - **DONE**
 - [x] Create strategy documentation (8 core features) - **DONE**
 - [x] Create workflow documentation (ontology-driven development) - **DONE**
@@ -895,7 +895,7 @@ Human
 - **[one/things/hono.md](./hono.md)** - Hono API backend with Effect.ts services
 - **[one/things/files.md](./files.md)** - File system map
 - **[one/things/strategy.md](./strategy.md)** - Platform vision & 8 core features
-- **[one/connections/ontology.md](../connections/ontology.md)** - 4-table data model
+- **[one/connections/ontology.md](../connections/ontology.md)** - 6-dimension data model
 - **[one/connections/dashboard.md](../connections/dashboard.md)** - Multi-tenant UI
 - **[one/things/specifications.md](./specifications.md)** - Protocol integration patterns
 - **[one/connections/implementation.md](../connections/implementation.md)** - 12-week roadmap
@@ -1028,7 +1028,7 @@ Human
 - 100% Effect.ts for business logic (NO async/await)
 - Typed errors with `_tag` pattern
 - Dependency injection via Effect layers
-- Map all features to 4-table ontology
+- Map all features to 6-dimension ontology
 - Follow patterns.md examples exactly
 
 **Success Metrics:**

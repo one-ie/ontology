@@ -429,7 +429,7 @@ interface FormComponentData {
 
 ## Integration with Ontology
 
-All AG-UI messages are stored in our 4-table ontology:
+All AG-UI messages are stored in our 6-dimension ontology:
 
 ### Entities
 - Message entities with AG-UI protocol content

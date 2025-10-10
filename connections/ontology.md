@@ -1,50 +1,180 @@
 # ONE Platform - Ontology Specification
 
-**Version:** 1.0.0
-**Status:** Complete - Knowledge-Based Architecture 
-**Design Principle:** This ontology is protocol-agnostic. All protocols (HTML, REST, MCP, A2A, ACP, X402, AP2, etc.) map TO this ontology via metadata, never the other way around.
+**Version:** 2.0.0 (6-Dimension Architecture)
+**Status:** Complete - Reality-Aware Architecture
+**Design Principle:** This ontology models reality in six dimensions. All protocols map TO this ontology via metadata.
 ## Structure
 
-This ontology is organized into 6 consolidated files:
+This ontology is organized into 6 dimension files:
 
-1. **[organisation.md](./organisation.md)** - Organizations own things and delegate ownership to people
-2. **[people.md](./people.md)** - Platform owner, org owners, users, and customers who customize AI
-3. **[things.md](./things.md)** - 66 entity types (summary; complete details below)
-4. **[connections.md](./connections.md)** - 25 relationship types (summary; complete details below)
-5. **[events.md](./events.md)** - 67 event types (summary; complete details below)
-6. **[knowledge.md](./knowledge.md)** - Vectors, embeddings, RAG, inference, and revenue flows
+1. **[organisation.md](./organisation.md)** - Multi-tenant isolation & ownership
+2. **[people.md](./people.md)** - Authorization, governance, & user customization
+3. **[things.md](./things.md)** - 66 entity types (what exists)
+4. **[connections.md](./connections.md)** - 25 relationship types (how they relate)
+5. **[events.md](./events.md)** - 67 event types (what happened)
+6. **[knowledge.md](./knowledge.md)** - Vectors, embeddings, RAG (what it means)
 
 **This document (Ontology.md)** contains the complete technical specification. The consolidated files above provide focused summaries and patterns.
 
-## The 4-Table Universe
+## The 6-Dimension Reality Model
 
-Every single thing in ONE platform exists in one of these 4 tables:
+Every single thing in ONE platform exists within one of these 6 dimensions:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                          THINGS                               │
+│                      1. ORGANIZATIONS                         │
+│  Multi-tenant isolation boundary - who owns what at org level │
+└──────────────────────────────────────────────────────────────┘
+                              ↓
+┌──────────────────────────────────────────────────────────────┐
+│                         2. PEOPLE                             │
+│  Authorization & governance - platform owner, org owners      │
+└──────────────────────────────────────────────────────────────┘
+                              ↓
+┌──────────────────────────────────────────────────────────────┐
+│                         3. THINGS                             │
 │  Every "thing" - users, agents, content, tokens, courses      │
 └──────────────────────────────────────────────────────────────┘
                               ↓
 ┌──────────────────────────────────────────────────────────────┐
-│                       CONNECTIONS                             │
+│                      4. CONNECTIONS                           │
 │  Every relationship - owns, follows, taught_by, powers        │
 └──────────────────────────────────────────────────────────────┘
                               ↓
 ┌──────────────────────────────────────────────────────────────┐
-│                          EVENTS                               │
+│                         5. EVENTS                             │
 │  Every action - purchased, created, viewed, completed         │
 └──────────────────────────────────────────────────────────────┘
                               ↓
 ┌──────────────────────────────────────────────────────────────┐
-│                         KNOWLEDGE                             │
+│                       6. KNOWLEDGE                            │
 │  Labels + chunks + vectors powering RAG & search              │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-**Golden Rule:** If you can't map your feature to these 4 tables, you're thinking about it wrong.
+**Golden Rule:** If you can't map your feature to these 6 dimensions, you're thinking about it wrong.
 
-Simplicity: ONE is four primitives — things (entities), connections, events, and knowledge — plus ownership and organizations. Everything composes from these building blocks.
+**Simplicity:** ONE is six dimensions — organizations partition, people authorize, things exist, connections relate, events record, and knowledge understands. Everything composes from these building blocks.
+
+---
+
+## ORGANIZATIONS: The Isolation Boundary
+
+Purpose: Partition the system for multi-tenant scale. Every organization owns its own graph of things, connections, events, and knowledge.
+
+### Organization Structure
+
+```typescript
+{
+  _id: Id<'organizations'>,
+  name: string,
+  slug: string,              // URL-friendly identifier
+  domain?: string,           // Custom domain
+  status: 'active' | 'suspended' | 'trial' | 'cancelled',
+  plan: 'starter' | 'pro' | 'enterprise',
+
+  limits: {
+    users: number,
+    storage: number,         // GB
+    apiCalls: number,
+    inference: number,       // Monthly LLM calls
+  },
+
+  usage: {
+    users: number,
+    storage: number,
+    apiCalls: number,
+    inference: number,
+  },
+
+  billing: {
+    customerId?: string,     // Stripe customer
+    subscriptionId?: string,
+  },
+
+  settings: {
+    allowSignups: boolean,
+    requireEmailVerification: boolean,
+    enableTwoFactor: boolean,
+  },
+
+  createdAt: number,
+  updatedAt: number,
+  trialEndsAt?: number,
+}
+```
+
+### Why Organizations Matter
+
+1. **Multi-Tenant Isolation:** Each org's data is completely separate
+2. **Resource Quotas:** Control costs and usage per organization
+3. **Custom Branding:** Each org can have unique frontend/domain
+4. **Billing Flexibility:** Per-org subscriptions and revenue sharing
+
+---
+
+## PEOPLE: Authorization & Governance
+
+Purpose: Define who can do what. People direct organizations, customize AI agents, and govern access.
+
+### Person Structure
+
+```typescript
+{
+  _id: Id<'people'>,
+  email: string,
+  username: string,
+  displayName: string,
+
+  // CRITICAL: Role determines access level
+  role: 'platform_owner' | 'org_owner' | 'org_user' | 'customer',
+
+  // Organization context
+  organizationId?: Id<'organizations'>,  // Current/default org
+  permissions?: string[],
+
+  // Profile
+  bio?: string,
+  avatar?: string,
+
+  // Multi-tenant tracking
+  organizations: Id<'organizations'>[],  // All orgs this person belongs to
+
+  createdAt: number,
+  updatedAt: number,
+}
+```
+
+### Four Roles
+
+1. **Platform Owner** (Anthony)
+   - Owns the ONE Platform
+   - 100% revenue from platform-level services
+   - Can access all organizations (support/debugging)
+   - Creates new organizations
+
+2. **Org Owner**
+   - Owns/manages one or more organizations
+   - Controls users, permissions, billing within org
+   - Customizes AI agents and frontend
+   - Revenue sharing with platform
+
+3. **Org User**
+   - Works within an organization
+   - Limited permissions (defined by org owner)
+   - Can create content, run agents (within quotas)
+
+4. **Customer**
+   - External user consuming content
+   - Purchases tokens, enrolls in courses
+   - No admin access
+
+### Why People Matter
+
+1. **Authorization:** Every action must have an actor (person)
+2. **Governance:** Org owners control who can do what
+3. **Audit Trail:** Events log who did what when
+4. **Customization:** People teach AI agents their preferences
 
 ---
 
@@ -2066,6 +2196,55 @@ Principle: Users can add to any type without breaking the ontology.
 
 ## Summary Statistics
 
+**Dimensions:** 6 total (organizations, people, things, connections, events, knowledge)
+
+**Thing Types:** 66 total
+- Core: 4 (creator, ai_clone, audience_member, organization)
+- Business Agents: 10
+- Content: 7
+- Products: 4
+- Community: 3
+- Token: 2
+- Knowledge: 2
+- Platform: 6
+- Business: 7
+- Authentication & Session: 5
+- Marketing: 6
+- External: 3
+- Protocol: 2
+
+**Connection Types:** 25 total (Hybrid approach)
+- 18 specific semantic types
+- 7 consolidated types with metadata variants
+- Protocol-agnostic via metadata.protocol
+- Includes organization membership with role-based metadata
+
+**Event Types:** 67 total (Hybrid approach)
+- 4 Thing lifecycle
+- 5 User events
+- 6 Authentication events
+- 5 Organization events
+- 4 Dashboard & UI events
+- 4 AI/Clone events
+- 4 Agent events
+- 7 Token events
+- 5 Course events
+- 5 Analytics events
+- 7 Inference events
+- 5 Blockchain events
+- 11 consolidated types with metadata variants
+
+**Design Benefits:**
+- Six-dimension reality model
+- Multi-tenant by design
+- Clear ownership & governance
+- Protocol-agnostic core
+- Infinite protocol extensibility
+- Cross-protocol analytics
+- Type-safe
+- Future-proof
+- Scales from children to enterprise
+
 ---
 
 ## Knowledge Governance
@@ -2151,12 +2330,12 @@ Policy: Default is free-form, user-extensible knowledge labels for maximum flexi
 
 **Simplicity is the ultimate sophistication.**
 
-This ontology proves that you don't need hundreds of event types or dozens of tables to build a complete AI-native platform. You need:
+This ontology proves that you don't need hundreds of tables or complex schemas to build a complete AI-native platform. You need:
 
-1. **4 tables** (things [table: `entities`], connections, events, knowledge)
-2. **56 thing types** (every "thing")
-3. **25 connection types** (18 specific + 7 consolidated - every relationship)
-4. **35 event types** (24 specific + 11 consolidated - every action)
+1. **6 dimensions** (organizations, people, things, connections, events, knowledge)
+2. **66 thing types** (every "thing")
+3. **25 connection types** (every relationship)
+4. **67 event types** (every action)
 5. **Metadata** (for protocol identity via metadata.protocol)
 
 That's it. Everything else is just data.
@@ -2166,16 +2345,18 @@ That's it. Everything else is just data.
 **Other systems:**
 
 - Create new tables for every feature
-- Add protocol-specific event types
+- Add protocol-specific columns
 - Pollute schema with temporary concepts
-- End up with 50+ tables, 200+ event types
+- End up with 50+ tables, 200+ columns
 - Become unmaintainable nightmares
 
 **ONE's approach:**
 
-- Map every feature to 4 tables
-- Use generic event types + metadata
-- Protocol-agnostic core design
+- Map every feature to 6 dimensions
+- Organizations partition the space
+- People authorize and govern
+- Things, connections, events flow from there
+- Knowledge understands it all
 - Scale infinitely without schema changes
 - Stay simple, clean, beautiful
 
@@ -2183,9 +2364,10 @@ That's it. Everything else is just data.
 
 A database schema that:
 
-- AI agents can understand completely
-- Humans can reason about easily
-- Supports infinite protocols
+- Scales from lemonade stands to global enterprises
+- Children can understand: "I own (org), I'm the boss (person), I sell lemonade (things)"
+- Enterprises can rely on: Multi-tenant isolation, clear governance, infinite scale
+- AI agents can reason about completely
 - Never needs breaking changes
 - Grows more powerful as it grows larger
 

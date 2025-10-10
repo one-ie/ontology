@@ -2,7 +2,7 @@
 
 **Version:** 1.0.0
 **Status:** Active
-**Purpose:** Map SUI Move smart contracts to the ONE Platform 4-table ontology
+**Purpose:** Map SUI Move smart contracts to the ONE Platform 6-dimension ontology
 
 ---
 
@@ -14,7 +14,7 @@ SUI Move is our smart contract layer for blockchain operations. It integrates se
 
 ---
 
-## SUI Move in the 4-Table Universe
+## SUI Move in the 6-Dimension Universe
 
 ### 1. THINGS (Entities)
 
@@ -943,10 +943,12 @@ const token = await convex.query(api.tokens.get, { id: Astro.params.id });
 
 SUI Move integrates with ONE Platform through:
 
-1. **Entities**: `token_contract`, `token`, `nft` with SUI-specific properties
+1. **Things**: `token_contract`, `token`, `nft` with SUI-specific properties
 2. **Connections**: `holds_tokens`, `owns`, `staked_in` with network metadata
 3. **Events**: All token/NFT events with `metadata.network: "sui"`
-4. **Tags**: `network:sui`, `protocol:sui-move`
+4. **Knowledge**: `network:sui`, `protocol:sui-move` labels
+5. **People**: Users with SUI wallets and on-chain identities
+6. **Protocols**: SUI Move as a registered protocol with specific metadata
 
 **Key Benefits:**
 - Protocol-agnostic ontology (SUI is just metadata)
@@ -955,4 +957,4 @@ SUI Move integrates with ONE Platform through:
 - Type-safe (Effect.ts + TypeScript)
 - Real-time (Convex subscriptions + SUI event subscriptions)
 
-**This is how blockchain becomes just another data layer in the 4-table universe.**
+**This is how blockchain becomes just another data layer in the 6-dimension universe.**

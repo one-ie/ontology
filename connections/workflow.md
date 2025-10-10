@@ -1,7 +1,7 @@
 # Workflow - Ontology-Driven Development
 
 **Version:** 1.0.0
-**Purpose:** Define the exact workflow for building features on the ONE Platform using the 4-table ontology
+**Purpose:** Define the exact workflow for building features on the ONE Platform using the 6-dimension ontology
 
 ---
 
@@ -9,7 +9,7 @@
 
 Every feature in ONE Platform follows a 6-phase workflow that ensures consistency, quality, and adherence to the ontology. This workflow prevents technical debt and makes AI agents more effective at code generation.
 
-**The Golden Rule:** If you can't map your feature to the 4 tables (things, connections, events, tags), you're thinking about it wrong.
+**The Golden Rule:** If you can't map your feature to the 6 dimensions (organizations, people, things, connections, events, knowledge), you're thinking about it wrong.
 
 ---
 
@@ -39,7 +39,7 @@ Phase 6: TEST & DOCUMENT
 
 **MANDATORY READING ORDER:**
 
-1. **`one/connections/ontology.md`** (5 min) - The 4-table universe
+1. **`one/connections/ontology.md`** (5 min) - The 6-dimension universe
 2. **`one/things/README.md`** (2 min) - Understand thing types
 3. **`one/connections/README.md`** (2 min) - Understand connection types
 4. **`one/events/README.md`** (2 min) - Understand event types
@@ -81,7 +81,7 @@ If building "NFT Minting", search for:
 
 ## Phase 2: MAP TO ONTOLOGY
 
-**Goal:** Map the feature to the 4-table ontology BEFORE writing any code.
+**Goal:** Map the feature to the 6-dimension ontology BEFORE writing any code.
 
 ### Step 2.1: Identify Things
 
@@ -187,7 +187,7 @@ Knowledge:
 - [ ] All relationships use existing connection types
 - [ ] All events use existing event types
 - [ ] Metadata captures protocol/network specifics
-- [ ] No custom tables needed (everything fits in 4 tables)
+- [ ] No custom tables needed (everything fits in 6 dimensions)
 
 **If validation fails:** Re-think the feature. The ontology is intentionally complete.
 
@@ -748,7 +748,7 @@ describe("<Feature> Integration", () => {
 
 ### Before Starting
 - [ ] Read `one/connections/ontology.md`
-- [ ] Understand the 4-table model
+- [ ] Understand the 6-dimension model
 - [ ] Identify similar existing patterns
 - [ ] Map feature to ontology (Phase 2)
 

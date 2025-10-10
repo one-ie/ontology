@@ -27,9 +27,9 @@ The **middleware layer** is the glue that binds our three-layer architecture tog
                  │
                  ↓ BACKEND INTEGRATION
 ┌─────────────────────────────────────────────────────────┐
-│              HONO API + CONVEX                          │[[
-]]│  - Business logic (Effect.ts services)                  │
-│  - Database (4-table ontology)                          │
+│              HONO API + CONVEX                          │
+│  - Business logic (Effect.ts services)                  │
+│  - Database (6-dimension ontology)                      │
 │  - Real-time subscriptions                              │
 └─────────────────────────────────────────────────────────┘
 ```

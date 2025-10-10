@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Multi-tenancy** enables multiple organizations to use the ONE Platform while maintaining complete data isolation, custom branding, and independent configuration. This architecture leverages the 4-table ontology to provide:
+**Multi-tenancy** enables multiple organizations to use the ONE Platform while maintaining complete data isolation, custom branding, and independent configuration. This architecture leverages the 6-dimension ontology to provide:
 
 1. **Organization Isolation**: Each org's data is completely separated
 2. **Shared Infrastructure**: Single Hono API + Convex backend serves all orgs
@@ -46,7 +46,7 @@
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Data Model (4-Table Ontology)
+## Data Model (6-Dimension Ontology)
 
 ### Entities
 
@@ -1338,4 +1338,4 @@ await ctx.db.insert('events', {
 9. Migrate existing users to default org
 10. Launch multi-tenant support
 
-**Result:** A fully multi-tenant platform where organizations have complete data isolation, custom branding, and flexible billing, all powered by the 4-table ontology.
+**Result:** A fully multi-tenant platform where organizations have complete data isolation, custom branding, and flexible billing, all powered by the 6-dimension ontology.

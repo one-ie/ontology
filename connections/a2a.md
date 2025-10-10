@@ -314,7 +314,7 @@ go get github.com/a2a-protocol/go-sdk
 
 ### Integration with Ontology
 
-Map A2A concepts to our 4-table ontology:
+Map A2A concepts to our 6-dimension ontology:
 
 **Entities**:
 - Agent entities with A2A endpoint and capabilities

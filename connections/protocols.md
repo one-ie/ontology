@@ -34,15 +34,17 @@ price_checked, commerce_event, payment_verified
 
 ## The Ontology
 
-**Our 4-table ontology is defined in:**
+**Our 6-dimension ontology is defined in:**
 - **[Ontology.md](./ontology.md)** - The ONE source of truth
 - **[ontologyupdates.md](./ontologyupdates.md)** - Implementation plan
 
-**Tables:**
-1. **entities** - All "things" (56 entity types)
-2. **connections** - All relationships (25 connection types: 18 specific + 7 consolidated)
-3. **events** - All actions (35 event types: 24 specific + 11 consolidated)
-4. **tags** - All categories (12 tag categories)
+**Dimensions:**
+1. **organizations** - Multi-tenant isolation boundary
+2. **people** - Authorization & governance
+3. **things** - All entities (66 types)
+4. **connections** - All relationships (25 connection types)
+5. **events** - All actions (67 event types)
+6. **knowledge** - Labels, vectors, embeddings
 
 ---
 
@@ -227,7 +229,7 @@ const ap2Mandates = await ctx.db
 - Convex backend setup
 
 ### 📋 TODO
-- [ ] Implement 4-table ontology in schema
+- [ ] Implement 6-dimension ontology in schema
 - [ ] Migrate users to entities table
 - [ ] Implement A2A service
 - [ ] Implement ACP service

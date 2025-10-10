@@ -36,7 +36,7 @@ info:
     ## Architecture
     - **Backend**: Convex (real-time, edge-deployed)
     - **Authentication**: Better Auth with OAuth (GitHub, Google)
-    - **Database**: 4-table ontology (entities, connections, events, tags)
+    - **Database**: 6-dimension ontology (organizations, people, things, connections, events, knowledge)
     - **Blockchain**: Multi-chain support (Sui, Base, Solana)
 
     ## Authentication
@@ -1886,6 +1886,6 @@ The following events will be available via webhooks in future releases:
 
 **See Also:**
 - `API.md` - Complete API reference with code examples
-- `Ontology.md` - 4-table ontology specification
+- `Ontology.md` - 6-dimension ontology specification
 - `Schema.md` - Convex schema details
 - `AGENTS.md` - Convex development guide

@@ -2,7 +2,7 @@
 
 **Version:** 1.0.0
 **Status:** Active
-**Purpose:** Define KYC verification as a connection in the 4-table ontology with SUI blockchain identity
+**Purpose:** Define KYC verification as a connection in the 6-dimension ontology with SUI blockchain identity
 
 ---
 
@@ -629,4 +629,4 @@ For maximum privacy, use SUI zkLogin:
 - **[Owner.md](../things/owner.md)** - Platform owner and org_owner roles
 - **[Organisation.md](../things/organisation.md)** - Organization structure
 - **[SUI.md](../things/sui.md)** - SUI blockchain integration
-- **[Ontology.md](../ontology.md)** - 4-table universe reference
+- **[Ontology.md](../ontology.md)** - 6-dimension universe reference

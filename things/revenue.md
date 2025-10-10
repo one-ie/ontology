@@ -517,7 +517,7 @@ export class BatchInferenceService extends Effect.Service<BatchInferenceService>
 
 ### 5. Network Effects (Ontology)
 
-**4-table design enables composability:**
+**6-dimension design enables composability:**
 - Agent A runs inference
 - Agent B uses Agent A's result
 - Agent C builds on A + B

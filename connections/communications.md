@@ -335,7 +335,7 @@ GET  /api/agents/:agentId/tasks/:taskId // Task status
 
 ## Integration with Ontology
 
-All agent communications are stored in our 4-table ontology:
+All agent communications are stored in our 6-dimension ontology:
 
 ### Entities
 - Agent entities with capabilities and endpoints
@@ -441,7 +441,7 @@ const imageTask = await delegate({
 ## Key Principles
 
 1. **Interoperability First**: Use standard protocols (A2A/ACP)
-2. **Ontology-Driven**: All communication mapped to 4 tables
+2. **Ontology-Driven**: All communication mapped to 6 dimensions
 3. **Async-First**: Long-running tasks are the norm
 4. **Security**: Authentication, authorization, audit trails
 5. **Observable**: All communications logged as events

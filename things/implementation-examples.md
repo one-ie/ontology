@@ -7,7 +7,7 @@
 
 ## Overview
 
-The 4-table ontology architecture (entities, connections, events, tags) provides unprecedented flexibility, while Convex + Effect.ts delivers production-grade reliability.
+The 6-dimension ontology architecture (things, connections, events, knowledge, people, protocols) provides unprecedented flexibility, while Convex + Effect.ts delivers production-grade reliability.
 
 **Tech Stack**: Astro + React + shadcn/ui frontend, Convex backend with comprehensive components (@convex-dev/agent, workflow, rag, rate-limiter), Effect.ts service layer, Stripe Connect for payments.
 
@@ -15,7 +15,7 @@ The 4-table ontology architecture (entities, connections, events, tags) provides
 
 This document integrates information from:
 
-1. **Ontology** (`Ontology.md`) - The 4-table data model that defines ALL things, connections, events, and tags
+1. **Ontology** (`Ontology.md`) - The 6-dimension data model that defines ALL things, connections, events, knowledge, people, and protocols
 2. **DSL** (`DSL.md`, `ONE DSL.md`, `ONE DSL English.md`) - Domain-specific language for feature definition
 3. **Schema** (`convex/schema.ts`) - Current authentication-focused schema and target ontology-based schema
 4. **Implementation Examples** - Real-world code patterns and feature implementations
@@ -32,7 +32,7 @@ This document integrates information from:
 └─────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ Ontology (4 tables: entities, connections, events, tags)   │
+│ Ontology (6 dimensions: things, connections, events, knowledge, people, protocols) │
 └─────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -59,8 +59,8 @@ This document integrates information from:
 ### Why This Architecture Works
 
 **Ontology-First Design:**
-- Every feature maps to 4 tables (entities, connections, events, tags)
-- Simple test: "If you can't map it to these 4 tables, rethink it"
+- Every feature maps to 6 dimensions (things, connections, events, knowledge, people, protocols)
+- Simple test: "If you can't map it to these 6 dimensions, rethink it"
 - AI agents can't generate invalid data models
 
 **DSL Validation:**
@@ -83,13 +83,13 @@ This document integrates information from:
 
 ---
 
-## Ontology: The 4-Table Universe
+## Ontology: The 6-Dimension Universe
 
 **Purpose**: Complete data model for AI agents to understand how EVERYTHING in ONE platform is structured.
 
 ### Core Concept
 
-Every single thing in ONE platform exists in one of these 4 tables:
+Every single thing in ONE platform exists in one of these 6 dimensions:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -113,7 +113,7 @@ Every single thing in ONE platform exists in one of these 4 tables:
 └──────────────────────────────────────────────────────────────┘
 ```
 
-**Golden Rule:** If you can't map your feature to these 4 tables, you're thinking about it wrong.
+**Golden Rule:** If you can't map your feature to these 6 dimensions, you're thinking about it wrong.
 
 ### Entity Types
 
@@ -519,7 +519,7 @@ export default defineSchema({
 
 ### Target Ontology-Based Schema (Plain Convex)
 
-**Future implementation** - 4-table architecture with full ontology support:
+**Future implementation** - 6-dimension architecture with full ontology support:
 
 ```typescript
 import { defineSchema, defineTable } from "convex/server";
@@ -1018,18 +1018,18 @@ const code = compiler.compile(myFeatureDSL);
 
 ### Common Patterns
 
-**Pattern: Create Entity with Ownership**
+**Pattern: Create Thing with Ownership**
 ```typescript
 // DSL
 {
-  entity: { type: "ai_clone", name: "My Clone", properties: {...} },
+  thing: { type: "ai_clone", name: "My Clone", properties: {...} },
   output: "cloneId"
 }
 {
   connect: { from: "$creatorId", to: "$cloneId", type: "owns" }
 }
 {
-  event: { entity: "$cloneId", type: "clone_created", actor: "$creatorId" }
+  event: { thing: "$cloneId", type: "clone_created", actor: "$creatorId" }
 }
 ```
 
@@ -1067,27 +1067,27 @@ const code = compiler.compile(myFeatureDSL);
 
 ### Validation Rules
 
-**Entity Validation:**
-- ✅ Type must be valid EntityType from ontology
+**Thing Validation:**
+- ✅ Type must be valid ThingType from ontology
 - ✅ Name cannot be empty
 - ✅ Properties structure must match type
 - ✅ Status must be valid (active, inactive, draft, published, archived)
 
 **Connection Validation:**
-- ✅ fromEntityId and toEntityId must exist
+- ✅ fromThingId and toThingId must exist
 - ✅ relationshipType must be valid ConnectionType
-- ✅ Cannot connect entity to itself (usually)
+- ✅ Cannot connect thing to itself (usually)
 - ✅ Relationship must make semantic sense
 
 **Event Validation:**
-- ✅ entityId must exist
+- ✅ thingId must exist
 - ✅ eventType must be valid EventType
 - ✅ timestamp required
 - ✅ actorId must exist if provided
 
-**Tag Validation:**
-- ✅ name must be unique
-- ✅ category must be valid TagCategory
+**Knowledge Validation:**
+- ✅ label must be unique or properly scoped
+- ✅ category must be valid KnowledgeCategory
 - ✅ usageCount must be >= 0
 
 ### Performance Guidelines
@@ -1110,7 +1110,7 @@ const code = compiler.compile(myFeatureDSL);
 
 ### Reference Files
 
-- **Ontology Spec**: `Ontology.md` - Complete 4-table data model
+- **Ontology Spec**: `Ontology.md` - Complete 6-dimension data model
 - **Technical DSL**: `DSL.md`, `ONE DSL.md` - JSON-like syntax and compiler
 - **Plain English DSL**: `ONE DSL English.md` - Natural language syntax
 - **Schema**: `convex/schema.ts` - Current and target schemas

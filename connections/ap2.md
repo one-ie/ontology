@@ -240,7 +240,7 @@ Agent monitors:
 
 ### Ontology Mapping
 
-Using our 4-table ontology:
+Using our 6-dimension ontology:
 
 #### Entities
 

@@ -1,7 +1,7 @@
 # Model Context Protocol (MCP) - Deep Integration Strategy
 
 **Version:** 2.0.0 (Ontology-Aligned)
-**Purpose:** Comprehensive MCP integration with the 4-table ontology (things, connections, events, knowledge)
+**Purpose:** Comprehensive MCP integration with the 6-dimension ontology (organizations, people, things, connections, events, knowledge)
 **Protocol:** https://modelcontextprotocol.io/
 **Maintained By:** Anthropic, PBC (Open Source)
 
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-**Model Context Protocol (MCP)** enables AI systems to access the ONE Platform's 4-table ontology via a standardized protocol.
+**Model Context Protocol (MCP)** enables AI systems to access the ONE Platform's 6-dimension ontology via a standardized protocol.
 
 **Strategic Value:**
 - ✅ **Universal AI Connectivity** - Any AI can access things, knowledge, and agents
@@ -19,7 +19,7 @@
 - ✅ **RAG-Ready** - Full knowledge table access (labels + vectors)
 
 **Recommended Approach:**
-1. **MCP Server** - Expose ONE ontology (things, connections, events, knowledge)
+1. **MCP Server** - Expose ONE ontology (organizations, people, things, connections, events, knowledge)
 2. **MCP Client** - Connect to external MCP servers
 3. **Hybrid Architecture** - Best of both worlds
 4. **Knowledge Integration** - Semantic search via knowledge table
@@ -28,7 +28,7 @@
 
 ## Ontology Integration (Updated)
 
-### The 4-Table Universe
+### The 6-Dimension Universe
 
 ```typescript
 // TABLE 1: THINGS (all entities)
@@ -660,7 +660,7 @@ export class MCPServerService extends Effect.Service<MCPServerService>()(
     "one-ontology": {
       "command": "node",
       "args": ["dist/mcp-ontology-server.js"],
-      "description": "ONE Platform Ontology - Things, connections, events, knowledge (labels + RAG)"
+      "description": "ONE Platform Ontology - Organizations, people, things, connections, events, knowledge (labels + RAG)"
     },
     "one-knowledge": {
       "command": "node",
@@ -775,7 +775,7 @@ Specialized server for knowledge operations:
 ## Summary
 
 **MCP Integration (Ontology-Aligned):**
-- ✅ **4-Table Access** - Things, connections, events, knowledge
+- ✅ **6-Dimension Access** - Organizations, people, things, connections, events, knowledge
 - ✅ **Knowledge Tools** - Labels, chunks, semantic search
 - ✅ **RAG-Ready** - Vector search built-in
 - ✅ **Ontology-First** - Direct access to canonical data model

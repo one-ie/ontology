@@ -56,13 +56,15 @@ This architecture achieves **perfect separation of concerns** with three distinc
 │  ✅ Hono: REST API routes (Cloudflare Workers)                     │
 │  ✅ Convex: Real-time database + typed functions                   │
 │  ✅ Better Auth: Authentication with Convex adapter                │
-│  ✅ 4-Table Ontology: Simple, flexible data model                  │
+│  ✅ 6-Dimension Ontology: Reality-aware data model                 │
 │                                                                     │
-│  Hono API Routes       Convex Functions      4-Table Ontology      │
-│  ├─ /api/auth/*       ├─ Queries (reads)    ├─ entities           │
-│  ├─ /api/tokens/*     ├─ Mutations (writes) ├─ connections        │
-│  ├─ /api/agents/*     ├─ Actions (external) ├─ events             │
-│  └─ /api/content/*    └─ Real-time subs     └─ tags               │
+│  Hono API Routes       Convex Functions      6-Dimension Ontology  │
+│  ├─ /api/auth/*       ├─ Queries (reads)    ├─ organizations      │
+│  ├─ /api/tokens/*     ├─ Mutations (writes) ├─ people             │
+│  ├─ /api/agents/*     ├─ Actions (external) ├─ things (entities)  │
+│  └─ /api/content/*    └─ Real-time subs     ├─ connections        │
+│                                              ├─ events             │
+│                                              └─ knowledge          │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -263,12 +265,14 @@ export function TokenPurchase({ tokenId }) {
                    │
                    ↓
            ┌───────────────────────────┐
-           │  4-Table Ontology         │
+           │  6-Dimension Ontology     │
            │  (Plain Convex Schema)    │
-           │  ├─ entities (46 types)   │
-           │  ├─ connections (24 types)│
-           │  ├─ events (38 types)     │
-           │  └─ tags                  │
+           │  ├─ organizations         │
+           │  ├─ people (via things)   │
+           │  ├─ things (66 types)     │
+           │  ├─ connections (25 types)│
+           │  ├─ events (67 types)     │
+           │  └─ knowledge             │
            │                           │
            │  NO Convex Ents           │
            │  Direct DB access         │
@@ -517,15 +521,17 @@ export const purchaseTokens = confect.mutation({
 - Error handling (Convex errors → Effect errors)
 - Type safety across the boundary
 
-### Layer 5: Data Layer (4-Table Ontology - Plain Convex)
+### Layer 5: Data Layer (6-Dimension Ontology - Plain Convex)
 
-All data maps to 4 tables using **plain Convex schema** (no Convex Ents):
+All data maps to 6 dimensions using **plain Convex schema** (no Convex Ents):
 
 **Core Tables:**
-- **entities** - All things (46 entity types)
-- **connections** - All relationships (24 optimized connection types)
-- **events** - All actions (38 optimized event types)
-- **tags** - All categories
+- **organizations** - Multi-tenant partitioning
+- **people** - Authorization & governance (maps to creator/owner/user things)
+- **things (entities)** - All entities (66 types)
+- **connections** - All relationships (25 types)
+- **events** - All actions (67 types)
+- **knowledge** - All labels + vectors
 
 **Schema Implementation:**
 ```typescript
@@ -534,60 +540,99 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  entities: defineTable({
-    entityType: v.string(),
+  organizations: defineTable({
     name: v.string(),
-    description: v.optional(v.string()),
-    metadata: v.any(),
+    slug: v.string(),
+    status: v.string(),
+    plan: v.string(),
+    limits: v.any(),
+    usage: v.any(),
+    billing: v.any(),
+    settings: v.any(),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_type", ["entityType"])
-    .index("by_name", ["name"])
-    .searchIndex("search_entities", {
+    .index("by_slug", ["slug"])
+    .index("by_status", ["status"]),
+
+  // People are represented as 'creator' things with role metadata
+  // See things table for implementation
+
+  things: defineTable({
+    // Formerly "entities"
+    thingType: v.string(),
+    name: v.string(),
+    organizationId: v.id("organizations"),  // NEW: Every thing belongs to an org
+    description: v.optional(v.string()),
+    properties: v.any(),
+    status: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_type", ["thingType"])
+    .index("by_org", ["organizationId"])  // NEW: Query things by org
+    .index("by_org_type", ["organizationId", "thingType"])
+    .searchIndex("search_things", {
       searchField: "name",
-      filterFields: ["entityType"],
+      filterFields: ["thingType", "organizationId"],
     }),
 
   connections: defineTable({
-    fromEntityId: v.id("entities"),
-    toEntityId: v.id("entities"),
+    fromThingId: v.id("things"),
+    toThingId: v.id("things"),
     relationshipType: v.string(),
+    organizationId: v.id("organizations"),  // NEW: Connections scoped to org
     metadata: v.any(),
     createdAt: v.number(),
   })
-    .index("by_from", ["fromEntityId"])
-    .index("by_to", ["toEntityId"])
+    .index("by_from", ["fromThingId"])
+    .index("by_to", ["toThingId"])
+    .index("by_org", ["organizationId"])  // NEW: Query connections by org
     .index("by_relationship", ["relationshipType"]),
 
   events: defineTable({
-    entityId: v.id("entities"),
+    thingId: v.optional(v.id("things")),
     eventType: v.string(),
-    actorType: v.optional(v.string()),
-    actorId: v.optional(v.id("entities")),
+    actorId: v.id("things"),  // REQUIRED: Actor is always a person (thing with role)
+    organizationId: v.id("organizations"),  // NEW: Events scoped to org
     metadata: v.any(),
     timestamp: v.number(),
   })
-    .index("by_entity", ["entityId"])
+    .index("by_thing", ["thingId"])
+    .index("by_actor", ["actorId"])  // NEW: Query by who did it
+    .index("by_org", ["organizationId"])  // NEW: Query events by org
     .index("by_type", ["eventType"])
     .index("by_timestamp", ["timestamp"]),
 
-  tags: defineTable({
-    entityId: v.id("entities"),
-    category: v.string(),
-    value: v.string(),
+  knowledge: defineTable({
+    knowledgeType: v.string(),
+    text: v.optional(v.string()),
+    embedding: v.optional(v.array(v.number())),
+    embeddingModel: v.optional(v.string()),
+    embeddingDim: v.optional(v.number()),
+    sourceThingId: v.optional(v.id("things")),
+    sourceField: v.optional(v.string()),
+    organizationId: v.id("organizations"),  // NEW: Knowledge scoped to org
+    chunk: v.optional(v.any()),
+    labels: v.optional(v.array(v.string())),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
   })
-    .index("by_entity", ["entityId"])
-    .index("by_category", ["category"]),
+    .index("by_type", ["knowledgeType"])
+    .index("by_source", ["sourceThingId"])
+    .index("by_org", ["organizationId"])  // NEW: Query knowledge by org
+    .index("by_created", ["createdAt"]),
 });
 ```
 
 **Key Design Principles:**
+- Organizations partition ALL data (perfect multi-tenant isolation)
+- People are represented as things with `role` property (platform_owner, org_owner, org_user, customer)
+- Every thing, connection, event, and knowledge item is scoped to an organization
 - No ORM layer (Convex Ents) - direct database access
-- Flexible metadata fields (v.any()) for type-specific data
-- Comprehensive indexing for query performance
-- Search indexes for full-text search
-- Simple, predictable patterns for AI generation
+- Flexible metadata fields for type-specific data
+- Comprehensive indexing for query performance (including org-scoped indexes)
 
 **New Entity Types** (Strategy.md support):
 - **Platform**: website, landing_page, template, livestream, recording, media_asset
@@ -1500,16 +1545,36 @@ Functional programming
 
 ## Key Architectural Decisions Summary
 
-### 1. Plain Convex Schema (No Convex Ents)
-**Decision:** Use plain Convex `defineSchema` with direct database access
+### 1. Plain Convex Schema with 6-Dimension Ontology
+**Decision:** Use plain Convex `defineSchema` with 6 dimensions (organizations, people, things, connections, events, knowledge)
 **Rationale:**
 - Simpler mental model for AI agents
+- Organizations provide perfect multi-tenant isolation
+- People represented as things with role metadata (no duplicate tables)
 - No ORM abstraction layer to learn
 - Direct control over indexes and queries
-- Flexible `v.any()` metadata fields for type-specific data
-- Easier to debug and optimize performance
+- Every dimension scoped to organization
+- Scales from children's apps to enterprise SaaS
 
-### 2. Multi-Chain Blockchain Architecture
+### 2. Organizations as First-Class Dimension
+**Decision:** Every resource (thing, connection, event, knowledge) belongs to an organization
+**Rationale:**
+- Perfect data isolation for multi-tenancy
+- Clear ownership boundaries
+- Independent billing and quotas per org
+- Custom frontends per org
+- Platform-level services (shared infrastructure)
+
+### 3. People as Authorization Layer
+**Decision:** People are things with role property (platform_owner, org_owner, org_user, customer)
+**Rationale:**
+- Every action has an actor (person)
+- Clear permission hierarchy
+- Roles define what actions are allowed
+- Org owners control their users
+- Platform owner can access everything (support/debugging)
+
+### 4. Multi-Chain Blockchain Architecture
 **Decision:** Separate Effect.ts provider per blockchain (Sui, Base, Solana)
 **Rationale:**
 - Each chain has unique APIs and transaction models
@@ -1518,7 +1583,7 @@ Functional programming
 - Users can choose preferred blockchain per token/NFT
 - Chain-specific retry strategies and error handling
 
-### 3. Stripe for FIAT Only
+### 5. Stripe for FIAT Only
 **Decision:** Stripe handles USD/EUR/etc payments only, NOT crypto
 **Rationale:**
 - Clear separation of concerns (fiat vs crypto)
@@ -1526,15 +1591,7 @@ Functional programming
 - Prevents confusion about payment routing
 - Simpler error handling (payment method determines provider)
 
-### 4. Cloudflare for Livestreaming Only
-**Decision:** Cloudflare Stream API for live video, NOT for web hosting
-**Rationale:**
-- Cloudflare Pages (different service) handles web hosting
-- Stream API optimized for real-time video
-- Clear separation from infrastructure concerns
-- Prevents confusion about Cloudflare's role
-
-### 5. Effect.ts 100% Coverage
+### 6. Effect.ts 100% Coverage
 **Decision:** ALL business logic uses Effect.ts (no raw async/await)
 **Rationale:**
 - Consistent patterns across entire codebase
@@ -1543,23 +1600,17 @@ Functional programming
 - Built-in retry, timeout, resource management
 - AI generates consistent code every time
 
-### 6. Optimized Type System (24 + 38 = 62 types)
-**Decision:** Consolidate from 87 types to 62 types (-29% reduction)
+### 7. 6-Dimension Ontology (Organizations + People + 4 Core Dimensions)
+**Decision:** Expand from 4 tables to 6 dimensions
 **Rationale:**
-- Less cognitive load for AI agents
-- Generic types + metadata = flexibility + type safety
-- Fewer type discriminations in code
-- Easier to maintain consistency
-- Better query performance (fewer indexes)
-
-### 7. 4-Table Ontology
-**Decision:** All data maps to 4 tables (entities, connections, events, tags)
-**Rationale:**
-- Simple, predictable patterns for AI
-- Flexible enough to handle any domain
-- Easy to query across entity types
-- Consistent indexing strategy
-- Reduces table sprawl
+- Organizations: Multi-tenant isolation boundary
+- People: Authorization and governance
+- Things: 66 entity types (what exists)
+- Connections: 25 relationship types (how they relate)
+- Events: 67 event types (what happened)
+- Knowledge: Vectors + labels (what it means)
+- Simple enough for children, powerful enough for enterprises
+- AI agents can reason about complete reality model
 
 ---
 
@@ -1653,7 +1704,7 @@ When implementing a new feature:
    - **docs/Frontend.md** - If building UI components or pages
    - **docs/Hono.md** - If building API routes or Effect.ts services
    - **docs/Architecture.md** - To understand how everything fits together
-   - **docs/Ontology.md** - Map feature to 4 tables (entities, connections, events, tags)
+   - **docs/Ontology.md** - Map feature to 6 dimensions (organizations, people, things, connections, events, knowledge)
 
 2. **Design the layers:**
    - **Frontend:** Astro page + React component (uses Convex hooks + Hono API)
@@ -1678,11 +1729,12 @@ When implementing a new feature:
 **Key Reminders:**
 - **Frontend Layer:** Astro + React, content collections, Convex hooks + Hono API client
 - **Glue Layer:** Effect.ts services (100% coverage), typed errors, DI
-- **Backend Layer:** Hono API routes, Convex database (4-table ontology), Better Auth
+- **Backend Layer:** Hono API routes, Convex database (6-dimension ontology), Better Auth
+- **6 Dimensions:** Organizations partition, People authorize, Things exist, Connections relate, Events record, Knowledge understands
 - Stripe = fiat only (NOT crypto)
 - Cloudflare = livestreaming only (NOT web hosting)
 - Plain Convex schema (NO Convex Ents)
 - Multi-chain providers (separate services per blockchain)
-- 24 connection types + 38 event types (optimized, generic)
+- 25 connection types + 67 event types (optimized, generic)
 
 **The Result:** Each feature makes the next feature easier because AI has more patterns to learn from, and the architecture ensures consistency across all layers.

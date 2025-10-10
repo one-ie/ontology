@@ -37,7 +37,7 @@ one/
 │   │   └── ingestor-agent.md               # Migration specialist
 │   │
 │   ├── context/                            # System context
-│   │   ├── ontology.md                     # ✅ CREATED - 4-table data model
+│   │   ├── ontology.md                     # ✅ CREATED - 6-dimension data model
 │   │   ├── architecture.md                 # ✅ CREATED - System design + FP
 │   │   ├── patterns.md                     # ✅ CREATED - Code patterns
 │   │   ├── file-map.md                     # ✅ THIS FILE
@@ -66,7 +66,7 @@ one/
 │   │
 │   ├── # CORE DOCUMENTATION
 │   ├── Strategy.md                         # ✅ Platform vision & business strategy
-│   ├── Ontology.md                         # ✅ 4-table data model (25 connections, 35 events)
+│   ├── Ontology.md                         # ✅ 6-dimension data model (25 connections, 35 events)
 │   ├── Architecture.md                     # ✅ Technical architecture & FP patterns
 │   ├── Rules.md                            # ✅ Golden rules for development
 │   ├── Patterns.md                         # ✅ Code patterns & best practices
@@ -1297,7 +1297,7 @@ one/
 │   │   # CURRENT STATE: Existing Files (Already Implemented)
 │   │   # ═══════════════════════════════════════════════════════════════════════
 │   │
-│   ├── schema.ts                           # ✅ Current schema (4-table ontology: entities, connections, events, tags)
+│   ├── schema.ts                           # ✅ Current schema (6-dimension ontology: entities, connections, events, tags)
 │   ├── auth.ts                             # ✅ Better Auth integration (GitHub, Google OAuth, magic link, 2FA)
 │   ├── auth.config.ts                      # ✅ Better Auth configuration
 │   ├── http.ts                             # ✅ HTTP endpoint handler (Better Auth routes + API endpoints)
@@ -1327,7 +1327,7 @@ one/
 │   │   # ═══════════════════════════════════════════════════════════════════════
 │   │   #
 │   │   # Week 1-2: Foundation
-│   │   # - Implement schema/ directory (4 tables: entities, connections, events, tags)
+│   │   # - Implement schema/ directory (6 dimensions: entities, connections, events, tags)
 │   │   # - Create ConvexDatabase service (core/database.ts)
 │   │   # - Create EntityService, ConnectionService, EventService
 │   │   #
@@ -2431,7 +2431,7 @@ The ONE Platform is built on a **pure Effect.ts service layer** that covers 100%
 - Convex configuration (convex.config.ts)
 
 **🚧 In Progress (Planned - 20 Week Roadmap)**
-- Schema implementation (4 tables: entities, connections, events, tags)
+- Schema implementation (6 dimensions: entities, connections, events, tags)
 - Core services (database, auth, storage, cache, queue)
 - Platform feature services (AI, tokens, courses, community, etc.)
 - External provider wrappers (26 providers)

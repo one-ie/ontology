@@ -11,7 +11,7 @@ Sustainability Agent Specification
 You are the **Agent Clean** steward. Your mandate is to maintain enduring cleanliness of the ONE platform by:
 - Enforcing naming and casing standards across all assets (files, links, identifiers)
 - Eliminating duplication, dead files, and stale references before they spread
-- Guarding the ontology’s four-table structure by catching drift early
+- Guarding the ontology's six-dimension structure by catching drift early
 - Keeping developer tooling (formatters, linters, generators) aligned and noise-free
 - Surfacing actionable cleanliness reports for humans and agents to consume
 
@@ -44,7 +44,7 @@ You are the **Agent Clean** steward. Your mandate is to maintain enduring cleanl
 - Run weekly link sweeps:
   - Markdown: ensure `[label](./path/to/file.md)` references exist with exact casing.
   - TypeScript/Astro imports: flag unresolved or aliased paths that no longer exist.
-  - Ontology cross-refs: verify 4-table references (`things`, `connections`, `events`, `knowledge`) stay synchronized.
+  - Ontology cross-refs: verify 6-dimension references (`organizations`, `people`, `things`, `connections`, `events`, `knowledge`) stay synchronized.
 - Record actionable items in `reports/cleanliness/link-audit.md`.
 
 ### Step 3: Repo Health Signals
@@ -62,7 +62,7 @@ You are the **Agent Clean** steward. Your mandate is to maintain enduring cleanl
 ### Step 1: Surgical Cleanups
 
 - Apply scoped patches for each finding; never batch unrelated fixes.
-- Ensure every cleanup maps to a 4-table primitive:
+- Ensure every cleanup maps to a 6-dimension primitive:
 
 ```typescript
 await ctx.db.insert('events', {

@@ -1,6 +1,6 @@
 # ONE Ontology Documentation
 
-**Version 1.0 
+**Version 2.0 - 6-Dimension Architecture** 
 
 ---
 
@@ -111,11 +111,11 @@ Organisations → People → Things → Connections → Events → Knowledge
 
 ## Key Principles
 
-### 1. Four Primitives
+### 1. Six Dimensions
 
-Everything in ONE exists in one of 6 tables:
-- organisations
-- people
+Everything in ONE exists in one of 6 dimensions:
+- **organizations** - multi-tenant isolation (ownership partitioning)
+- **people** - authorization & governance (who can do what)
 - **things** - entities (66 types)
 - **connections** - relationships (25 types)
 - **events** - actions (67 types)
@@ -160,37 +160,47 @@ Complete audit trail:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  1. User Request                                 │
+│  1. Organization Scope                           │
+│     Define the context for all operations        │
+└──────────────────┬──────────────────────────────┘
+                   ↓
+┌─────────────────────────────────────────────────┐
+│  2. Person Authorization                         │
+│     Check permissions & role                     │
+└──────────────────┬──────────────────────────────┘
+                   ↓
+┌─────────────────────────────────────────────────┐
+│  3. User Request                                 │
 │     "Create a fitness course"                    │
 └──────────────────┬──────────────────────────────┘
                    ↓
 ┌─────────────────────────────────────────────────┐
-│  2. Vector Search (Knowledge)                    │
+│  4. Vector Search (Knowledge)                    │
 │     Find relevant chunks + labels                │
 └──────────────────┬──────────────────────────────┘
                    ↓
 ┌─────────────────────────────────────────────────┐
-│  3. RAG Context Assembly                         │
-│     Crawls using vectors and ontology → Context                      │
+│  5. RAG Context Assembly                         │
+│     Crawls using vectors and ontology → Context  │
 └──────────────────┬──────────────────────────────┘
                    ↓
 ┌─────────────────────────────────────────────────┐
-│  4. LLM Generation                               │
+│  6. LLM Generation                               │
 │     Context + Prompt → Generated content         │
 └──────────────────┬──────────────────────────────┘
                    ↓
 ┌─────────────────────────────────────────────────┐
-│  5. Create Thing + Connections + Events          │
+│  7. Create Thing + Connections + Events          │
 │     Course entity + ownership + logs             │
 └──────────────────┬──────────────────────────────┘
                    ↓
 ┌─────────────────────────────────────────────────┐
-│  6. Embed New Content (Knowledge)                │
+│  8. Embed New Content (Knowledge)                │
 │     Course → chunks → embeddings                 │
 └─────────────────────────────────────────────────┘
 ```
 
-Knowledge makes generation **context-aware** and **infinitely scalable**.
+Knowledge makes generation **context-aware**, organizations make it **multi-tenant**, and people make it **governed**.
 
 ---
 
@@ -198,14 +208,16 @@ Knowledge makes generation **context-aware** and **infinitely scalable**.
 
 **Simplicity is the ultimate sophistication.**
 
-- **4 tables** (not 50+)
+- **6 dimensions** (not 50+ tables)
+- **Organizations** partition the space
+- **People** authorize and govern
 - **66 thing types** (covers everything)
 - **25 connection types** (all relationships)
 - **67 event types** (complete tracking)
 - **Metadata for variance** (not enum explosion)
 - **Protocol-agnostic core** (infinite extensibility)
 
-This ontology proves you don't need complexity to build a complete AI-native platform.
+This ontology proves you don't need complexity to build a complete AI-native platform that scales from children's lemonade stands to global enterprises.
 
 ---
 

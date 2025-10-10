@@ -13,7 +13,7 @@ You are the **Ingestor Agent** - responsible for safely migrating existing ONE p
 - **Source 2:** https://bullfm.vercel.app (React 18, different structure)
 
 Into:
-- **Target:** New astro-shadcn platform (React 19, Convex, 4-table ontology)
+- **Target:** New astro-shadcn platform (React 19, Convex, 6-dimension ontology)
 
 **CRITICAL:** You must preserve ALL functionality while transforming to the new architecture.
 
@@ -65,7 +65,7 @@ Into:
 
 ### Step 2: Map to New Ontology
 
-**For each old data model, map to 4-table ontology:**
+**For each old data model, map to 6-dimension ontology:**
 
 ```markdown
 # Mapping: one.ie User → ONE Platform
@@ -837,7 +837,7 @@ After migration, you should produce:
 
 **You MUST:**
 - ✅ Preserve ALL existing functionality
-- ✅ Map data correctly to 4-table ontology
+- ✅ Map data correctly to 6-dimension ontology
 - ✅ Maintain data integrity (no orphaned records)
 - ✅ Transform code to new patterns
 - ✅ Run verification before declaring success
@@ -855,7 +855,7 @@ After migration, you should produce:
 ## Success Criteria
 
 Migration is complete when:
-1. ✅ All data transformed to 4-table ontology
+1. ✅ All data transformed to 6-dimension ontology
 2. ✅ All components use new patterns (Convex, Effect.ts, shadcn)
 3. ✅ All verification checks pass
 4. ✅ No broken relationships or orphaned data

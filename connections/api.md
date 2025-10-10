@@ -1241,13 +1241,23 @@ export const sendPasswordResetEmailAction = internalAction({
 
 ---
 
-## Schema Reference (4-Table Ontology)
+## Schema Reference (6-Dimension Ontology)
 
-The ONE platform uses a **4-table ontology** where every feature maps to one of these tables:
+The ONE platform uses a **6-dimension ontology** where every feature maps to one of these dimensions:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                      ENTITIES TABLE                          │
+│                   ORGANIZATIONS TABLE                        │
+│  Multi-tenant isolation - who owns what at org level        │
+└──────────────────────────────────────────────────────────────┘
+                              ↓
+┌──────────────────────────────────────────────────────────────┐
+│                      PEOPLE TABLE                            │
+│  Authorization & governance - who can do what               │
+└──────────────────────────────────────────────────────────────┘
+                              ↓
+┌──────────────────────────────────────────────────────────────┐
+│                      THINGS TABLE                            │
 │  Every "thing" - users, agents, content, tokens, courses    │
 └──────────────────────────────────────────────────────────────┘
                               ↓
@@ -1262,12 +1272,12 @@ The ONE platform uses a **4-table ontology** where every feature maps to one of 
 └──────────────────────────────────────────────────────────────┘
                               ↓
 ┌──────────────────────────────────────────────────────────────┐
-│                       TAGS TABLE                             │
-│  Every category - industry:fitness, skill:video, etc.       │
+│                    KNOWLEDGE TABLE                           │
+│  Labels + vectors powering RAG & search                     │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-**Golden Rule:** If you can't map your feature to these 4 tables, you're thinking about it wrong.
+**Golden Rule:** If you can't map your feature to these 6 dimensions, you're thinking about it wrong.
 
 ### Entities Table
 
@@ -1771,7 +1781,7 @@ paginationOptsValidator
 
 ## How Features Map to Ontology
 
-Understanding how to map features to the 4-table ontology is critical for implementing new functionality.
+Understanding how to map features to the 6-dimension ontology is critical for implementing new functionality.
 
 ### Example: AI Clone Creation
 
@@ -2046,7 +2056,7 @@ export const getCloneMetrics = query({
 
 ---
 
-## Migration Guide: Old System → 4-Table Ontology
+## Migration Guide: Old System → 6-Dimension Ontology
 
 ### Step 1: Identify Entity Types
 

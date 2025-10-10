@@ -763,7 +763,7 @@ The ONE Platform should deploy across three networks:
    - USDC native
    - Enterprise on-ramps
 
-**Key Insight:** The 4-table ontology makes this trivial. Networks are just metadata. Build once, deploy everywhere.
+**Key Insight:** The 6-dimension ontology makes this trivial. Networks are just metadata. Build once, deploy everywhere.
 
 **This is how you build the fastest, cheapest, most scalable AI agent network in crypto.**
 

@@ -62,6 +62,7 @@ connections/
   mcp.md
   membership.md
   middleware.md
+  MIGRATION-GUIDE.md
   multitenant.md
   n8n.md
   ontology-documentation.md
@@ -77,6 +78,11 @@ connections/
   x402.md
 events/
   events.md
+examples/
+  children/
+    lemonade-stand.md
+  enterprise/
+    crm-saas.md
 knowledge/
   knowledge.md
   score.md
@@ -89,7 +95,8 @@ people/
   people.md
 things/
   agents/
-    clone.md
+    agent-clean.md
+    agent-clone.md
     director.md
   plans/
     app.md
@@ -98,6 +105,7 @@ things/
     big-plan.md
     convex-better-auth.md
     convex-on-off.md
+    desktop.md
     effect-components.md
     effect.md
     email.md
@@ -108,15 +116,19 @@ things/
     mail-backend.md
     mail.md
     next-features.md
+    one.md
+    ontology-6-dimensions.md
+    open-agent.md
+    performace.md
     repos.md
+    separate.md
     sidebar.md
     small-fixes.md
+    test-backend-connection.md
   workflows/
     delegation.md
     strategy.md
     tasks.md
-  agent-clean.md
-  agent-clone.md
   agentkit.md
   agentsales.md
   ai-platform.md
@@ -155,6 +167,4624 @@ things/
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="connections/MIGRATION-GUIDE.md">
+# Migration Guide: 4-Table → 6-Dimension Ontology
+
+**Version:** 1.0.0
+**Date:** 2025-10-10
+**Status:** Active
+
+---
+
+## Overview
+
+This guide helps you migrate from the old "4-table ontology" terminology to the new "6-dimension ontology" architecture.
+
+**IMPORTANT:** The database schema has NOT fundamentally changed. This is primarily a documentation and conceptual upgrade that makes Organizations and People explicit first-class dimensions.
+
+### What Changed and Why
+
+**Old Model:** "4-table ontology" (things, connections, events, tags/knowledge)
+- Implied organizations and people existed
+- No explicit multi-tenant isolation
+- Authorization was ad-hoc
+- Hard to explain to children or enterprises
+
+**New Model:** "6-dimension ontology" (organizations, people, things, connections, events, knowledge)
+- Explicit multi-tenant isolation via Organizations
+- Clear authorization model via People
+- Scales from children's lemonade stands to enterprise SaaS
+- AI agents can reason about complete reality model
+
+**Why This Matters:**
+- **For Children:** "I own a lemonade stand (Organization), I'm the owner (Person), I sell lemonade (Things), customers buy it (Connections), sales happen (Events), and I learn what works (Knowledge)"
+- **For Enterprises:** Multi-tenant SaaS platforms with clear ownership, governance, data isolation, and intelligence
+
+---
+
+## What Changed
+
+### 1. Terminology
+
+| Old Term | New Term | Description |
+|----------|----------|-------------|
+| 4-table ontology | 6-dimension ontology | Complete reality model |
+| Things, connections, events, knowledge | Organizations, people, things, connections, events, knowledge | All six dimensions explicit |
+| Implicit org context | Explicit organizationId | Every resource belongs to an org |
+| Ad-hoc authorization | Role-based people dimension | Clear permission hierarchy |
+
+### 2. Conceptual Model
+
+**Old:**
+```
+Things → Connections → Events → Knowledge
+```
+
+**New:**
+```
+Organizations (isolation boundary)
+    ↓
+People (authorization & governance)
+    ↓
+Things (what exists)
+    ↓
+Connections (how they relate)
+    ↓
+Events (what happened)
+    ↓
+Knowledge (what it means)
+```
+
+### 3. Database Schema Changes
+
+**Added:**
+- `organizations` table (explicit first-class dimension)
+- `organizationId` field on all tables (for multi-tenant scoping)
+- `actorId` required on events (always references a person/thing)
+- Org-scoped indexes: `by_org`, `by_org_type`
+
+**People Representation:**
+- People are `things` with `type: 'creator'` and `properties.role`
+- No separate `people` table needed (avoids duplication)
+- Roles: `platform_owner`, `org_owner`, `org_user`, `customer`
+
+**Schema Updates:**
+
+```typescript
+// Organizations table (new first-class dimension)
+organizations: defineTable({
+  name: v.string(),
+  slug: v.string(),
+  status: v.string(),
+  plan: v.string(),
+  limits: v.any(),
+  usage: v.any(),
+  billing: v.any(),
+  settings: v.any(),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+})
+  .index("by_slug", ["slug"])
+  .index("by_status", ["status"]),
+
+// Things table (updated with org scoping)
+things: defineTable({
+  thingType: v.string(),
+  name: v.string(),
+  organizationId: v.id("organizations"),  // NEW: Every thing belongs to an org
+  description: v.optional(v.string()),
+  properties: v.any(),
+  status: v.string(),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+})
+  .index("by_type", ["thingType"])
+  .index("by_org", ["organizationId"])  // NEW: Query things by org
+  .index("by_org_type", ["organizationId", "thingType"]),  // NEW: Efficient org + type queries
+
+// Connections table (updated with org scoping)
+connections: defineTable({
+  fromThingId: v.id("things"),
+  toThingId: v.id("things"),
+  relationshipType: v.string(),
+  organizationId: v.id("organizations"),  // NEW: Connections scoped to org
+  metadata: v.any(),
+  createdAt: v.number(),
+})
+  .index("by_from", ["fromThingId"])
+  .index("by_to", ["toThingId"])
+  .index("by_org", ["organizationId"])  // NEW: Query connections by org
+  .index("by_relationship", ["relationshipType"]),
+
+// Events table (updated with org scoping and actor)
+events: defineTable({
+  thingId: v.optional(v.id("things")),
+  eventType: v.string(),
+  actorId: v.id("things"),  // REQUIRED: Actor is always a person (thing with role)
+  organizationId: v.id("organizations"),  // NEW: Events scoped to org
+  metadata: v.any(),
+  timestamp: v.number(),
+})
+  .index("by_thing", ["thingId"])
+  .index("by_actor", ["actorId"])  // NEW: Query by who did it
+  .index("by_org", ["organizationId"])  // NEW: Query events by org
+  .index("by_type", ["eventType"])
+  .index("by_timestamp", ["timestamp"]),
+
+// Knowledge table (updated with org scoping)
+knowledge: defineTable({
+  knowledgeType: v.string(),
+  text: v.optional(v.string()),
+  embedding: v.optional(v.array(v.number())),
+  embeddingModel: v.optional(v.string()),
+  embeddingDim: v.optional(v.number()),
+  sourceThingId: v.optional(v.id("things")),
+  sourceField: v.optional(v.string()),
+  organizationId: v.id("organizations"),  // NEW: Knowledge scoped to org
+  chunk: v.optional(v.any()),
+  labels: v.optional(v.array(v.string())),
+  metadata: v.optional(v.any()),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+})
+  .index("by_type", ["knowledgeType"])
+  .index("by_source", ["sourceThingId"])
+  .index("by_org", ["organizationId"])  // NEW: Query knowledge by org
+  .index("by_created", ["createdAt"]),
+```
+
+---
+
+## Migration Checklist
+
+### For Developers
+
+- [ ] Read updated [ontology.md](./ontology.md) specification
+- [ ] Read updated [architecture.md](../things/architecture.md) for schema changes
+- [ ] Update all queries to include `organizationId` filter
+- [ ] Add authorization checks using `requireOrgAccess()` middleware
+- [ ] Update frontend components to use organization context
+- [ ] Test multi-tenant data isolation thoroughly
+- [ ] Update API routes with org scoping
+- [ ] Add `actorId` to all event logging
+- [ ] Update tests to cover org isolation and authorization
+
+### For AI Agents
+
+- [ ] Update system prompts to reference "6 dimensions" instead of "4 tables"
+- [ ] Include organizations and people in feature mapping
+- [ ] Generate org-scoped queries by default
+- [ ] Include authorization checks in all mutations
+- [ ] Log events with `actorId` (who performed the action)
+- [ ] Check organization context before querying data
+- [ ] Generate role-based permission checks
+
+### For Documentation
+
+- [ ] Search and replace "4-table" → "6-dimension" in all docs
+- [ ] Update diagrams to show all 6 dimensions
+- [ ] Add examples showing organizations and people dimensions
+- [ ] Update README files with new architecture
+- [ ] Create examples for both children and enterprises
+- [ ] Update API documentation with org parameters
+- [ ] Document role-based authorization patterns
+
+---
+
+## Code Changes
+
+### 1. Query Patterns
+
+#### Old Query Pattern (4-Table)
+
+```typescript
+// Get all blog posts (NO org scoping)
+const posts = await ctx.db
+  .query("things")
+  .withIndex("by_type", (q) => q.eq("thingType", "blog_post"))
+  .collect();
+
+// PROBLEM: Returns posts from ALL organizations!
+// No multi-tenant isolation
+// Security risk: users can see other orgs' data
+```
+
+#### New Query Pattern (6-Dimension)
+
+```typescript
+// Get all blog posts in organization (WITH org scoping)
+const posts = await ctx.db
+  .query("things")
+  .withIndex("by_org_type", (q) =>
+    q.eq("organizationId", orgId)
+     .eq("thingType", "blog_post")
+  )
+  .collect();
+
+// BENEFIT: Returns only posts from specified organization
+// Perfect multi-tenant isolation
+// Optimized index: by_org_type
+```
+
+### 2. Mutation Patterns
+
+#### Old Mutation Pattern (4-Table)
+
+```typescript
+export const createBlogPost = mutation({
+  args: {
+    title: v.string(),
+    content: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // NO authorization check
+    // NO organization scoping
+
+    const postId = await ctx.db.insert("things", {
+      thingType: "blog_post",
+      name: args.title,
+      properties: { content: args.content },
+      status: "draft",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // NO event logging
+    return postId;
+  },
+});
+
+// PROBLEMS:
+// 1. No authorization check
+// 2. No organization scoping
+// 3. No audit trail (events)
+// 4. Can't track who created the post
+```
+
+#### New Mutation Pattern (6-Dimension)
+
+```typescript
+export const createBlogPost = mutation({
+  args: {
+    orgId: v.id("organizations"),  // NEW: Require organization context
+    title: v.string(),
+    content: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // NEW: Check authorization
+    await requireOrgAccess(ctx, args.orgId, "org_user");
+
+    // NEW: Get current user (actor)
+    const userId = await getUserId(ctx);
+
+    // NEW: Scope to organization
+    const postId = await ctx.db.insert("things", {
+      thingType: "blog_post",
+      name: args.title,
+      organizationId: args.orgId,  // NEW: Org scoping
+      properties: { content: args.content },
+      status: "draft",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // NEW: Log event with actor
+    await ctx.db.insert("events", {
+      eventType: "content_created",
+      actorId: userId,  // NEW: Who did it
+      thingId: postId,
+      organizationId: args.orgId,  // NEW: Org scoping
+      timestamp: Date.now(),
+      metadata: { contentType: "blog_post" },
+    });
+
+    return postId;
+  },
+});
+
+// BENEFITS:
+// 1. Authorization check ensures user has access
+// 2. Organization scoping prevents data leaks
+// 3. Complete audit trail (who, what, when)
+// 4. Multi-tenant safe by default
+```
+
+### 3. Authorization Middleware
+
+#### Implementation
+
+```typescript
+// src/middleware/auth.ts
+
+export async function requireOrgAccess(
+  ctx: ConvexContext,
+  orgId: Id<"organizations">,
+  requiredRole: "org_owner" | "org_user"
+) {
+  const userId = await getUserId(ctx);
+
+  // Get user's thing (person)
+  const user = await ctx.db.get(userId);
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  // Check if platform owner (can access everything)
+  if (user.properties.role === "platform_owner") {
+    return true;
+  }
+
+  // Check if user belongs to organization
+  const membership = await ctx.db
+    .query("connections")
+    .withIndex("by_from_to_type", (q) =>
+      q.eq("fromThingId", userId)
+       .eq("toThingId", orgId)
+       .eq("relationshipType", "member_of")
+    )
+    .first();
+
+  if (!membership) {
+    throw new Error("User not member of organization");
+  }
+
+  // Check role
+  const userRole = membership.metadata.role;
+  if (requiredRole === "org_owner" && userRole !== "org_owner") {
+    throw new Error("Org owner access required");
+  }
+
+  return true;
+}
+```
+
+#### Usage Examples
+
+```typescript
+// Require org_user access (any member)
+await requireOrgAccess(ctx, args.orgId, "org_user");
+
+// Require org_owner access (admin only)
+await requireOrgAccess(ctx, args.orgId, "org_owner");
+```
+
+### 4. Frontend Patterns
+
+#### Old Frontend Pattern (4-Table)
+
+```typescript
+// No org context
+const posts = useQuery(api.queries.posts.list);
+
+// PROBLEM: Which organization's posts?
+// PROBLEM: No multi-tenant support
+```
+
+#### New Frontend Pattern (6-Dimension)
+
+```typescript
+// Get current user and organization
+const user = useQuery(api.queries.users.current);
+const orgId = user?.properties.organizationId;
+
+// Query posts for user's organization
+const posts = useQuery(
+  api.queries.posts.list,
+  orgId ? { orgId } : "skip"
+);
+
+// BENEFIT: Clear organization context
+// BENEFIT: Multi-tenant safe
+```
+
+#### Organization Selector Component
+
+```tsx
+// src/components/admin/OrganizationSelector.tsx
+
+export function OrganizationSelector() {
+  const user = useQuery(api.queries.users.current);
+  const orgs = useQuery(
+    api.queries.orgs.listForUser,
+    user ? { userId: user._id } : "skip"
+  );
+  const [currentOrg, setCurrentOrg] = useState(
+    user?.properties.organizationId
+  );
+
+  return (
+    <Select value={currentOrg} onValueChange={setCurrentOrg}>
+      {orgs?.map(org => (
+        <SelectItem key={org._id} value={org._id}>
+          {org.name} ({org.plan})
+        </SelectItem>
+      ))}
+    </Select>
+  );
+}
+```
+
+### 5. Event Logging Patterns
+
+#### Old Event Pattern (4-Table)
+
+```typescript
+// No actor information
+await ctx.db.insert("events", {
+  eventType: "content_created",
+  thingId: postId,
+  timestamp: Date.now(),
+  metadata: {},
+});
+
+// PROBLEM: Who created the content?
+// PROBLEM: No audit trail for authorization
+```
+
+#### New Event Pattern (6-Dimension)
+
+```typescript
+// Always include actor (person who performed action)
+const userId = await getUserId(ctx);
+
+await ctx.db.insert("events", {
+  eventType: "content_created",
+  actorId: userId,  // NEW: Who did it
+  thingId: postId,
+  organizationId: args.orgId,  // NEW: Which org
+  timestamp: Date.now(),
+  metadata: { contentType: "blog_post" },
+});
+
+// BENEFIT: Complete audit trail
+// BENEFIT: Can query "what did user X do?"
+// BENEFIT: Compliance and debugging
+```
+
+---
+
+## Testing
+
+### 1. Data Isolation Tests
+
+Test that organizations have completely isolated data:
+
+```typescript
+import { describe, it, expect } from "vitest";
+
+describe("Multi-tenant data isolation", () => {
+  it("organizations cannot see each other's data", async () => {
+    // Create two separate organizations
+    const orgA = await createOrg("Org A");
+    const orgB = await createOrg("Org B");
+
+    // Create posts in each organization
+    const postA = await createPost(orgA, "Post A");
+    const postB = await createPost(orgB, "Post B");
+
+    // Query from Org A context
+    const postsInA = await queryPosts(orgA);
+
+    // Verify isolation
+    expect(postsInA).toContainEqual(postA);
+    expect(postsInA).not.toContainEqual(postB);
+  });
+
+  it("platform owner can access all organizations", async () => {
+    const orgA = await createOrg("Org A");
+    const orgB = await createOrg("Org B");
+
+    const platformOwner = await getPlatformOwner();
+
+    // Platform owner can access both orgs
+    const postsA = await queryPosts(orgA, platformOwner);
+    const postsB = await queryPosts(orgB, platformOwner);
+
+    expect(postsA).toBeDefined();
+    expect(postsB).toBeDefined();
+  });
+});
+```
+
+### 2. Authorization Tests
+
+Test that role-based permissions work correctly:
+
+```typescript
+describe("Role-based authorization", () => {
+  it("org users can create content in their org", async () => {
+    const org = await createOrg("Test Org");
+    const user = await createUser(org, "org_user");
+
+    // Should succeed
+    const post = await createPost(org, user, "My Post");
+    expect(post).toBeDefined();
+  });
+
+  it("org users cannot create content in other orgs", async () => {
+    const orgA = await createOrg("Org A");
+    const orgB = await createOrg("Org B");
+    const userA = await createUser(orgA, "org_user");
+
+    // Should fail
+    await expect(
+      createPost(orgB, userA, "Unauthorized Post")
+    ).rejects.toThrow("User not member of organization");
+  });
+
+  it("org users cannot modify org settings", async () => {
+    const org = await createOrg("Test Org");
+    const user = await createUser(org, "org_user");
+
+    // Should fail (requires org_owner)
+    await expect(
+      updateOrgSettings(org, user, { allowSignups: false })
+    ).rejects.toThrow("Org owner access required");
+  });
+
+  it("org owners can modify org settings", async () => {
+    const org = await createOrg("Test Org");
+    const owner = await createUser(org, "org_owner");
+
+    // Should succeed
+    const updated = await updateOrgSettings(
+      org,
+      owner,
+      { allowSignups: false }
+    );
+    expect(updated.settings.allowSignups).toBe(false);
+  });
+});
+```
+
+### 3. Event Audit Trail Tests
+
+Test that all actions are properly logged:
+
+```typescript
+describe("Event audit trail", () => {
+  it("logs actor for all mutations", async () => {
+    const org = await createOrg("Test Org");
+    const user = await createUser(org, "org_user");
+
+    // Create content
+    const postId = await createPost(org, user, "Test Post");
+
+    // Check event was logged
+    const events = await ctx.db
+      .query("events")
+      .withIndex("by_thing", (q) => q.eq("thingId", postId))
+      .collect();
+
+    expect(events).toHaveLength(1);
+    expect(events[0].actorId).toBe(user._id);
+    expect(events[0].eventType).toBe("content_created");
+  });
+
+  it("can query all actions by user", async () => {
+    const org = await createOrg("Test Org");
+    const user = await createUser(org, "org_user");
+
+    // User performs multiple actions
+    await createPost(org, user, "Post 1");
+    await createPost(org, user, "Post 2");
+
+    // Query all events by this user
+    const userEvents = await ctx.db
+      .query("events")
+      .withIndex("by_actor", (q) => q.eq("actorId", user._id))
+      .collect();
+
+    expect(userEvents).toHaveLength(2);
+  });
+});
+```
+
+---
+
+## Rollback Plan
+
+If critical issues arise during migration:
+
+### Stage 1: Documentation Rollback (1 hour)
+
+**Action:** Revert documentation to "4-table" terminology
+**Impact:** Minimal - schema changes remain (backward compatible)
+**Steps:**
+1. Revert all `.md` files to previous commit
+2. Update main README
+3. No code changes needed
+
+### Stage 2: Query Rollback (4 hours)
+
+**Action:** Temporarily remove organization scoping
+**Impact:** Medium - disables multi-tenant isolation temporarily
+**Steps:**
+1. Comment out `organizationId` filters in queries
+2. Disable `requireOrgAccess()` checks
+3. Add monitoring to detect cross-org queries
+4. Deploy hotfix
+5. Monitor for data leaks
+
+```typescript
+// Temporary rollback pattern
+const posts = await ctx.db
+  .query("things")
+  .withIndex("by_type", (q) => q.eq("thingType", "blog_post"))
+  // .withIndex("by_org_type", ...) // DISABLED for rollback
+  .collect();
+```
+
+### Stage 3: Full Rollback (1 day)
+
+**Action:** Revert all code changes completely
+**Impact:** High - returns to pre-migration state
+**Steps:**
+1. Revert all code changes via git
+2. Keep `organizations` table (data intact)
+3. Remove org-scoped indexes (optional)
+4. Run full test suite
+5. Deploy to production
+
+**Data Safety:**
+- All data remains intact
+- No data loss
+- Organizations table stays (for future migration)
+- Can re-run migration later after fixes
+
+### Backup Strategy
+
+**Before Migration:**
+1. Full database backup
+2. Documentation backup in git
+3. Test rollback in staging environment
+4. Document rollback procedures
+
+**During Migration:**
+1. Monitor error rates
+2. Monitor query performance
+3. Monitor cross-org data leaks
+4. Have rollback ready at all times
+
+---
+
+## Support
+
+### Documentation
+
+- **Primary Spec:** [ontology.md](./ontology.md) - Complete 6-dimension specification
+- **Architecture:** [architecture.md](../things/architecture.md) - How everything fits together
+- **Organizations:** [organisation.md](./organisation.md) - Multi-tenant architecture
+- **People:** [people.md](./people.md) - Authorization & roles
+- **Examples:** [implementation-examples.md](../things/implementation-examples.md) - Code examples
+
+### Examples
+
+**Children's Examples:**
+- Lemonade stands
+- Toy stores
+- Pet care apps
+
+**Enterprise Examples:**
+- CRM SaaS platforms
+- Multi-tenant marketplaces
+- Enterprise content management
+
+### Getting Help
+
+**Questions?**
+- Read the [6-dimension ontology specification](./ontology.md)
+- Check [implementation examples](../things/implementation-examples.md)
+- Review [architecture documentation](../things/architecture.md)
+
+**Found a Bug?**
+- Check if it's a multi-tenant isolation issue
+- Test in single-org environment
+- Review authorization middleware
+- Check org-scoped queries
+
+**Performance Issues?**
+- Verify org-scoped indexes are being used
+- Check query patterns include `organizationId`
+- Review index usage with Convex dashboard
+- Consider adding composite indexes
+
+---
+
+## Key Takeaways
+
+### The Big Picture
+
+The 6-dimension ontology transforms ONE Platform from a single-purpose system into a complete reality-aware architecture:
+
+1. **Organizations** - Multi-tenant isolation boundary (who owns what at org level)
+2. **People** - Authorization & governance (who can do what)
+3. **Things** - Entities (what exists)
+4. **Connections** - Relationships (how they relate)
+5. **Events** - Actions (what happened)
+6. **Knowledge** - Intelligence (what it means)
+
+### Why It Matters
+
+**For Children:**
+- "I own a lemonade stand (Organization)"
+- "I'm the owner (Person)"
+- "I sell lemonade (Things)"
+- "Customers buy it (Connections)"
+- "Sales happen (Events)"
+- "I learn what works (Knowledge)"
+
+**For Enterprises:**
+- Perfect multi-tenant isolation
+- Clear ownership boundaries
+- Role-based authorization
+- Complete audit trails
+- AI-powered intelligence
+- Infinite scalability
+
+### Golden Rules
+
+1. **Every resource belongs to an organization** - No exceptions
+2. **Every action has an actor** - Events must include `actorId`
+3. **Check authorization first** - Use `requireOrgAccess()` in all mutations
+4. **Query with org context** - Always use `by_org` or `by_org_type` indexes
+5. **Log everything** - Complete audit trail via events
+6. **People are things** - No duplicate tables, use role metadata
+
+---
+
+## Conclusion
+
+This migration transforms ONE Platform into a complete 6-dimension reality-aware architecture that:
+
+✅ **Scales from children to enterprises** - Same model works for lemonade stands and SaaS platforms
+✅ **Perfect multi-tenant isolation** - Organizations partition all data
+✅ **Clear ownership and governance** - People dimension with role-based authorization
+✅ **Complete audit trail** - Every action logged with actor
+✅ **AI-friendly and future-proof** - AI agents can reason about complete reality model
+✅ **Simple, beautiful, complete** - Six dimensions model all of reality
+
+**The 6 dimensions—Organizations, People, Things, Connections, Events, Knowledge—create a complete model of reality that both humans and AI can understand, reason about, and build upon infinitely.**
+
+---
+
+**Migration Guide Version:** 1.0.0
+**Last Updated:** 2025-10-10
+**Next Review:** After production deployment
+**Owner:** Platform Architecture Team
+</file>
+
+<file path="examples/children/lemonade-stand.md">
+# Building a Lemonade Stand with ONE Platform 🍋
+
+## Introduction
+
+Have you ever had a lemonade stand? It's a fun way to learn about business! But did you know that you can make your lemonade stand even smarter with AI?
+
+The ONE Platform helps you build apps using **6 dimensions** - that's just a fancy way of saying "6 things that make up your business." When you understand these 6 dimensions, you can build anything - from a lemonade stand to a video game to a robot that does your homework (well, maybe not that last one!).
+
+Let's learn how to build a smart lemonade stand that learns and gets better every day!
+
+---
+
+## The 6 Dimensions (Easy Version)
+
+Think of these as the 6 building blocks of your lemonade stand:
+
+1. **Organization** 🏢 - Your lemonade stand business (you own it!)
+2. **People** 👥 - You're the boss, your friends can help, and customers buy lemonade
+3. **Things** 🧃 - Everything you have: lemonade, cups, money, even a sign!
+4. **Connections** 🔗 - How things work together: customers buy lemonade, you own the stand
+5. **Events** 📅 - Everything that happens: a sale, making more lemonade, counting money
+6. **Knowledge** 🧠 - What your AI learns: sunny days mean more customers!
+
+---
+
+## Building Your First AI Lemonade Stand
+
+Let's build a real lemonade stand using code! Don't worry - we'll explain every step.
+
+```typescript
+// Step 1: Create your lemonade stand (Organization)
+// This is like opening your business for the first time!
+const myStand = await createOrganization({
+  name: "Emma's Lemonade Stand",
+  owner: "Emma",
+  plan: "starter",  // Just starting out!
+});
+
+// Step 2: You are the owner! (Person)
+// This tells the computer that YOU are in charge
+const me = await createPerson({
+  name: "Emma",
+  role: "org_owner",  // You're the boss!
+  organizationId: myStand._id,  // This is YOUR stand
+});
+
+// Step 3: Make some lemonade! (Thing)
+// This is what you're selling
+const lemonade = await createThing({
+  type: "product",
+  name: "Fresh Lemonade",
+  organizationId: myStand._id,  // Belongs to your stand
+  properties: {
+    price: 1.00,      // $1 per cup
+    inventory: 20,    // You made 20 cups!
+    flavor: "lemon",
+    sweetness: "just right",
+  },
+});
+
+// Step 4: Create some cups (Thing)
+// You need something to put the lemonade in!
+const cups = await createThing({
+  type: "inventory",
+  name: "Paper Cups",
+  organizationId: myStand._id,
+  properties: {
+    quantity: 50,  // You have 50 cups
+    size: "medium",
+  },
+});
+
+// Step 5: Your first customer arrives! (Person)
+const customer = await createPerson({
+  name: "Alex",
+  role: "customer",
+});
+
+// Step 6: Alex buys lemonade! (Connection)
+// This creates a link between Alex and your lemonade
+await createConnection({
+  from: customer._id,
+  to: lemonade._id,
+  type: "purchased",
+  organizationId: myStand._id,
+  metadata: {
+    payment: 1.00,
+    time: "2:30 PM",
+    weather: "sunny",
+  },
+});
+
+// Step 7: Record the sale! (Event)
+// This remembers that the sale happened
+await createEvent({
+  type: "tokens_purchased",
+  actor: customer._id,          // WHO: Alex
+  target: lemonade._id,          // WHAT: bought lemonade
+  organizationId: myStand._id,   // WHERE: at your stand
+  metadata: {
+    amount: 1.00,
+    weather: "sunny",
+    time: "2:30 PM",
+    customerMood: "happy",
+  },
+  timestamp: Date.now(),  // WHEN: right now!
+});
+
+// Step 8: Update your inventory (Thing update)
+// You sold one cup, so you have 19 left
+await updateThing(lemonade._id, {
+  properties: {
+    ...lemonade.properties,
+    inventory: 19,  // One less cup!
+  },
+});
+
+// Step 9: The AI learns! (Knowledge)
+// The AI notices patterns and helps you make decisions
+// This happens automatically in the background!
+```
+
+---
+
+## What the AI Learned 🧠
+
+After running your lemonade stand for a week, your AI has learned some cool things:
+
+### Pattern 1: Weather Matters! ☀️
+- **Monday (sunny):** Sold 18 cups
+- **Tuesday (rainy):** Sold 3 cups
+- **Wednesday (sunny):** Sold 20 cups
+- **AI's conclusion:** "Sunny days = more customers!"
+- **AI's suggestion:** "Tomorrow is sunny - make 25 cups instead of 20!"
+
+### Pattern 2: Time of Day 🕐
+- **Morning (9 AM - 12 PM):** Sold 5 cups
+- **Afternoon (12 PM - 3 PM):** Sold 8 cups
+- **After School (3 PM - 5 PM):** Sold 12 cups
+- **AI's conclusion:** "Most kids buy lemonade after school!"
+- **AI's suggestion:** "Open at 3 PM on school days to save time!"
+
+### Pattern 3: Taste Preferences 😋
+- **Customer feedback:**
+  - "Too sour!" (3 customers)
+  - "Too sweet!" (1 customer)
+  - "Just right!" (11 customers)
+- **AI's conclusion:** "Most people like it when it's 'just right' sweet!"
+- **AI's suggestion:** "Add 2 more tablespoons of sugar to make it sweeter"
+
+### Pattern 4: Price Testing 💰
+- **Week 1 ($1.00 per cup):** Sold 45 cups = $45
+- **Week 2 ($1.25 per cup):** Sold 40 cups = $50
+- **Week 3 ($1.50 per cup):** Sold 30 cups = $45
+- **AI's conclusion:** "$1.25 makes the most money!"
+- **AI's suggestion:** "Price at $1.25 for best earnings"
+
+---
+
+## Your AI Can Now Help With... 🎯
+
+### Daily Planning
+- "It's going to be sunny tomorrow - prepare 30 cups instead of 20!"
+- "Rain forecast for Friday - make only 10 cups or take the day off"
+- "Weekend coming up - you'll need extra inventory!"
+
+### Making Better Lemonade
+- "Customer reviews say lemonade is too sour - add 2 more tablespoons of sugar"
+- "5 people asked for 'less ice' - adjust your recipe!"
+- "Someone suggested adding strawberries - want to try a new flavor?"
+
+### Inventory Management
+- "You're running low on lemons - order more before the weekend rush"
+- "You have 12 cups left and usually sell 15 after school - need more cups!"
+- "You bought 50 cups last week but only used 35 - buy 40 this time"
+
+### Money Smarts
+- "You made $45 this week - that's $10 more than last week!"
+- "Lemons cost $8, sugar costs $3, cups cost $5 - total expenses: $16"
+- "Revenue $45 - expenses $16 = profit $29! Great job!"
+- "You've saved enough to buy a bigger lemonade pitcher!"
+
+### Customer Happiness
+- "Alex bought lemonade 3 times this week - give them a loyalty discount!"
+- "10 new customers this week - your stand is getting popular!"
+- "Sarah's birthday is tomorrow - make a special birthday lemonade flavor!"
+
+---
+
+## The Complete Picture: How It All Works Together 🔄
+
+Let's see how all 6 dimensions work together in your lemonade stand:
+
+```
+🏢 ORGANIZATION: Emma's Lemonade Stand
+    ↓
+👥 PEOPLE:
+    - Emma (owner - that's you!)
+    - Mom (helper)
+    - Dad (supplier - buys lemons)
+    - Alex, Sarah, Jake (customers)
+    ↓
+🧃 THINGS:
+    - Fresh Lemonade (product)
+    - Paper Cups (inventory)
+    - $29 (money/tokens)
+    - Recipe Card (content)
+    - Stand Sign (asset)
+    ↓
+🔗 CONNECTIONS:
+    - Emma OWNS lemonade stand
+    - Alex PURCHASED lemonade
+    - Lemonade IS_IN cup
+    - Recipe DESCRIBES lemonade
+    - Mom HELPS Emma
+    ↓
+📅 EVENTS:
+    - Alex purchased lemonade ($1.25)
+    - Emma made 25 cups
+    - Rain stopped sales
+    - Sarah gave 5-star review
+    - Emma counted money ($29 profit!)
+    ↓
+🧠 KNOWLEDGE:
+    - "Sunny days → 3x more sales"
+    - "After school (3-5 PM) → busiest time"
+    - "Sweet lemonade → happy customers"
+    - "$1.25 price → most profit"
+    - "Alex is a regular → offer loyalty discount"
+```
+
+### Why This Is Powerful
+
+Every time something happens at your lemonade stand:
+1. **Organization** knows which stand it belongs to (yours!)
+2. **People** know who did it (you, a helper, or a customer)
+3. **Things** get created, updated, or used (lemonade, cups, money)
+4. **Connections** link everything together (who bought what)
+5. **Events** record what happened (for your AI to learn from)
+6. **Knowledge** learns patterns and gives you smart suggestions
+
+This is how your lemonade stand gets SMARTER every single day! 🎉
+
+---
+
+## Try It Yourself! 🚀
+
+Want to build your own AI lemonade stand? Here's what to do:
+
+### For Kids Learning to Code:
+1. **Start Simple:** Use the code above to create your first stand
+2. **Add Customers:** Create 5 different customers with different names
+3. **Record Sales:** Log 10 sales throughout the day
+4. **Check the AI:** Ask "What patterns do you see?"
+
+### For Slightly Older Kids:
+1. **Add New Features:**
+   - Different lemonade flavors (strawberry, raspberry)
+   - A loyalty program (buy 5, get 1 free)
+   - Special events (birthday parties)
+2. **Track Everything:**
+   - Weather data
+   - Customer feedback
+   - Daily expenses
+3. **Let the AI Help:**
+   - "Should I make more lemonade?"
+   - "What price is best?"
+   - "Which flavor sells most?"
+
+### For Parents & Teachers:
+This example teaches:
+- **Business basics:** Revenue, expenses, profit
+- **Data collection:** Recording what happens
+- **Pattern recognition:** Learning from data
+- **Decision making:** Using information to improve
+- **Coding concepts:** Objects, relationships, events
+- **AI fundamentals:** How machines learn from data
+
+---
+
+## What You Learned 🎓
+
+Congratulations! You now understand the **6 dimensions** that power every app on the ONE Platform:
+
+1. **Organization** - Who owns the business
+2. **People** - Who does what (owners, helpers, customers)
+3. **Things** - What exists (products, inventory, money)
+4. **Connections** - How things relate (purchases, ownership)
+5. **Events** - What happens (sales, reviews, restocking)
+6. **Knowledge** - What the AI learns (patterns, suggestions)
+
+### From Lemonade Stands to Video Games to Apps
+
+These same 6 dimensions can build ANYTHING:
+
+**A Pet Care App:**
+- Organization: Pet Shelter
+- People: Pet owners, volunteers
+- Things: Dogs, cats, food, toys
+- Connections: Owner adopts pet
+- Events: Feeding time, vet visit
+- Knowledge: "Dogs need 2 walks per day"
+
+**A Homework Helper:**
+- Organization: Your School
+- People: Students, teachers
+- Things: Assignments, textbooks
+- Connections: Student assigned homework
+- Events: Homework submitted
+- Knowledge: "Math homework takes 30 minutes"
+
+**A Garden Tracker:**
+- Organization: Emma's Garden
+- People: Gardeners
+- Things: Tomato plants, seeds
+- Connections: Plant in garden bed
+- Events: Watering, harvesting
+- Knowledge: "Water every 2 days in summer"
+
+---
+
+## Next Steps 🌟
+
+Ready to build more? Try these projects:
+
+### Beginner Level:
+- 🍪 **Cookie Stand:** Sell cookies instead of lemonade
+- 🎨 **Art Gallery:** Track your drawings and who likes them
+- 📚 **Book Tracker:** Remember books you've read
+
+### Intermediate Level:
+- 🎮 **Game Points:** Track scores in your favorite game
+- 🐕 **Pet Manager:** Take care of virtual pets
+- 🏆 **Chore Tracker:** Earn points for doing chores
+
+### Advanced Level:
+- 🎵 **Music Playlist AI:** Learns your favorite songs
+- 🍕 **Restaurant Simulator:** Run a pizza shop
+- 🚀 **Space Explorer:** Manage a space station
+
+Remember: Every big app starts with understanding these 6 simple dimensions!
+
+---
+
+## Questions? 🤔
+
+**Q: Do I need to know coding to understand this?**
+A: No! The 6 dimensions are concepts you can understand even without coding. When you're ready to code, these concepts make it easier!
+
+**Q: Can I really build apps with this?**
+A: Yes! These same 6 dimensions power apps used by millions of people. You're learning the same system that professionals use!
+
+**Q: What if I want to build something different than a lemonade stand?**
+A: Perfect! Use the same 6 dimensions for ANY idea. Just swap "lemonade" for your product and follow the same pattern!
+
+**Q: How does the AI actually learn?**
+A: Every event you record teaches the AI a little bit. After many events, it finds patterns - like "sunny = more sales." That's machine learning!
+
+**Q: Can I share my lemonade stand with friends?**
+A: Absolutely! You can invite friends as "helpers" (org_user role) and they can help run the stand with you!
+
+---
+
+**Remember:** The ONE Platform scales from lemonade stands to apps serving millions of people - and it all starts with these 6 simple dimensions! 🍋✨
+
+Happy building! 🚀
+</file>
+
+<file path="examples/enterprise/crm-saas.md">
+# Building Enterprise SaaS with the 6-Dimension Ontology
+
+## Introduction: Enterprise-Grade Architecture
+
+The ONE Platform's 6-dimension ontology provides a complete foundation for building enterprise SaaS platforms that scale from startups to global enterprises. Unlike traditional architectures that require hundreds of tables and complex schemas, the 6-dimension model delivers:
+
+**Key Enterprise Benefits:**
+
+- **Perfect Multi-Tenant Isolation:** Each customer organization has completely isolated data
+- **Clear Ownership & Governance:** Role-based access control with audit trails
+- **Infinite Scalability:** Add customers without schema changes or architectural refactoring
+- **Cost Attribution:** Per-organization billing, quotas, and usage tracking
+- **AI-Native Design:** Built-in knowledge layer for intelligent features
+- **Compliance Ready:** GDPR, SOC2, HIPAA-compatible architecture
+
+This example demonstrates building a complete CRM SaaS platform using the 6-dimension ontology, showcasing multi-tenancy, authorization, and enterprise features.
+
+---
+
+## The 6 Dimensions (Enterprise Version)
+
+### 1. Organizations - Multi-Tenant Isolation Boundary
+
+Organizations are the fundamental partitioning unit for multi-tenant SaaS. Every resource (thing, connection, event, knowledge) belongs to exactly one organization, providing perfect data isolation.
+
+**Enterprise Value:**
+- Each customer company is an organization
+- Zero cross-tenant data leaks (enforced at database level)
+- Independent billing, quotas, and rate limits
+- Custom branding and feature flags per organization
+- Platform-level services with centralized infrastructure
+
+**Organization Schema:**
+
+```typescript
+interface Organization {
+  _id: Id<'organizations'>;
+  name: string;                    // "Acme Corporation"
+  slug: string;                    // "acme-corp" (URL-friendly)
+  domain?: string;                 // "crm.acme.com" (custom domain)
+  status: 'active' | 'suspended' | 'trial' | 'cancelled';
+  plan: 'starter' | 'pro' | 'enterprise';
+
+  // Resource Limits
+  limits: {
+    users: number;                 // Max users in organization
+    storage: number;               // GB
+    apiCalls: number;              // Per month
+    inference: number;             // LLM calls per month
+  };
+
+  // Current Usage
+  usage: {
+    users: number;
+    storage: number;
+    apiCalls: number;
+    inference: number;
+  };
+
+  // Billing Integration
+  billing: {
+    customerId?: string;           // Stripe customer ID
+    subscriptionId?: string;       // Stripe subscription ID
+    billingEmail?: string;
+  };
+
+  // Organization Settings
+  settings: {
+    allowSignups: boolean;
+    requireEmailVerification: boolean;
+    enableTwoFactor: boolean;
+    customBranding?: {
+      logo?: string;
+      primaryColor?: string;
+      accentColor?: string;
+    };
+  };
+
+  createdAt: number;
+  updatedAt: number;
+  trialEndsAt?: number;
+}
+```
+
+### 2. People - Authorization & Governance Layer
+
+People define who can do what within the system. In the 6-dimension architecture, people are represented as things with `type: 'creator'` and a `role` property, providing a flexible yet type-safe authorization model.
+
+**Four Enterprise Roles:**
+
+1. **Platform Owner**
+   - Owns the entire SaaS platform infrastructure
+   - Can access all organizations (for support and debugging)
+   - Manages platform-level services and billing
+   - Revenue: 100% of platform fees + revenue share from organizations
+
+2. **Org Owner**
+   - Owns and manages one or more customer organizations
+   - Full control over users, permissions, and billing within their org
+   - Can customize AI agents, branding, and features
+   - Revenue: Percentage share of org subscription fees
+
+3. **Org User**
+   - Works within a specific organization
+   - Limited permissions defined by org owner
+   - Can create content, manage leads, run AI agents (within quotas)
+   - No billing or administrative access
+
+4. **Customer**
+   - External user consuming services (e.g., lead in CRM)
+   - No administrative access
+   - Purchases products or services
+   - Tracked for analytics and billing
+
+**Person Schema (as Thing):**
+
+```typescript
+interface PersonThing {
+  _id: Id<'things'>;
+  thingType: 'creator';
+  name: string;                    // "Jane CEO"
+  organizationId: Id<'organizations'>;
+
+  properties: {
+    email: string;
+    username: string;
+    displayName: string;
+
+    // CRITICAL: Role determines access level
+    role: 'platform_owner' | 'org_owner' | 'org_user' | 'customer';
+
+    // Organization memberships (can belong to multiple orgs)
+    organizations: Id<'organizations'>[];
+    permissions?: string[];        // Custom permissions array
+
+    // Profile information
+    bio?: string;
+    avatar?: string;
+    timezone?: string;
+
+    // Authentication metadata
+    authProvider?: string;
+    lastLoginAt?: number;
+  };
+
+  status: 'active' | 'inactive' | 'suspended';
+  createdAt: number;
+  updatedAt: number;
+}
+```
+
+### 3. Things - Domain Entities
+
+Things represent all entities in your CRM: leads, accounts, opportunities, AI agents, products, etc. The 66 pre-defined thing types cover most use cases, with extensibility via metadata.
+
+**Relevant Thing Types for CRM:**
+- `creator` - People (employees, customers)
+- `sales_agent` - AI-powered sales assistants
+- `support_agent` - AI-powered support agents
+- `lead` - Sales leads
+- `account` - Customer accounts
+- `opportunity` - Sales opportunities
+- `product` - Products or services
+- `task` - Action items
+- `email` - Email messages
+- `note` - Notes and memos
+
+### 4. Connections - Business Relationships
+
+Connections define how entities relate to each other. In a CRM, this includes ownership, communication, task assignment, and deal stages.
+
+**Relevant Connection Types for CRM:**
+- `owns` - Person owns account/opportunity
+- `member_of` - Person is member of organization
+- `assigned_to` - Task assigned to person
+- `communicated` - Agent communicated with lead
+- `related_to` - Opportunity related to account
+- `purchased` - Customer purchased product
+
+### 5. Events - Complete Audit Trail
+
+Events record every action in the system, providing compliance, analytics, and debugging capabilities.
+
+**Key Event Types for CRM:**
+- `user_created` - New user registered
+- `org_created` - New organization created
+- `communication_event` - Email/call/meeting logged
+- `deal_stage_changed` - Opportunity progressed
+- `task_completed` - Task marked done
+- `content_viewed` - User viewed content
+- `inference_request` - AI agent invoked
+
+### 6. Knowledge - Intelligence Layer
+
+Knowledge stores vectors, embeddings, and semantic search capabilities, enabling AI agents to provide context-aware assistance.
+
+**Knowledge Types:**
+- `label` - Tags and categories
+- `vector` - Embeddings for semantic search
+- `chunk` - Text chunks for RAG (Retrieval Augmented Generation)
+- `summary` - Generated summaries
+
+---
+
+## Example: Building a CRM SaaS Platform
+
+This complete example demonstrates implementing a multi-tenant CRM SaaS using the 6-dimension ontology.
+
+### Step 1: Customer Signs Up (Create Organization)
+
+When a new customer signs up, create their organization with appropriate limits and settings.
+
+```typescript
+import { mutation } from "./_generated/server";
+import { v } from "convex/values";
+
+export const createOrganization = mutation({
+  args: {
+    name: v.string(),
+    ownerEmail: v.string(),
+    plan: v.optional(v.union(v.literal("starter"), v.literal("pro"), v.literal("enterprise"))),
+  },
+  handler: async (ctx, args) => {
+    // Define plan limits
+    const planLimits = {
+      starter: { users: 5, storage: 10, apiCalls: 10000, inference: 5000 },
+      pro: { users: 25, storage: 100, apiCalls: 100000, inference: 50000 },
+      enterprise: { users: 1000, storage: 1000, apiCalls: 1000000, inference: 500000 },
+    };
+
+    const plan = args.plan || "starter";
+    const slug = args.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+    // Create organization
+    const orgId = await ctx.db.insert("organizations", {
+      name: args.name,
+      slug,
+      status: "trial",
+      plan,
+      limits: planLimits[plan],
+      usage: { users: 0, storage: 0, apiCalls: 0, inference: 0 },
+      billing: { billingEmail: args.ownerEmail },
+      settings: {
+        allowSignups: true,
+        requireEmailVerification: true,
+        enableTwoFactor: false,
+      },
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      trialEndsAt: Date.now() + (14 * 24 * 60 * 60 * 1000), // 14-day trial
+    });
+
+    // Create org owner (person)
+    const ownerId = await ctx.db.insert("things", {
+      thingType: "creator",
+      name: args.ownerEmail.split("@")[0],
+      organizationId: orgId,
+      properties: {
+        email: args.ownerEmail,
+        username: args.ownerEmail.split("@")[0],
+        displayName: args.ownerEmail.split("@")[0],
+        role: "org_owner",
+        organizations: [orgId],
+        permissions: ["*"], // Full access
+      },
+      status: "active",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // Create membership connection
+    await ctx.db.insert("connections", {
+      fromThingId: ownerId,
+      toThingId: orgId as any, // Note: In practice, you'd use a thing representing the org
+      relationshipType: "member_of",
+      organizationId: orgId,
+      metadata: { role: "org_owner" },
+      createdAt: Date.now(),
+    });
+
+    // Log organization creation event
+    await ctx.db.insert("events", {
+      eventType: "org_created",
+      actorId: ownerId,
+      organizationId: orgId,
+      metadata: {
+        plan,
+        trialDays: 14,
+      },
+      timestamp: Date.now(),
+    });
+
+    // Increment usage
+    await ctx.db.patch(orgId, {
+      usage: { users: 1, storage: 0, apiCalls: 0, inference: 0 },
+    });
+
+    return { orgId, ownerId };
+  },
+});
+```
+
+### Step 2: Create AI Sales Agent
+
+Set up an AI-powered sales agent for the organization.
+
+```typescript
+export const createSalesAgent = mutation({
+  args: {
+    orgId: v.id("organizations"),
+    name: v.string(),
+    systemPrompt: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Authorization: Require org owner
+    await requireOrgAccess(ctx, args.orgId, "org_owner");
+
+    const userId = await getUserId(ctx);
+
+    // Default system prompt if not provided
+    const defaultPrompt = `You are a friendly and professional sales assistant for ${args.name}.
+Your goals are to:
+1. Qualify leads by understanding their needs and budget
+2. Provide helpful information about products and services
+3. Schedule meetings with the sales team when appropriate
+4. Maintain a warm, consultative tone
+
+Always be helpful, never pushy. Focus on understanding the customer's challenges before pitching solutions.`;
+
+    // Create sales agent
+    const agentId = await ctx.db.insert("things", {
+      thingType: "sales_agent",
+      name: args.name,
+      organizationId: args.orgId,
+      properties: {
+        systemPrompt: args.systemPrompt || defaultPrompt,
+        temperature: 0.7,
+        maxTokens: 1000,
+        model: "claude-3-5-sonnet-20250101",
+        capabilities: ["email", "chat", "calendar_scheduling"],
+      },
+      status: "active",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // Create ownership connection
+    await ctx.db.insert("connections", {
+      fromThingId: userId,
+      toThingId: agentId,
+      relationshipType: "owns",
+      organizationId: args.orgId,
+      metadata: {},
+      createdAt: Date.now(),
+    });
+
+    // Log agent creation
+    await ctx.db.insert("events", {
+      eventType: "agent_created",
+      actorId: userId,
+      thingId: agentId,
+      organizationId: args.orgId,
+      metadata: { agentType: "sales_agent" },
+      timestamp: Date.now(),
+    });
+
+    return agentId;
+  },
+});
+```
+
+### Step 3: Import Leads
+
+Add leads to the CRM system.
+
+```typescript
+export const createLead = mutation({
+  args: {
+    orgId: v.id("organizations"),
+    name: v.string(),
+    email: v.string(),
+    company: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    budget: v.optional(v.number()),
+    source: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Authorization: Require org user or owner
+    await requireOrgAccess(ctx, args.orgId, "org_user");
+
+    const userId = await getUserId(ctx);
+
+    // Create lead as a thing
+    const leadId = await ctx.db.insert("things", {
+      thingType: "creator", // Using creator for customer/lead
+      name: args.name,
+      organizationId: args.orgId,
+      properties: {
+        email: args.email,
+        username: args.email,
+        displayName: args.name,
+        role: "customer",
+        company: args.company,
+        phone: args.phone,
+        budget: args.budget,
+        source: args.source || "manual",
+        status: "new",
+        qualificationScore: 0,
+      },
+      status: "active",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // Assign lead to user
+    await ctx.db.insert("connections", {
+      fromThingId: userId,
+      toThingId: leadId,
+      relationshipType: "owns",
+      organizationId: args.orgId,
+      metadata: { assignedAt: Date.now() },
+      createdAt: Date.now(),
+    });
+
+    // Log lead creation
+    await ctx.db.insert("events", {
+      eventType: "user_created",
+      actorId: userId,
+      thingId: leadId,
+      organizationId: args.orgId,
+      metadata: {
+        leadSource: args.source || "manual",
+        company: args.company,
+      },
+      timestamp: Date.now(),
+    });
+
+    // Generate knowledge chunks for RAG
+    const leadContext = `Lead: ${args.name} from ${args.company || "unknown company"}.
+Email: ${args.email}. Budget: $${args.budget || "unknown"}. Source: ${args.source || "manual"}.`;
+
+    await generateKnowledge(ctx, {
+      orgId: args.orgId,
+      sourceThingId: leadId,
+      text: leadContext,
+    });
+
+    return leadId;
+  },
+});
+```
+
+### Step 4: AI Agent Communicates with Lead
+
+AI sales agent sends personalized outreach based on lead profile.
+
+```typescript
+export const sendAIOutreach = mutation({
+  args: {
+    orgId: v.id("organizations"),
+    agentId: v.id("things"),
+    leadId: v.id("things"),
+  },
+  handler: async (ctx, args) => {
+    // Authorization
+    await requireOrgAccess(ctx, args.orgId, "org_user");
+
+    // Get agent and lead details
+    const agent = await ctx.db.get(args.agentId);
+    const lead = await ctx.db.get(args.leadId);
+
+    if (!agent || agent.thingType !== "sales_agent") {
+      throw new Error("Invalid sales agent");
+    }
+
+    if (!lead) {
+      throw new Error("Lead not found");
+    }
+
+    // Query knowledge for relevant context
+    const relevantContext = await queryKnowledge(ctx, {
+      organizationId: args.orgId,
+      query: `sales outreach ${lead.properties.company} ${lead.properties.source}`,
+      k: 5,
+    });
+
+    // Generate personalized email using LLM
+    const emailContent = await generateEmail(ctx, {
+      systemPrompt: agent.properties.systemPrompt,
+      leadName: lead.name,
+      leadCompany: lead.properties.company,
+      context: relevantContext,
+    });
+
+    // Create email thing
+    const emailId = await ctx.db.insert("things", {
+      thingType: "email",
+      name: `Outreach to ${lead.name}`,
+      organizationId: args.orgId,
+      properties: {
+        from: agent.name,
+        to: lead.properties.email,
+        subject: emailContent.subject,
+        body: emailContent.body,
+        status: "sent",
+        sentAt: Date.now(),
+      },
+      status: "active",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // Create communication connection
+    await ctx.db.insert("connections", {
+      fromThingId: args.agentId,
+      toThingId: args.leadId,
+      relationshipType: "communicated",
+      organizationId: args.orgId,
+      metadata: {
+        protocol: "email",
+        emailId,
+        subject: emailContent.subject,
+      },
+      createdAt: Date.now(),
+    });
+
+    // Log communication event
+    await ctx.db.insert("events", {
+      eventType: "communication_event",
+      actorId: args.agentId,
+      thingId: args.leadId,
+      organizationId: args.orgId,
+      metadata: {
+        protocol: "email",
+        messageType: "outreach",
+        emailId,
+        sentiment: "positive",
+      },
+      timestamp: Date.now(),
+    });
+
+    // Update inference usage
+    await incrementUsage(ctx, args.orgId, "inference", 1);
+
+    return { emailId, emailContent };
+  },
+});
+```
+
+### Step 5: Track Lead Progression
+
+Monitor and update lead status as they move through the sales pipeline.
+
+```typescript
+export const updateLeadStatus = mutation({
+  args: {
+    orgId: v.id("organizations"),
+    leadId: v.id("things"),
+    newStatus: v.string(),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireOrgAccess(ctx, args.orgId, "org_user");
+
+    const userId = await getUserId(ctx);
+    const lead = await ctx.db.get(args.leadId);
+
+    if (!lead || lead.organizationId !== args.orgId) {
+      throw new Error("Lead not found or access denied");
+    }
+
+    const oldStatus = lead.properties.status;
+
+    // Update lead status
+    await ctx.db.patch(args.leadId, {
+      properties: {
+        ...lead.properties,
+        status: args.newStatus,
+        lastUpdatedBy: userId,
+      },
+      updatedAt: Date.now(),
+    });
+
+    // Create note if provided
+    if (args.notes) {
+      const noteId = await ctx.db.insert("things", {
+        thingType: "note",
+        name: `Note: ${lead.name} status change`,
+        organizationId: args.orgId,
+        properties: {
+          content: args.notes,
+          authorId: userId,
+        },
+        status: "active",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+
+      // Link note to lead
+      await ctx.db.insert("connections", {
+        fromThingId: noteId,
+        toThingId: args.leadId,
+        relationshipType: "related_to",
+        organizationId: args.orgId,
+        metadata: {},
+        createdAt: Date.now(),
+      });
+    }
+
+    // Log status change event
+    await ctx.db.insert("events", {
+      eventType: "deal_stage_changed",
+      actorId: userId,
+      thingId: args.leadId,
+      organizationId: args.orgId,
+      metadata: {
+        oldStatus,
+        newStatus: args.newStatus,
+        notes: args.notes,
+      },
+      timestamp: Date.now(),
+    });
+
+    return { success: true, oldStatus, newStatus: args.newStatus };
+  },
+});
+```
+
+### Step 6: Query Organization Data
+
+Retrieve CRM data with proper multi-tenant scoping.
+
+```typescript
+import { query } from "./_generated/server";
+
+export const getLeads = query({
+  args: {
+    orgId: v.id("organizations"),
+    status: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    // Authorization: Require org access
+    await requireOrgAccess(ctx, args.orgId, "org_user");
+
+    // Query leads scoped to organization
+    let leadsQuery = ctx.db
+      .query("things")
+      .withIndex("by_org_type", (q) =>
+        q.eq("organizationId", args.orgId).eq("thingType", "creator")
+      )
+      .filter((q) => q.eq(q.field("properties").role, "customer"));
+
+    // Optional status filter
+    if (args.status) {
+      leadsQuery = leadsQuery.filter((q) =>
+        q.eq(q.field("properties").status, args.status)
+      );
+    }
+
+    const leads = await leadsQuery
+      .order("desc")
+      .take(args.limit || 50);
+
+    // Get assigned users for each lead
+    const leadsWithOwners = await Promise.all(
+      leads.map(async (lead) => {
+        const ownerConnection = await ctx.db
+          .query("connections")
+          .withIndex("by_to", (q) => q.eq("toThingId", lead._id))
+          .filter((q) => q.eq(q.field("relationshipType"), "owns"))
+          .first();
+
+        const owner = ownerConnection
+          ? await ctx.db.get(ownerConnection.fromThingId)
+          : null;
+
+        return {
+          ...lead,
+          owner: owner ? {
+            id: owner._id,
+            name: owner.name,
+            email: owner.properties.email,
+          } : null,
+        };
+      })
+    );
+
+    return leadsWithOwners;
+  },
+});
+
+export const getOrganizationStats = query({
+  args: {
+    orgId: v.id("organizations"),
+  },
+  handler: async (ctx, args) => {
+    await requireOrgAccess(ctx, args.orgId, "org_owner");
+
+    const org = await ctx.db.get(args.orgId);
+
+    if (!org) {
+      throw new Error("Organization not found");
+    }
+
+    // Count entities by type
+    const leads = await ctx.db
+      .query("things")
+      .withIndex("by_org_type", (q) =>
+        q.eq("organizationId", args.orgId).eq("thingType", "creator")
+      )
+      .filter((q) => q.eq(q.field("properties").role, "customer"))
+      .collect();
+
+    const agents = await ctx.db
+      .query("things")
+      .withIndex("by_org_type", (q) =>
+        q.eq("organizationId", args.orgId).eq("thingType", "sales_agent")
+      )
+      .collect();
+
+    const events = await ctx.db
+      .query("events")
+      .withIndex("by_org", (q) => q.eq("organizationId", args.orgId))
+      .collect();
+
+    // Calculate conversion metrics
+    const convertedLeads = leads.filter(
+      (lead) => lead.properties.status === "won"
+    ).length;
+
+    const conversionRate = leads.length > 0
+      ? (convertedLeads / leads.length) * 100
+      : 0;
+
+    return {
+      organization: {
+        name: org.name,
+        plan: org.plan,
+        status: org.status,
+      },
+      usage: org.usage,
+      limits: org.limits,
+      stats: {
+        totalLeads: leads.length,
+        convertedLeads,
+        conversionRate: Math.round(conversionRate * 100) / 100,
+        activeAgents: agents.filter((a) => a.status === "active").length,
+        totalEvents: events.length,
+      },
+    };
+  },
+});
+```
+
+---
+
+## Multi-Tenancy Benefits
+
+### 1. Perfect Data Isolation
+
+The 6-dimension architecture enforces data isolation at the database level through organization scoping.
+
+**Example: Cross-Org Query Prevention**
+
+```typescript
+// SAFE: All queries automatically scoped to organization
+export const getLeads = query({
+  args: { orgId: v.id("organizations") },
+  handler: async (ctx, args) => {
+    // This query can ONLY return leads from args.orgId
+    const leads = await ctx.db
+      .query("things")
+      .withIndex("by_org_type", (q) =>
+        q.eq("organizationId", args.orgId)  // Enforces isolation
+         .eq("thingType", "creator")
+      )
+      .collect();
+
+    return leads;
+  },
+});
+
+// UNSAFE PATTERN (avoided in our architecture)
+// const allLeads = await ctx.db.query("things").collect();
+// This would violate multi-tenancy!
+```
+
+**Benefits:**
+- Zero chance of cross-organization data leaks
+- Compliance with data privacy regulations (GDPR, CCPA)
+- Customer trust and confidence
+- Simplified security audits
+
+### 2. Independent Scaling & Resource Management
+
+Each organization has independent quotas and billing.
+
+```typescript
+export const checkQuota = async (
+  ctx: any,
+  orgId: Id<"organizations">,
+  resourceType: "users" | "storage" | "apiCalls" | "inference"
+) => {
+  const org = await ctx.db.get(orgId);
+
+  if (!org) {
+    throw new Error("Organization not found");
+  }
+
+  const current = org.usage[resourceType];
+  const limit = org.limits[resourceType];
+
+  if (current >= limit) {
+    throw new Error(`${resourceType} quota exceeded. Current: ${current}, Limit: ${limit}`);
+  }
+
+  return {
+    current,
+    limit,
+    available: limit - current,
+    percentUsed: Math.round((current / limit) * 100),
+  };
+};
+
+export const incrementUsage = async (
+  ctx: any,
+  orgId: Id<"organizations">,
+  resourceType: "users" | "storage" | "apiCalls" | "inference",
+  amount: number = 1
+) => {
+  const org = await ctx.db.get(orgId);
+
+  if (!org) {
+    throw new Error("Organization not found");
+  }
+
+  // Check quota before incrementing
+  await checkQuota(ctx, orgId, resourceType);
+
+  // Increment usage
+  await ctx.db.patch(orgId, {
+    usage: {
+      ...org.usage,
+      [resourceType]: org.usage[resourceType] + amount,
+    },
+  });
+};
+```
+
+**Benefits:**
+- Per-organization billing and invoicing
+- Prevent resource abuse and overages
+- Upgrade/downgrade plans without affecting others
+- Clear cost attribution for platform economics
+
+### 3. Customization & White-Labeling
+
+Organizations can customize their experience independently.
+
+```typescript
+export const updateBranding = mutation({
+  args: {
+    orgId: v.id("organizations"),
+    logo: v.optional(v.string()),
+    primaryColor: v.optional(v.string()),
+    accentColor: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireOrgAccess(ctx, args.orgId, "org_owner");
+
+    const org = await ctx.db.get(args.orgId);
+
+    if (!org) {
+      throw new Error("Organization not found");
+    }
+
+    await ctx.db.patch(args.orgId, {
+      settings: {
+        ...org.settings,
+        customBranding: {
+          logo: args.logo || org.settings.customBranding?.logo,
+          primaryColor: args.primaryColor || org.settings.customBranding?.primaryColor,
+          accentColor: args.accentColor || org.settings.customBranding?.accentColor,
+        },
+      },
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+export const customizeAIAgent = mutation({
+  args: {
+    orgId: v.id("organizations"),
+    agentId: v.id("things"),
+    systemPrompt: v.string(),
+    temperature: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    await requireOrgAccess(ctx, args.orgId, "org_owner");
+
+    const agent = await ctx.db.get(args.agentId);
+
+    if (!agent || agent.organizationId !== args.orgId) {
+      throw new Error("Agent not found or access denied");
+    }
+
+    await ctx.db.patch(args.agentId, {
+      properties: {
+        ...agent.properties,
+        systemPrompt: args.systemPrompt,
+        temperature: args.temperature || agent.properties.temperature,
+        customizedBy: await getUserId(ctx),
+        customizedAt: Date.now(),
+      },
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+```
+
+**Benefits:**
+- Each customer can brand their CRM instance
+- Custom AI agent personalities per organization
+- Feature flags and custom workflows
+- White-label deployment options
+
+### 4. Platform Revenue & Economics
+
+Clear revenue attribution through the organization dimension.
+
+```typescript
+export const calculateRevenue = query({
+  args: {
+    startDate: v.number(),
+    endDate: v.number(),
+  },
+  handler: async (ctx, args) => {
+    // Platform owner only
+    const userId = await getUserId(ctx);
+    const user = await ctx.db.get(userId);
+
+    if (user?.properties.role !== "platform_owner") {
+      throw new Error("Platform owner access required");
+    }
+
+    // Get all active organizations
+    const orgs = await ctx.db
+      .query("organizations")
+      .withIndex("by_status", (q) => q.eq("status", "active"))
+      .collect();
+
+    // Calculate revenue by plan
+    const revenueByPlan = {
+      starter: { count: 0, mrr: 0 },
+      pro: { count: 0, mrr: 0 },
+      enterprise: { count: 0, mrr: 0 },
+    };
+
+    const planPricing = {
+      starter: 29,
+      pro: 99,
+      enterprise: 499,
+    };
+
+    orgs.forEach((org) => {
+      revenueByPlan[org.plan].count += 1;
+      revenueByPlan[org.plan].mrr += planPricing[org.plan];
+    });
+
+    // Calculate inference costs
+    const totalInferenceCalls = orgs.reduce(
+      (sum, org) => sum + org.usage.inference,
+      0
+    );
+
+    const costPerInference = 0.01; // $0.01 per call
+    const inferenceCosts = totalInferenceCalls * costPerInference;
+
+    // Platform revenue = subscription fees + inference markup
+    const subscriptionRevenue = Object.values(revenueByPlan).reduce(
+      (sum, plan) => sum + plan.mrr,
+      0
+    );
+
+    const inferenceRevenue = inferenceCosts * 0.3; // 30% markup
+
+    const totalRevenue = subscriptionRevenue + inferenceRevenue;
+
+    return {
+      period: { startDate: args.startDate, endDate: args.endDate },
+      organizations: {
+        total: orgs.length,
+        byPlan: revenueByPlan,
+      },
+      revenue: {
+        subscriptions: subscriptionRevenue,
+        inference: inferenceRevenue,
+        total: totalRevenue,
+      },
+      costs: {
+        inference: inferenceCosts,
+      },
+      profit: totalRevenue - inferenceCosts,
+    };
+  },
+});
+```
+
+**Benefits:**
+- Clear revenue attribution per organization
+- Track costs (inference, storage, API calls)
+- Revenue sharing between platform and org owners
+- Financial analytics for business decisions
+
+---
+
+## Security & Compliance
+
+### GDPR Compliance - Right to Erasure
+
+The organization dimension makes GDPR compliance straightforward.
+
+```typescript
+export const deleteOrganizationData = mutation({
+  args: {
+    orgId: v.id("organizations"),
+    confirmationCode: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Platform owner or org owner only
+    const userId = await getUserId(ctx);
+    const user = await ctx.db.get(userId);
+
+    const isPlatformOwner = user?.properties.role === "platform_owner";
+    const isOrgOwner = user?.properties.role === "org_owner"
+      && user?.organizationId === args.orgId;
+
+    if (!isPlatformOwner && !isOrgOwner) {
+      throw new Error("Unauthorized: Only platform or org owner can delete org data");
+    }
+
+    // Verify confirmation code
+    const expectedCode = `DELETE-${args.orgId.slice(0, 8)}`;
+    if (args.confirmationCode !== expectedCode) {
+      throw new Error("Invalid confirmation code");
+    }
+
+    // Delete all organization data
+    const deletionCounts = {
+      things: 0,
+      connections: 0,
+      events: 0,
+      knowledge: 0,
+    };
+
+    // Delete things
+    const things = await ctx.db
+      .query("things")
+      .withIndex("by_org", (q) => q.eq("organizationId", args.orgId))
+      .collect();
+
+    for (const thing of things) {
+      await ctx.db.delete(thing._id);
+      deletionCounts.things += 1;
+    }
+
+    // Delete connections
+    const connections = await ctx.db
+      .query("connections")
+      .withIndex("by_org", (q) => q.eq("organizationId", args.orgId))
+      .collect();
+
+    for (const connection of connections) {
+      await ctx.db.delete(connection._id);
+      deletionCounts.connections += 1;
+    }
+
+    // Delete events
+    const events = await ctx.db
+      .query("events")
+      .withIndex("by_org", (q) => q.eq("organizationId", args.orgId))
+      .collect();
+
+    for (const event of events) {
+      await ctx.db.delete(event._id);
+      deletionCounts.events += 1;
+    }
+
+    // Delete knowledge
+    const knowledge = await ctx.db
+      .query("knowledge")
+      .withIndex("by_org", (q) => q.eq("organizationId", args.orgId))
+      .collect();
+
+    for (const k of knowledge) {
+      await ctx.db.delete(k._id);
+      deletionCounts.knowledge += 1;
+    }
+
+    // Delete organization itself
+    await ctx.db.delete(args.orgId);
+
+    // Log deletion (to a separate audit table not shown here)
+    console.log(`Organization ${args.orgId} deleted by ${userId}`, deletionCounts);
+
+    return {
+      success: true,
+      deletionCounts,
+      message: "All organization data permanently deleted",
+    };
+  },
+});
+```
+
+### Audit Trails - Complete Event Logging
+
+Every action is logged with actor, timestamp, and organization context.
+
+```typescript
+export const getAuditLog = query({
+  args: {
+    orgId: v.id("organizations"),
+    startDate: v.optional(v.number()),
+    endDate: v.optional(v.number()),
+    eventType: v.optional(v.string()),
+    actorId: v.optional(v.id("things")),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    // Org owner only
+    await requireOrgAccess(ctx, args.orgId, "org_owner");
+
+    // Query events for organization
+    let eventsQuery = ctx.db
+      .query("events")
+      .withIndex("by_org", (q) => q.eq("organizationId", args.orgId))
+      .order("desc");
+
+    // Apply filters
+    if (args.eventType) {
+      eventsQuery = eventsQuery.filter((q) =>
+        q.eq(q.field("eventType"), args.eventType)
+      );
+    }
+
+    if (args.actorId) {
+      eventsQuery = eventsQuery.filter((q) =>
+        q.eq(q.field("actorId"), args.actorId)
+      );
+    }
+
+    if (args.startDate) {
+      eventsQuery = eventsQuery.filter((q) =>
+        q.gte(q.field("timestamp"), args.startDate!)
+      );
+    }
+
+    if (args.endDate) {
+      eventsQuery = eventsQuery.filter((q) =>
+        q.lte(q.field("timestamp"), args.endDate!)
+      );
+    }
+
+    const events = await eventsQuery.take(args.limit || 100);
+
+    // Enrich with actor and thing details
+    const enrichedEvents = await Promise.all(
+      events.map(async (event) => {
+        const actor = await ctx.db.get(event.actorId);
+        const thing = event.thingId ? await ctx.db.get(event.thingId) : null;
+
+        return {
+          ...event,
+          actor: actor ? {
+            id: actor._id,
+            name: actor.name,
+            email: actor.properties.email,
+            role: actor.properties.role,
+          } : null,
+          thing: thing ? {
+            id: thing._id,
+            name: thing.name,
+            type: thing.thingType,
+          } : null,
+        };
+      })
+    );
+
+    return enrichedEvents;
+  },
+});
+```
+
+### Access Control - Role-Based Permissions
+
+Implement fine-grained access control using the people dimension.
+
+```typescript
+// Authorization middleware
+export async function requireOrgAccess(
+  ctx: any,
+  orgId: Id<"organizations">,
+  requiredRole: "org_owner" | "org_user"
+) {
+  const userId = await getUserId(ctx);
+  const user = await ctx.db.get(userId);
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  // Platform owner can access everything
+  if (user.properties.role === "platform_owner") {
+    return true;
+  }
+
+  // Check if user belongs to organization
+  const membership = await ctx.db
+    .query("connections")
+    .withIndex("from_type", (q) =>
+      q.eq("fromThingId", userId)
+       .eq("relationshipType", "member_of")
+    )
+    .filter((q) => q.eq(q.field("metadata").organizationId, orgId))
+    .first();
+
+  if (!membership) {
+    throw new Error("User not member of organization");
+  }
+
+  // Check role
+  const userRole = user.properties.role;
+
+  if (requiredRole === "org_owner" && userRole !== "org_owner") {
+    throw new Error("Organization owner access required");
+  }
+
+  return true;
+}
+
+// Permission check for specific actions
+export async function checkPermission(
+  ctx: any,
+  userId: Id<"things">,
+  permission: string
+): Promise<boolean> {
+  const user = await ctx.db.get(userId);
+
+  if (!user) {
+    return false;
+  }
+
+  // Platform owner has all permissions
+  if (user.properties.role === "platform_owner") {
+    return true;
+  }
+
+  // Check if user has specific permission
+  const permissions = user.properties.permissions || [];
+
+  // Wildcard permission
+  if (permissions.includes("*")) {
+    return true;
+  }
+
+  // Exact match
+  if (permissions.includes(permission)) {
+    return true;
+  }
+
+  // Pattern match (e.g., "leads.*" matches "leads.create", "leads.update")
+  const hasMatch = permissions.some((p) => {
+    if (p.endsWith("*")) {
+      const prefix = p.slice(0, -1);
+      return permission.startsWith(prefix);
+    }
+    return false;
+  });
+
+  return hasMatch;
+}
+```
+
+### Data Encryption & Privacy
+
+Implement organization-scoped encryption for sensitive data.
+
+```typescript
+export const encryptSensitiveData = async (
+  ctx: any,
+  orgId: Id<"organizations">,
+  data: string
+): Promise<string> => {
+  // In production, use org-specific encryption keys
+  // Stored securely in a key management service (KMS)
+  const orgKey = await getOrganizationEncryptionKey(orgId);
+
+  // Encrypt data using AES-256
+  const encrypted = await encrypt(data, orgKey);
+
+  return encrypted;
+};
+
+export const decryptSensitiveData = async (
+  ctx: any,
+  orgId: Id<"organizations">,
+  encryptedData: string
+): Promise<string> => {
+  const orgKey = await getOrganizationEncryptionKey(orgId);
+  const decrypted = await decrypt(encryptedData, orgKey);
+
+  return decrypted;
+};
+
+// Example: Storing encrypted customer data
+export const createLeadWithEncryption = mutation({
+  args: {
+    orgId: v.id("organizations"),
+    name: v.string(),
+    email: v.string(),
+    phone: v.optional(v.string()),
+    ssn: v.optional(v.string()), // Sensitive data
+  },
+  handler: async (ctx, args) => {
+    await requireOrgAccess(ctx, args.orgId, "org_user");
+
+    const userId = await getUserId(ctx);
+
+    // Encrypt sensitive data
+    const encryptedSSN = args.ssn
+      ? await encryptSensitiveData(ctx, args.orgId, args.ssn)
+      : undefined;
+
+    const leadId = await ctx.db.insert("things", {
+      thingType: "creator",
+      name: args.name,
+      organizationId: args.orgId,
+      properties: {
+        email: args.email,
+        phone: args.phone,
+        encryptedSSN, // Stored encrypted
+        role: "customer",
+      },
+      status: "active",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    return leadId;
+  },
+});
+```
+
+---
+
+## Conclusion
+
+The 6-dimension ontology provides a complete, production-ready foundation for building enterprise SaaS platforms:
+
+**Key Takeaways:**
+
+1. **Organizations** provide perfect multi-tenant isolation at the database level
+2. **People** enable role-based access control and governance
+3. **Things, Connections, Events** model all business entities and relationships
+4. **Knowledge** powers AI-driven features with RAG and semantic search
+5. **Security & Compliance** are built-in, not bolted-on
+6. **Infinite Scalability** without schema changes or architectural refactoring
+
+**What You Can Build:**
+
+- CRM platforms (demonstrated in this example)
+- Project management tools
+- E-commerce marketplaces
+- Content management systems
+- Customer support platforms
+- Analytics and BI tools
+- And any other multi-tenant SaaS application
+
+**Next Steps:**
+
+1. Review the [6-Dimension Ontology specification](/Users/toc/Server/ONE/one/connections/ontology.md)
+2. Explore the [Architecture documentation](/Users/toc/Server/ONE/one/things/architecture.md)
+3. Study additional [enterprise examples](/Users/toc/Server/ONE/one/examples/enterprise/)
+4. Start building your own SaaS platform with the ONE Platform
+
+The 6-dimension architecture proves you don't need hundreds of tables or complex schemas to build enterprise-grade software. You need clarity, simplicity, and a reality-aware model that scales infinitely.
+
+**Build smarter. Build with ONE.**
+</file>
+
+<file path="things/plans/ontology-6-dimensions.md">
+# Migration Plan: 4-Table Ontology → 6-Dimension Ontology
+
+**Version:** 1.0.0
+**Created:** 2025-10-10
+**Status:** Planning
+**Goal:** Transform ONE Platform from a 4-table ontology to a complete 6-dimension architecture that scales from children learning to build AI apps to enterprise platforms serving millions.
+
+---
+
+## Executive Summary
+
+The ONE Platform currently uses a "4-table ontology" (Things, Connections, Events, Knowledge). This plan expands it to a **6-dimension ontology** that explicitly includes Organizations and People as first-class dimensions, creating a complete reality-aware architecture.
+
+**Why This Matters:**
+- **For Children:** "I own a lemonade stand (Organization), I'm the owner (Person), I sell lemonade (Things), customers buy it (Connections), sales happen (Events), and I learn what works (Knowledge)"
+- **For Enterprises:** Multi-tenant SaaS platforms with clear ownership, governance, data isolation, and intelligence
+
+**Key Changes:**
+- `4 tables` → `6 dimensions`
+- Explicit Organizations (multi-tenant isolation boundary)
+- Explicit People (authorization & governance)
+- Enhanced documentation throughout `/one/*`
+
+---
+
+## The Transformation
+
+### From: 4-Table Ontology
+
+```
+┌──────────────────────────────────────────────┐
+│                   THINGS                      │
+│  Every "thing" - entities, agents, content   │
+└──────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────┐
+│                CONNECTIONS                    │
+│  Every relationship - owns, follows, etc.    │
+└──────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────┐
+│                  EVENTS                       │
+│  Every action - purchased, created, etc.     │
+└──────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────┐
+│                KNOWLEDGE                      │
+│  Labels + vectors powering RAG & search      │
+└──────────────────────────────────────────────┘
+```
+
+### To: 6-Dimension Ontology
+
+```
+┌──────────────────────────────────────────────┐
+│              1. ORGANIZATIONS                 │
+│  THE isolation boundary for multi-tenancy    │
+│  Who owns what at the org level              │
+└──────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────┐
+│                 2. PEOPLE                     │
+│  Who can do what (authorization)             │
+│  Platform owner, org owners, users           │
+└──────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────┐
+│                 3. THINGS                     │
+│  What exists - entities, agents, content     │
+│  Created within org context                  │
+└──────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────┐
+│              4. CONNECTIONS                   │
+│  How things relate - ownership, membership   │
+│  Scoped to organizations                     │
+└──────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────┐
+│                 5. EVENTS                     │
+│  What happened - actions, state changes      │
+│  Actor (person) + target (thing) + time      │
+└──────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────┐
+│               6. KNOWLEDGE                    │
+│  What it means - vectors, embeddings, RAG    │
+│  Intelligence layer for all dimensions       │
+└──────────────────────────────────────────────┘
+```
+
+---
+
+## Phase 1: Documentation Search & Analysis
+
+### Step 1.1: Search for All "4-Table" References
+
+**Files to Update (152+ occurrences found):**
+
+**High Priority - Core Documentation:**
+- ✅ `one/connections/ontology.md` (19 occurrences) - **PRIMARY SOURCE**
+- ✅ `one/connections/ontology-documentation.md` (already shows 6 dimensions!)
+- ✅ `one/connections/documentation.md` (5 occurrences)
+- ✅ `one/things/architecture.md` (7 occurrences)
+- ✅ `one/things/rules.md` (4 occurrences)
+- ✅ `one/things/frontend.md` (1 occurrence)
+- ✅ `one/things/hono.md` (4 occurrences)
+
+**Medium Priority - Feature Documentation:**
+- `one/connections/workflow.md` (8 occurrences)
+- `one/connections/api.md` (5 occurrences)
+- `one/connections/api-docs.md` (2 occurrences)
+- `one/connections/multitenant.md` (4 occurrences)
+- `one/connections/mcp.md` (6 occurrences)
+- `one/connections/middleware.md` (1 occurrence)
+- `one/connections/membership.md` (2 occurrences)
+- `one/connections/kyc.md` (2 occurrences)
+- `one/connections/protocols.md` (2 occurrences)
+- `one/connections/communications.md` (2 occurrences)
+- `one/connections/agui.md` (1 occurrence)
+- `one/connections/acp.md` (1 occurrence)
+- `one/connections/ap2.md` (1 occurrence)
+- `one/connections/a2a.md` (1 occurrence)
+- `one/connections/cryptonetworks.md` (1 occurrence)
+
+**Medium Priority - Things Documentation:**
+- `one/things/implementation-examples.md` (12 occurrences)
+- `one/things/sui.md` (4 occurrences)
+- `one/things/agentsales.md` (2 occurrences)
+- `one/things/todo.md` (6 occurrences)
+- `one/things/revenue.md` (1 occurrence)
+- `one/things/vision.md` (1 occurrence)
+- `one/things/ai-platform.md` (1 occurrence)
+
+**Medium Priority - Agents:**
+- `one/things/agents/director.md` (13 occurrences)
+- `one/things/agents/agent-clean.md` (4 occurrences)
+- `one/things/agents/agent-clone.md` (4 occurrences)
+
+**Medium Priority - Workflows:**
+- `one/things/workflows/tasks.md` (3 occurrences)
+
+**Low Priority (Generated):**
+- `one/repomix-output.md` (129 occurrences) - **REGENERATE AFTER ALL UPDATES**
+
+### Step 1.2: Search for Pattern References
+
+**Pattern:** `(entities|things), connections, events, (tags|knowledge)`
+
+**Files Using This Pattern:**
+- All files above use variations of this pattern
+- Focus on consistent replacement: "6 dimensions" or "six dimensions"
+- Maintain backward compatibility in code (table names stay as `entities`, `connections`, `events`, `knowledge`)
+
+---
+
+## Phase 2: Core Documentation Updates
+
+### Step 2.1: Update Primary Ontology Specification
+
+**File:** `one/connections/ontology.md`
+
+**Changes:**
+1. **Title Section:**
+   ```markdown
+   # ONE Platform - Ontology Specification
+
+   **Version:** 2.0.0 (6-Dimension Architecture)
+   **Status:** Complete - Reality-Aware Architecture
+   **Design Principle:** This ontology models reality in six dimensions. All protocols map TO this ontology via metadata.
+   ```
+
+2. **Structure Section (lines 6-16):**
+   ```markdown
+   ## Structure
+
+   This ontology is organized into 6 dimension files:
+
+   1. **[organisation.md](./organisation.md)** - Multi-tenant isolation & ownership
+   2. **[people.md](./people.md)** - Authorization, governance, & user customization
+   3. **[things.md](./things.md)** - 66 entity types (what exists)
+   4. **[connections.md](./connections.md)** - 25 relationship types (how they relate)
+   5. **[events.md](./events.md)** - 67 event types (what happened)
+   6. **[knowledge.md](./knowledge.md)** - Vectors, embeddings, RAG (what it means)
+   ```
+
+3. **Replace "4-Table Universe" (lines 19-49) with "6-Dimension Reality Model":**
+   ```markdown
+   ## The 6-Dimension Reality Model
+
+   Every single thing in ONE platform exists within one of these 6 dimensions:
+
+   ```
+   ┌──────────────────────────────────────────────────────────────┐
+   │                      1. ORGANIZATIONS                         │
+   │  Multi-tenant isolation boundary - who owns what at org level │
+   └──────────────────────────────────────────────────────────────┘
+                                 ↓
+   ┌──────────────────────────────────────────────────────────────┐
+   │                         2. PEOPLE                             │
+   │  Authorization & governance - platform owner, org owners      │
+   └──────────────────────────────────────────────────────────────┘
+                                 ↓
+   ┌──────────────────────────────────────────────────────────────┐
+   │                         3. THINGS                             │
+   │  Every "thing" - users, agents, content, tokens, courses      │
+   └──────────────────────────────────────────────────────────────┘
+                                 ↓
+   ┌──────────────────────────────────────────────────────────────┐
+   │                      4. CONNECTIONS                           │
+   │  Every relationship - owns, follows, taught_by, powers        │
+   └──────────────────────────────────────────────────────────────┘
+                                 ↓
+   ┌──────────────────────────────────────────────────────────────┐
+   │                         5. EVENTS                             │
+   │  Every action - purchased, created, viewed, completed         │
+   └──────────────────────────────────────────────────────────────┘
+                                 ↓
+   ┌──────────────────────────────────────────────────────────────┐
+   │                       6. KNOWLEDGE                            │
+   │  Labels + chunks + vectors powering RAG & search              │
+   └──────────────────────────────────────────────────────────────┘
+   ```
+
+   **Golden Rule:** If you can't map your feature to these 6 dimensions, you're thinking about it wrong.
+
+   **Simplicity:** ONE is six dimensions — organizations partition, people authorize, things exist, connections relate, events record, and knowledge understands. Everything composes from these building blocks.
+   ```
+
+4. **Update "Simplicity" statement (line 47):**
+   ```markdown
+   Simplicity: ONE is six dimensions — organizations partition, people authorize, things exist, connections relate, events record, and knowledge understands. Everything composes from these building blocks.
+   ```
+
+5. **Add Organizations & People Sections** (after line 49, before KNOWLEDGE section):
+   ```markdown
+   ---
+
+   ## ORGANIZATIONS: The Isolation Boundary
+
+   Purpose: Partition the system for multi-tenant scale. Every organization owns its own graph of things, connections, events, and knowledge.
+
+   ### Organization Structure
+
+   ```typescript
+   {
+     _id: Id<'organizations'>,
+     name: string,
+     slug: string,              // URL-friendly identifier
+     domain?: string,           // Custom domain
+     status: 'active' | 'suspended' | 'trial' | 'cancelled',
+     plan: 'starter' | 'pro' | 'enterprise',
+
+     limits: {
+       users: number,
+       storage: number,         // GB
+       apiCalls: number,
+       inference: number,       // Monthly LLM calls
+     },
+
+     usage: {
+       users: number,
+       storage: number,
+       apiCalls: number,
+       inference: number,
+     },
+
+     billing: {
+       customerId?: string,     // Stripe customer
+       subscriptionId?: string,
+     },
+
+     settings: {
+       allowSignups: boolean,
+       requireEmailVerification: boolean,
+       enableTwoFactor: boolean,
+     },
+
+     createdAt: number,
+     updatedAt: number,
+     trialEndsAt?: number,
+   }
+   ```
+
+   ### Why Organizations Matter
+
+   1. **Multi-Tenant Isolation:** Each org's data is completely separate
+   2. **Resource Quotas:** Control costs and usage per organization
+   3. **Custom Branding:** Each org can have unique frontend/domain
+   4. **Billing Flexibility:** Per-org subscriptions and revenue sharing
+
+   ---
+
+   ## PEOPLE: Authorization & Governance
+
+   Purpose: Define who can do what. People direct organizations, customize AI agents, and govern access.
+
+   ### Person Structure
+
+   ```typescript
+   {
+     _id: Id<'people'>,
+     email: string,
+     username: string,
+     displayName: string,
+
+     // CRITICAL: Role determines access level
+     role: 'platform_owner' | 'org_owner' | 'org_user' | 'customer',
+
+     // Organization context
+     organizationId?: Id<'organizations'>,  // Current/default org
+     permissions?: string[],
+
+     // Profile
+     bio?: string,
+     avatar?: string,
+
+     // Multi-tenant tracking
+     organizations: Id<'organizations'>[],  // All orgs this person belongs to
+
+     createdAt: number,
+     updatedAt: number,
+   }
+   ```
+
+   ### Four Roles
+
+   1. **Platform Owner** (Anthony)
+      - Owns the ONE Platform
+      - 100% revenue from platform-level services
+      - Can access all organizations (support/debugging)
+      - Creates new organizations
+
+   2. **Org Owner**
+      - Owns/manages one or more organizations
+      - Controls users, permissions, billing within org
+      - Customizes AI agents and frontend
+      - Revenue sharing with platform
+
+   3. **Org User**
+      - Works within an organization
+      - Limited permissions (defined by org owner)
+      - Can create content, run agents (within quotas)
+
+   4. **Customer**
+      - External user consuming content
+      - Purchases tokens, enrolls in courses
+      - No admin access
+
+   ### Why People Matter
+
+   1. **Authorization:** Every action must have an actor (person)
+   2. **Governance:** Org owners control who can do what
+   3. **Audit Trail:** Events log who did what when
+   4. **Customization:** People teach AI agents their preferences
+
+   ---
+   ```
+
+6. **Update all remaining "4 tables" references throughout the file to "6 dimensions"**
+
+7. **Update Philosophy Section (lines 2150-2193):**
+   ```markdown
+   ## The Philosophy
+
+   **Simplicity is the ultimate sophistication.**
+
+   This ontology proves that you don't need hundreds of tables or complex schemas to build a complete AI-native platform. You need:
+
+   1. **6 dimensions** (organizations, people, things, connections, events, knowledge)
+   2. **66 thing types** (every "thing")
+   3. **25 connection types** (every relationship)
+   4. **67 event types** (every action)
+   5. **Metadata** (for protocol identity via metadata.protocol)
+
+   That's it. Everything else is just data.
+
+   ### Why This Works
+
+   **Other systems:**
+   - Create new tables for every feature
+   - Add protocol-specific columns
+   - Pollute schema with temporary concepts
+   - End up with 50+ tables, 200+ columns
+   - Become unmaintainable nightmares
+
+   **ONE's approach:**
+   - Map every feature to 6 dimensions
+   - Organizations partition the space
+   - People authorize and govern
+   - Things, connections, events flow from there
+   - Knowledge understands it all
+   - Scale infinitely without schema changes
+   - Stay simple, clean, beautiful
+
+   ### The Result
+
+   A database schema that:
+   - Scales from lemonade stands to global enterprises
+   - Children can understand: "I own (org), I'm the boss (person), I sell lemonade (things)"
+   - Enterprises can rely on: Multi-tenant isolation, clear governance, infinite scale
+   - AI agents can reason about completely
+   - Never needs breaking changes
+   - Grows more powerful as it grows larger
+
+   **This is what happens when you design for clarity first.**
+   ```
+
+8. **Update Summary Statistics (lines 2091-2145):**
+   ```markdown
+   ## Summary Statistics
+
+   **Dimensions:** 6 total (organizations, people, things, connections, events, knowledge)
+
+   **Thing Types:** 66 total
+   - Core: 4 (creator, ai_clone, audience_member, organization)
+   - Business Agents: 10
+   - Content: 7
+   - Products: 4
+   - Community: 3
+   - Token: 2
+   - Knowledge: 2
+   - Platform: 6
+   - Business: 7
+   - Authentication & Session: 5
+   - Marketing: 6
+   - External: 3
+   - Protocol: 2
+
+   **Connection Types:** 25 total (Hybrid approach)
+   - 18 specific semantic types
+   - 7 consolidated types with metadata variants
+   - Protocol-agnostic via metadata.protocol
+   - Includes organization membership with role-based metadata
+
+   **Event Types:** 67 total (Hybrid approach)
+   - 4 Thing lifecycle
+   - 5 User events
+   - 6 Authentication events
+   - 5 Organization events
+   - 4 Dashboard & UI events
+   - 4 AI/Clone events
+   - 4 Agent events
+   - 7 Token events
+   - 5 Course events
+   - 5 Analytics events
+   - 7 Inference events
+   - 5 Blockchain events
+   - 11 consolidated types with metadata variants
+
+   **Design Benefits:**
+   - ✅ Six-dimension reality model
+   - ✅ Multi-tenant by design
+   - ✅ Clear ownership & governance
+   - ✅ Protocol-agnostic core
+   - ✅ Infinite protocol extensibility
+   - ✅ Cross-protocol analytics
+   - ✅ Type-safe
+   - ✅ Future-proof
+   - ✅ Scales from children to enterprise
+   ```
+
+### Step 2.2: Update Ontology Documentation Index
+
+**File:** `one/connections/ontology-documentation.md`
+
+**Changes:**
+1. Line 3: Update version
+   ```markdown
+   **Version 2.0 - 6-Dimension Architecture**
+   ```
+
+2. Lines 115-122: Update from "Four Primitives" to "Six Dimensions"
+   ```markdown
+   ### 1. Six Dimensions
+
+   Everything in ONE exists in one of 6 dimensions:
+   - **organizations** - multi-tenant isolation (ownership partitioning)
+   - **people** - authorization & governance (who can do what)
+   - **things** - entities (66 types)
+   - **connections** - relationships (25 types)
+   - **events** - actions (67 types)
+   - **knowledge** - vectors + labels (4 types)
+   ```
+
+3. Line 161: Update the loop description
+   ```markdown
+   ## The Loop
+
+   ```
+   ┌─────────────────────────────────────────────────┐
+   │  1. Organization Scope                           │
+   │     Define the context for all operations        │
+   └──────────────────┬──────────────────────────────┘
+                      ↓
+   ┌─────────────────────────────────────────────────┐
+   │  2. Person Authorization                         │
+   │     Check permissions & role                     │
+   └──────────────────┬──────────────────────────────┘
+                      ↓
+   ┌─────────────────────────────────────────────────┐
+   │  3. User Request                                 │
+   │     "Create a fitness course"                    │
+   └──────────────────┬──────────────────────────────┘
+                      ↓
+   ┌─────────────────────────────────────────────────┐
+   │  4. Vector Search (Knowledge)                    │
+   │     Find relevant chunks + labels                │
+   └──────────────────┬──────────────────────────────┘
+                      ↓
+   ┌─────────────────────────────────────────────────┐
+   │  5. RAG Context Assembly                         │
+   │     Crawls using vectors and ontology → Context  │
+   └──────────────────┬──────────────────────────────┘
+                      ↓
+   ┌─────────────────────────────────────────────────┐
+   │  6. LLM Generation                               │
+   │     Context + Prompt → Generated content         │
+   └──────────────────┬──────────────────────────────┘
+                      ↓
+   ┌─────────────────────────────────────────────────┐
+   │  7. Create Thing + Connections + Events          │
+   │     Course entity + ownership + logs             │
+   └──────────────────┬──────────────────────────────┘
+                      ↓
+   ┌─────────────────────────────────────────────────┐
+   │  8. Embed New Content (Knowledge)                │
+   │     Course → chunks → embeddings                 │
+   └─────────────────────────────────────────────────┘
+   ```
+
+   Knowledge makes generation **context-aware**, organizations make it **multi-tenant**, and people make it **governed**.
+   ```
+
+4. Lines 198-207: Update design philosophy
+   ```markdown
+   ## Design Philosophy
+
+   **Simplicity is the ultimate sophistication.**
+
+   - **6 dimensions** (not 50+ tables)
+   - **Organizations** partition the space
+   - **People** authorize and govern
+   - **66 thing types** (covers everything)
+   - **25 connection types** (all relationships)
+   - **67 event types** (complete tracking)
+   - **Metadata for variance** (not enum explosion)
+   - **Protocol-agnostic core** (infinite extensibility)
+
+   This ontology proves you don't need complexity to build a complete AI-native platform that scales from children's lemonade stands to global enterprises.
+   ```
+
+### Step 2.3: Update Architecture Documentation
+
+**File:** `one/things/architecture.md`
+
+**Changes:**
+1. Lines 58-66: Update ontology reference in Layer 3
+   ```markdown
+   │              LAYER 3: BACKEND (Hono + Convex)                      │
+   │  Documentation: docs/Hono.md                                       │
+   ├─────────────────────────────────────────────────────────────────────┤
+   │  ✅ Hono: REST API routes (Cloudflare Workers)                     │
+   │  ✅ Convex: Real-time database + typed functions                   │
+   │  ✅ Better Auth: Authentication with Convex adapter                │
+   │  ✅ 6-Dimension Ontology: Reality-aware data model                 │
+   │                                                                     │
+   │  Hono API Routes       Convex Functions      6-Dimension Ontology  │
+   │  ├─ /api/auth/*       ├─ Queries (reads)    ├─ organizations      │
+   │  ├─ /api/tokens/*     ├─ Mutations (writes) ├─ people             │
+   │  ├─ /api/agents/*     ├─ Actions (external) ├─ things (entities)  │
+   │  └─ /api/content/*    └─ Real-time subs     ├─ connections        │
+   │                                              ├─ events             │
+   │                                              └─ knowledge          │
+   └─────────────────────────────────────────────────────────────────────┘
+   ```
+
+2. Lines 519-583: Update Layer 5 section
+   ```markdown
+   ### Layer 5: Data Layer (6-Dimension Ontology - Plain Convex)
+
+   All data maps to 6 dimensions using **plain Convex schema** (no Convex Ents):
+
+   **Core Tables:**
+   - **organizations** - Multi-tenant partitioning
+   - **people** - Authorization & governance (maps to creator/owner/user things)
+   - **things (entities)** - All entities (66 types)
+   - **connections** - All relationships (25 types)
+   - **events** - All actions (67 types)
+   - **knowledge** - All labels + vectors
+
+   **Schema Implementation:**
+   ```typescript
+   // Plain Convex schema - NO Convex Ents
+   import { defineSchema, defineTable } from "convex/server";
+   import { v } from "convex/values";
+
+   export default defineSchema({
+     organizations: defineTable({
+       name: v.string(),
+       slug: v.string(),
+       status: v.string(),
+       plan: v.string(),
+       limits: v.any(),
+       usage: v.any(),
+       billing: v.any(),
+       settings: v.any(),
+       createdAt: v.number(),
+       updatedAt: v.number(),
+     })
+       .index("by_slug", ["slug"])
+       .index("by_status", ["status"]),
+
+     // People are represented as 'creator' things with role metadata
+     // See things table for implementation
+
+     things: defineTable({
+       // Formerly "entities"
+       thingType: v.string(),
+       name: v.string(),
+       organizationId: v.id("organizations"),  // NEW: Every thing belongs to an org
+       description: v.optional(v.string()),
+       properties: v.any(),
+       status: v.string(),
+       createdAt: v.number(),
+       updatedAt: v.number(),
+     })
+       .index("by_type", ["thingType"])
+       .index("by_org", ["organizationId"])  // NEW: Query things by org
+       .index("by_org_type", ["organizationId", "thingType"])
+       .searchIndex("search_things", {
+         searchField: "name",
+         filterFields: ["thingType", "organizationId"],
+       }),
+
+     connections: defineTable({
+       fromThingId: v.id("things"),
+       toThingId: v.id("things"),
+       relationshipType: v.string(),
+       organizationId: v.id("organizations"),  // NEW: Connections scoped to org
+       metadata: v.any(),
+       createdAt: v.number(),
+     })
+       .index("by_from", ["fromThingId"])
+       .index("by_to", ["toThingId"])
+       .index("by_org", ["organizationId"])  // NEW: Query connections by org
+       .index("by_relationship", ["relationshipType"]),
+
+     events: defineTable({
+       thingId: v.optional(v.id("things")),
+       eventType: v.string(),
+       actorId: v.id("things"),  // REQUIRED: Actor is always a person (thing with role)
+       organizationId: v.id("organizations"),  // NEW: Events scoped to org
+       metadata: v.any(),
+       timestamp: v.number(),
+     })
+       .index("by_thing", ["thingId"])
+       .index("by_actor", ["actorId"])  // NEW: Query by who did it
+       .index("by_org", ["organizationId"])  // NEW: Query events by org
+       .index("by_type", ["eventType"])
+       .index("by_timestamp", ["timestamp"]),
+
+     knowledge: defineTable({
+       knowledgeType: v.string(),
+       text: v.optional(v.string()),
+       embedding: v.optional(v.array(v.number())),
+       embeddingModel: v.optional(v.string()),
+       embeddingDim: v.optional(v.number()),
+       sourceThingId: v.optional(v.id("things")),
+       sourceField: v.optional(v.string()),
+       organizationId: v.id("organizations"),  // NEW: Knowledge scoped to org
+       chunk: v.optional(v.any()),
+       labels: v.optional(v.array(v.string())),
+       metadata: v.optional(v.any()),
+       createdAt: v.number(),
+       updatedAt: v.number(),
+     })
+       .index("by_type", ["knowledgeType"])
+       .index("by_source", ["sourceThingId"])
+       .index("by_org", ["organizationId"])  // NEW: Query knowledge by org
+       .index("by_created", ["createdAt"]),
+   });
+   ```
+
+   **Key Design Principles:**
+   - Organizations partition ALL data (perfect multi-tenant isolation)
+   - People are represented as things with `role` property (platform_owner, org_owner, org_user, customer)
+   - Every thing, connection, event, and knowledge item is scoped to an organization
+   - No ORM layer (Convex Ents) - direct database access
+   - Flexible metadata fields for type-specific data
+   - Comprehensive indexing for query performance (including org-scoped indexes)
+   ```
+
+3. Lines 1501-1563: Update "Key Architectural Decisions Summary"
+   ```markdown
+   ## Key Architectural Decisions Summary
+
+   ### 1. Plain Convex Schema with 6-Dimension Ontology
+   **Decision:** Use plain Convex `defineSchema` with 6 dimensions (organizations, people, things, connections, events, knowledge)
+   **Rationale:**
+   - Simpler mental model for AI agents
+   - Organizations provide perfect multi-tenant isolation
+   - People represented as things with role metadata (no duplicate tables)
+   - No ORM abstraction layer to learn
+   - Direct control over indexes and queries
+   - Every dimension scoped to organization
+   - Scales from children's apps to enterprise SaaS
+
+   ### 2. Organizations as First-Class Dimension
+   **Decision:** Every resource (thing, connection, event, knowledge) belongs to an organization
+   **Rationale:**
+   - Perfect data isolation for multi-tenancy
+   - Clear ownership boundaries
+   - Independent billing and quotas per org
+   - Custom frontends per org
+   - Platform-level services (shared infrastructure)
+
+   ### 3. People as Authorization Layer
+   **Decision:** People are things with role property (platform_owner, org_owner, org_user, customer)
+   **Rationale:**
+   - Every action has an actor (person)
+   - Clear permission hierarchy
+   - Roles define what actions are allowed
+   - Org owners control their users
+   - Platform owner can access everything (support/debugging)
+
+   ### 4. Multi-Chain Blockchain Architecture
+   **Decision:** Separate Effect.ts provider per blockchain (Sui, Base, Solana)
+   **Rationale:**
+   - Each chain has unique APIs and transaction models
+   - Type safety per chain (unique error types)
+   - Easy to add new chains without modifying existing code
+   - Users can choose preferred blockchain per token/NFT
+   - Chain-specific retry strategies and error handling
+
+   ### 5. Stripe for FIAT Only
+   **Decision:** Stripe handles USD/EUR/etc payments only, NOT crypto
+   **Rationale:**
+   - Clear separation of concerns (fiat vs crypto)
+   - Blockchain providers handle all crypto transactions
+   - Prevents confusion about payment routing
+   - Simpler error handling (payment method determines provider)
+
+   ### 6. Effect.ts 100% Coverage
+   **Decision:** ALL business logic uses Effect.ts (no raw async/await)
+   **Rationale:**
+   - Consistent patterns across entire codebase
+   - Typed errors everywhere (no try/catch)
+   - Automatic dependency injection
+   - Built-in retry, timeout, resource management
+   - AI generates consistent code every time
+
+   ### 7. 6-Dimension Ontology (Organizations + People + 4 Core Dimensions)
+   **Decision:** Expand from 4 tables to 6 dimensions
+   **Rationale:**
+   - Organizations: Multi-tenant isolation boundary
+   - People: Authorization and governance
+   - Things: 66 entity types (what exists)
+   - Connections: 25 relationship types (how they relate)
+   - Events: 67 event types (what happened)
+   - Knowledge: Vectors + labels (what it means)
+   - Simple enough for children, powerful enough for enterprises
+   - AI agents can reason about complete reality model
+   ```
+
+4. Line 1688: Update key reminders
+   ```markdown
+   **Key Reminders:**
+   - **Frontend Layer:** Astro + React, content collections, Convex hooks + Hono API client
+   - **Glue Layer:** Effect.ts services (100% coverage), typed errors, DI
+   - **Backend Layer:** Hono API routes, Convex database (6-dimension ontology), Better Auth
+   - **6 Dimensions:** Organizations partition, People authorize, Things exist, Connections relate, Events record, Knowledge understands
+   - Stripe = fiat only (NOT crypto)
+   - Cloudflare = livestreaming only (NOT web hosting)
+   - Plain Convex schema (NO Convex Ents)
+   - Multi-chain providers (separate services per blockchain)
+   - 25 connection types + 67 event types (optimized, generic)
+   ```
+
+---
+
+## Phase 3: Systematic Documentation Updates
+
+### Step 3.1: Workflow & Process Documentation
+
+**Files to Update:**
+1. `one/connections/workflow.md`
+   - Line 12: Update golden rule from "4 tables" to "6 dimensions"
+   - Line 42: Update reference to "6-dimension universe"
+   - Line 84: Map features to 6 dimensions
+   - Line 190: Checklist item "fits in 6 dimensions"
+   - Line 751: Understanding the 6-dimension model
+
+2. `one/connections/api.md`
+   - Line 1244: Section header "6-Dimension Ontology"
+   - Line 1246: Description of 6 dimensions
+   - Line 1270: Golden rule update
+   - Line 1774: Feature mapping to 6 dimensions
+   - Line 2049: Migration guide title
+
+3. `one/connections/api-docs.md`
+   - Line 39: Database description
+   - Line 1889: Ontology specification reference
+
+### Step 3.2: Integration Documentation
+
+**Files to Update:**
+1. `one/connections/mcp.md`
+   - Title line 4: "6-dimension ontology"
+   - Line 12: Description
+   - Line 22: MCP server exposure
+   - Line 31: Section "The 6-Dimension Universe"
+   - Line 663: Description in JSON
+   - Line 778: Access list
+
+2. `one/connections/multitenant.md`
+   - Line 5: Architecture leverages 6-dimension ontology
+   - Line 49: Section header
+   - Line 1341: Result description
+
+3. `one/connections/middleware.md`
+   - Line 32: Database comment
+
+4. `one/connections/membership.md`
+   - Line 132: Section header
+   - Line 1149: Reference link
+
+5. `one/connections/kyc.md`
+   - Line 5: Purpose statement
+   - Line 632: Reference link
+
+6. `one/connections/protocols.md`
+   - Line 37: "Our 6-dimension ontology"
+   - Line 230: Implementation checklist
+
+7. `one/connections/communications.md`
+   - Line 338: Storage reference
+   - Line 444: Ontology-driven design
+
+### Step 3.3: Protocol Documentation
+
+**Files to Update (all protocol docs):**
+1. `one/connections/agui.md` - Line 432
+2. `one/connections/acp.md` - Line 450
+3. `one/connections/ap2.md` - Line 243
+4. `one/connections/a2a.md` - Line 317
+5. `one/connections/cryptonetworks.md` - Line 766
+
+**Pattern:** Replace "4-table ontology" → "6-dimension ontology" in all mapping sections
+
+### Step 3.4: Things Documentation
+
+**Files to Update:**
+1. `one/things/implementation-examples.md`
+   - Lines 10, 18, 35, 62, 63, 86, 92, 116, 522, 1113: All "4 table" → "6 dimension"
+
+2. `one/things/sui.md`
+   - Line 5, 17, 958: SUI Move mapping to 6 dimensions
+
+3. `one/things/agentsales.md`
+   - Line 13, 967: Sales agents with 6-dimension ontology
+
+4. `one/things/frontend.md`
+   - Line 829: Integration section
+
+5. `one/things/hono.md`
+   - Lines 73, 97, 406, 1923, 2098: Hono + 6-dimension integration
+
+6. `one/things/todo.md`
+   - Lines 100, 174, 481, 898, 1031: Todo list updates
+
+7. `one/things/revenue.md`
+   - Line 520: Design composition
+
+8. `one/things/rules.md`
+   - Lines 22, 380, 575: Platform rules
+
+9. `one/things/vision.md`
+   - Line 15: Vision statement
+
+10. `one/things/ai-platform.md`
+    - Line 3: AI modeling follows ontology
+
+### Step 3.5: Agent Documentation
+
+**Files to Update:**
+1. `one/things/agents/director.md`
+   - Lines 69, 82, 91, 105, 200, 379, 440, 648, 722, 1092, 1108: Director agent understanding
+
+2. `one/things/agents/agent-clean.md`
+   - Lines 14, 47, 65: Cleanup agent ontology checks
+
+3. `one/things/agents/agent-clone.md`
+   - Lines 16, 68, 840, 858: Clone agent migration
+
+### Step 3.6: Workflow Documentation
+
+**Files to Update:**
+1. `one/things/workflows/tasks.md`
+   - Lines 4, 12: Task management with 6-dimension ontology
+
+---
+
+## Phase 4: Implementation & Testing
+
+### Step 4.1: Database Migration (CRITICAL - No Breaking Changes)
+
+**IMPORTANT:** The database schema does NOT change. We only add organization scoping and people representation.
+
+**Migration Steps:**
+
+1. **Add `organizations` table:**
+   ```typescript
+   // Already exists in schema - just verify indexes
+   organizations: defineTable({
+     name: v.string(),
+     slug: v.string(),
+     status: v.string(),
+     plan: v.string(),
+     limits: v.any(),
+     usage: v.any(),
+     billing: v.any(),
+     settings: v.any(),
+     createdAt: v.number(),
+     updatedAt: v.number(),
+   })
+     .index("by_slug", ["slug"])
+     .index("by_status", ["status"])
+   ```
+
+2. **Add `organizationId` to `things` table:**
+   ```typescript
+   // Migration: Add organizationId to all existing things
+   // Default: Create a "default" organization for existing data
+
+   const defaultOrg = await ctx.db.insert("organizations", {
+     name: "Default Organization",
+     slug: "default",
+     status: "active",
+     plan: "enterprise",
+     limits: { users: 1000, storage: 1000, apiCalls: 1000000, inference: 1000000 },
+     usage: { users: 0, storage: 0, apiCalls: 0, inference: 0 },
+     billing: {},
+     settings: { allowSignups: true, requireEmailVerification: false, enableTwoFactor: false },
+     createdAt: Date.now(),
+     updatedAt: Date.now(),
+   });
+
+   // Update all existing things
+   const allThings = await ctx.db.query("things").collect();
+   for (const thing of allThings) {
+     await ctx.db.patch(thing._id, {
+       organizationId: defaultOrg,
+     });
+   }
+   ```
+
+3. **Add `organizationId` to `connections`, `events`, `knowledge` tables:**
+   ```typescript
+   // Same migration pattern as things
+   // All existing data goes to "default" organization
+   ```
+
+4. **Verify indexes:**
+   ```typescript
+   // Add new indexes for org-scoped queries
+   things:
+     .index("by_org", ["organizationId"])
+     .index("by_org_type", ["organizationId", "thingType"])
+
+   connections:
+     .index("by_org", ["organizationId"])
+
+   events:
+     .index("by_org", ["organizationId"])
+     .index("by_actor", ["actorId"])
+
+   knowledge:
+     .index("by_org", ["organizationId"])
+   ```
+
+5. **People representation:**
+   ```typescript
+   // People are things with type 'creator' and role property
+   // No separate table needed
+
+   interface PersonThing {
+     thingType: 'creator',
+     properties: {
+       email: string,
+       username: string,
+       role: 'platform_owner' | 'org_owner' | 'org_user' | 'customer',
+       organizationId?: Id<'organizations'>,
+       permissions?: string[],
+       // ... other creator properties
+     }
+   }
+   ```
+
+### Step 4.2: Query Pattern Updates
+
+**Old Pattern (4-table):**
+```typescript
+// Get all blog posts
+const posts = await ctx.db
+  .query("things")
+  .withIndex("by_type", (q) => q.eq("thingType", "blog_post"))
+  .collect();
+```
+
+**New Pattern (6-dimension):**
+```typescript
+// Get all blog posts in organization
+const posts = await ctx.db
+  .query("things")
+  .withIndex("by_org_type", (q) =>
+    q.eq("organizationId", orgId)
+     .eq("thingType", "blog_post")
+  )
+  .collect();
+```
+
+**Update All Queries:**
+1. Search for `.query("things")` → Add org filter
+2. Search for `.query("connections")` → Add org filter
+3. Search for `.query("events")` → Add org filter
+4. Search for `.query("knowledge")` → Add org filter
+
+### Step 4.3: Authorization Middleware
+
+**Add Organization & People Checks:**
+
+```typescript
+// src/middleware/auth.ts
+
+export async function requireOrgAccess(
+  ctx: ConvexContext,
+  orgId: Id<"organizations">,
+  requiredRole: "org_owner" | "org_user"
+) {
+  const userId = await getUserId(ctx);
+
+  // Get user's thing (person)
+  const user = await ctx.db.get(userId);
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  // Check if platform owner (can access everything)
+  if (user.properties.role === "platform_owner") {
+    return true;
+  }
+
+  // Check if user belongs to organization
+  const membership = await ctx.db
+    .query("connections")
+    .withIndex("from_type", (q) =>
+      q.eq("fromThingId", userId)
+       .eq("toThingId", orgId)
+       .eq("relationshipType", "member_of")
+    )
+    .first();
+
+  if (!membership) {
+    throw new Error("User not member of organization");
+  }
+
+  // Check role
+  const userRole = membership.metadata.role;
+  if (requiredRole === "org_owner" && userRole !== "org_owner") {
+    throw new Error("Org owner access required");
+  }
+
+  return true;
+}
+
+// Usage in mutations
+export const createBlogPost = mutation({
+  args: {
+    orgId: v.id("organizations"),
+    title: v.string(),
+    content: v.string()
+  },
+  handler: async (ctx, args) => {
+    // Check authorization
+    await requireOrgAccess(ctx, args.orgId, "org_user");
+
+    // Create blog post scoped to org
+    const postId = await ctx.db.insert("things", {
+      thingType: "blog_post",
+      name: args.title,
+      organizationId: args.orgId,
+      properties: { content: args.content },
+      status: "draft",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // Log event
+    const userId = await getUserId(ctx);
+    await ctx.db.insert("events", {
+      eventType: "content_created",
+      actorId: userId,
+      thingId: postId,
+      organizationId: args.orgId,
+      metadata: { contentType: "blog_post" },
+      timestamp: Date.now(),
+    });
+
+    return postId;
+  },
+});
+```
+
+### Step 4.4: Frontend Updates
+
+**Update All Frontend Components:**
+
+```typescript
+// Old: Get posts (no org context)
+const posts = useQuery(api.queries.posts.list);
+
+// New: Get posts for user's organization
+const user = useQuery(api.queries.users.current);
+const orgId = user?.properties.organizationId;
+const posts = useQuery(api.queries.posts.list, { orgId });
+```
+
+**Organization Selector Component:**
+
+```tsx
+// src/components/admin/OrganizationSelector.tsx
+export function OrganizationSelector() {
+  const user = useQuery(api.queries.users.current);
+  const orgs = useQuery(api.queries.orgs.listForUser, {
+    userId: user?._id
+  });
+  const [currentOrg, setCurrentOrg] = useState(user?.properties.organizationId);
+
+  return (
+    <Select value={currentOrg} onValueChange={setCurrentOrg}>
+      {orgs?.map(org => (
+        <SelectItem key={org._id} value={org._id}>
+          {org.name} ({org.properties.plan})
+        </SelectItem>
+      ))}
+    </Select>
+  );
+}
+```
+
+### Step 4.5: Testing
+
+**Test Cases:**
+
+1. **Multi-Tenant Isolation:**
+   ```typescript
+   // Test: User in Org A cannot see Org B's data
+   test("organization data isolation", async () => {
+     const orgA = await createOrg("Org A");
+     const orgB = await createOrg("Org B");
+
+     const userA = await createUser(orgA, "org_user");
+     const postB = await createPost(orgB, "Secret Post");
+
+     // Query from Org A context
+     const posts = await queryPosts(orgA);
+
+     expect(posts).not.toContainEqual(postB);
+   });
+   ```
+
+2. **Authorization:**
+   ```typescript
+   // Test: Org user cannot create org owner resources
+   test("role-based authorization", async () => {
+     const org = await createOrg("Test Org");
+     const user = await createUser(org, "org_user");
+
+     await expect(
+       createOrgSettings(org, user, { allowSignups: false })
+     ).rejects.toThrow("Org owner access required");
+   });
+   ```
+
+3. **Platform Owner Access:**
+   ```typescript
+   // Test: Platform owner can access all orgs
+   test("platform owner can access all organizations", async () => {
+     const orgA = await createOrg("Org A");
+     const orgB = await createOrg("Org B");
+
+     const platformOwner = await getPlatformOwner();
+
+     const postsA = await queryPosts(orgA, platformOwner);
+     const postsB = await queryPosts(orgB, platformOwner);
+
+     expect(postsA).toBeDefined();
+     expect(postsB).toBeDefined();
+   });
+   ```
+
+---
+
+## Phase 5: Communication & Education
+
+### Step 5.1: Create Simple Examples
+
+**For Children (Lemonade Stand):**
+
+```markdown
+# Building a Lemonade Stand with ONE Platform
+
+## The 6 Dimensions (Easy Version)
+
+1. **Organization** = Your Lemonade Stand Business
+   - You own the stand
+   - You decide the rules
+
+2. **People** = You, the Boss!
+   - You're the owner
+   - You can hire friends to help (users)
+   - Customers buy lemonade
+
+3. **Things** = What You Have
+   - Lemonade (product)
+   - Cups (inventory)
+   - Money (tokens)
+
+4. **Connections** = How Things Work Together
+   - Customers buy lemonade
+   - You own the stand
+   - Lemonade is in a cup
+
+5. **Events** = What Happens
+   - Customer buys lemonade
+   - You make more lemonade
+   - You count money at end of day
+
+6. **Knowledge** = What You Learn
+   - Sunny days = more sales
+   - Sweet lemonade = happy customers
+   - AI learns: "make more on sunny days!"
+
+## Building Your First AI Lemonade Stand
+
+```typescript
+// 1. Create your organization (lemonade stand)
+const myStand = await createOrganization({
+  name: "Emma's Lemonade Stand",
+  owner: "Emma",
+});
+
+// 2. You are a person (the owner!)
+const me = await createPerson({
+  name: "Emma",
+  role: "org_owner",
+  organizationId: myStand._id,
+});
+
+// 3. Create lemonade (a thing!)
+const lemonade = await createThing({
+  type: "product",
+  name: "Fresh Lemonade",
+  organizationId: myStand._id,
+  properties: {
+    price: 1.00, // $1 per cup
+    inventory: 20, // 20 cups ready
+  },
+});
+
+// 4. Customer buys lemonade (connection!)
+const customer = await createPerson({
+  name: "Alex",
+  role: "customer",
+});
+
+await createConnection({
+  from: customer._id,
+  to: lemonade._id,
+  type: "purchased",
+  organizationId: myStand._id,
+});
+
+// 5. Log the sale (event!)
+await createEvent({
+  type: "tokens_purchased",
+  actor: customer._id,
+  target: lemonade._id,
+  organizationId: myStand._id,
+  metadata: {
+    amount: 1.00,
+    weather: "sunny",
+  },
+});
+
+// 6. AI learns (knowledge!)
+// The AI notices: sunny days = more sales
+// Next sunny day, AI suggests: "Make more lemonade today!"
+```
+
+**What the AI Learned:**
+- Sunny days → more customers
+- Sweet lemonade → happier customers (higher ratings)
+- After school time (3pm-5pm) → busiest time
+
+**Your AI can now help:**
+- "It's going to be sunny tomorrow - prepare 30 cups instead of 20!"
+- "Customer reviews say lemonade is too sour - add more sugar"
+- "You're running low on lemons - order more before the weekend rush"
+
+This is how the 6 dimensions work together to make your lemonade stand smart! 🍋
+```
+
+**For Enterprises (SaaS Platform):**
+
+```markdown
+# Building Enterprise SaaS with the 6-Dimension Ontology
+
+## The 6 Dimensions (Enterprise Version)
+
+1. **Organizations** = Multi-Tenant Isolation
+   - Each customer company is an organization
+   - Perfect data isolation (no cross-org leaks)
+   - Independent billing, quotas, customization
+
+2. **People** = Authorization & Governance
+   - Platform owner (you) manages infrastructure
+   - Org owners manage their companies
+   - Org users work within their company
+   - Customers consume services
+
+3. **Things** = Domain Entities
+   - Users, agents, content, products
+   - All scoped to organizations
+   - 66 pre-defined types + extensibility
+
+4. **Connections** = Relationships
+   - Ownership, membership, permissions
+   - Cross-entity relationships
+   - Revenue sharing, referrals
+
+5. **Events** = Audit Trail
+   - Complete history of who did what when
+   - Analytics, compliance, debugging
+   - Real-time event streams
+
+6. **Knowledge** = Intelligence Layer
+   - RAG for context-aware AI
+   - Vector search across all dimensions
+   - Per-org knowledge graphs
+
+## Example: Building a CRM SaaS
+
+```typescript
+// 1. Customer signs up (creates organization)
+const acmeCorp = await createOrganization({
+  name: "Acme Corporation",
+  plan: "enterprise",
+  limits: {
+    users: 100,
+    storage: 1000, // GB
+    apiCalls: 1000000, // per month
+    inference: 500000, // LLM calls per month
+  },
+});
+
+// 2. Org owner gets admin access
+const ceo = await createPerson({
+  name: "Jane CEO",
+  email: "jane@acme.com",
+  role: "org_owner",
+  organizationId: acmeCorp._id,
+});
+
+// 3. Create CRM entities (things)
+const salesAgent = await createThing({
+  type: "sales_agent",
+  name: "Acme Sales AI",
+  organizationId: acmeCorp._id,
+  properties: {
+    systemPrompt: "You are a friendly sales assistant...",
+    temperature: 0.7,
+  },
+});
+
+const lead = await createThing({
+  type: "lead",
+  name: "John Smith - Enterprise Lead",
+  organizationId: acmeCorp._id,
+  properties: {
+    email: "john@enterprise.com",
+    company: "Enterprise Inc",
+    budget: 100000,
+    status: "qualified",
+  },
+});
+
+// 4. AI agent follows up with lead (connection)
+await createConnection({
+  from: salesAgent._id,
+  to: lead._id,
+  type: "communicated",
+  organizationId: acmeCorp._id,
+  metadata: {
+    protocol: "email",
+    subject: "Following up on our conversation",
+  },
+});
+
+// 5. Log all interactions (events)
+await createEvent({
+  type: "communication_event",
+  actor: salesAgent._id,
+  target: lead._id,
+  organizationId: acmeCorp._id,
+  metadata: {
+    protocol: "email",
+    messageType: "follow_up",
+    sentiment: "positive",
+  },
+  timestamp: Date.now(),
+});
+
+// 6. AI learns from all sales interactions (knowledge)
+// RAG system:
+// - Chunks all sales emails, call transcripts, notes
+// - Creates embeddings for semantic search
+// - AI agent queries: "What objections did similar leads have?"
+// - Knowledge layer returns relevant context
+// - AI crafts personalized response based on historical data
+
+const relevantContext = await queryKnowledge({
+  organizationId: acmeCorp._id,
+  query: "enterprise software objections pricing",
+  k: 10, // top 10 results
+});
+
+const aiResponse = await generateResponse({
+  context: relevantContext,
+  prompt: "Craft a response addressing pricing concerns",
+});
+```
+
+## Multi-Tenancy Benefits
+
+1. **Data Isolation:**
+   - Acme Corp cannot see Enterprise Inc's data
+   - All queries automatically scoped to organizationId
+   - Zero chance of cross-org data leaks
+
+2. **Independent Scaling:**
+   - Each org has separate quotas and limits
+   - Per-org billing and usage tracking
+   - Can upgrade/downgrade plans independently
+
+3. **Customization:**
+   - Each org can customize their AI agents
+   - Different branding, features, workflows
+   - Frontend customization per org
+
+4. **Platform Revenue:**
+   - Org A pays $1000/month → $800 to org owner, $200 to platform
+   - Inference costs shared: org pays token costs + platform markup
+   - Clear revenue attribution via events
+
+## Security & Compliance
+
+- **GDPR:** Delete all org data with single `organizationId` filter
+- **Audit:** Events table provides complete audit trail per org
+- **Access Control:** Role-based permissions via people dimension
+- **Encryption:** Org-scoped encryption keys for sensitive data
+```
+
+### Step 5.2: Update README Files
+
+**Main README Updates:**
+
+```markdown
+# ONE Platform - The 6-Dimension Reality-Aware Architecture
+
+Build AI-powered applications that scale from children's lemonade stands to enterprise SaaS platforms serving millions.
+
+## What Makes ONE Different
+
+**6 Dimensions = Complete Reality Model:**
+
+1. **Organizations** - Multi-tenant isolation (who owns what at org level)
+2. **People** - Authorization & governance (who can do what)
+3. **Things** - Entities (what exists)
+4. **Connections** - Relationships (how they relate)
+5. **Events** - Actions (what happened)
+6. **Knowledge** - Intelligence (what it means)
+
+**Why 6 Dimensions?**
+
+Other platforms create tables for features, pollute schemas with temporary concepts, and end up with hundreds of entities nobody understands.
+
+ONE models reality in six dimensions, and maps everything to them.
+
+Simple enough for children. Powerful enough for enterprises.
+
+## For Children
+
+```typescript
+// Your lemonade stand = organization
+// You = person (owner)
+// Lemonade = thing
+// Customer buys it = connection
+// Sale happens = event
+// AI learns = knowledge
+```
+
+## For Enterprises
+
+```typescript
+// Multi-tenant SaaS = organizations (perfect isolation)
+// Users & roles = people (authorization & governance)
+// Domain entities = things (customers, products, agents)
+// Business relationships = connections (ownership, permissions)
+// Audit trail = events (who did what when)
+// AI intelligence = knowledge (RAG, vectors, learning)
+```
+
+## Documentation
+
+**Start Here:**
+- [6-Dimension Ontology](one/connections/ontology.md) - Complete specification
+- [Architecture](one/things/architecture.md) - How everything fits together
+- [Frontend Guide](one/things/frontend.md) - Building user interfaces
+- [Backend Guide](one/things/hono.md) - API and business logic
+
+**Learn by Example:**
+- [Children's Examples](one/examples/children/) - Lemonade stands, toy stores
+- [Enterprise Examples](one/examples/enterprise/) - CRM, SaaS, marketplaces
+
+**Deep Dives:**
+- [Organizations](one/connections/organisation.md) - Multi-tenant architecture
+- [People](one/people/people.md) - Authorization & roles
+- [Things](one/things/things.md) - 66 entity types
+- [Connections](one/connections/connections.md) - 25 relationship types
+- [Events](one/events/events.md) - 67 event types
+- [Knowledge](one/knowledge/knowledge.md) - RAG & intelligence
+
+## Quick Start
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/one-platform/one
+cd one
+
+# 2. Install dependencies
+bun install
+
+# 3. Set up environment
+cp .env.example .env
+# Add your Convex URL and other keys
+
+# 4. Run development server
+bun run dev
+
+# 5. Build your first app!
+# See examples in one/examples/
+```
+
+## The Philosophy
+
+**Simplicity is the ultimate sophistication.**
+
+- **6 dimensions** (not 50+ tables)
+- Organizations partition the space
+- People authorize and govern
+- Things, connections, events flow from there
+- Knowledge understands it all
+- Infinite extensibility without schema changes
+
+**This architecture proves you don't need complexity to build complete AI-native platforms that scale infinitely.**
+```
+
+### Step 5.3: Create Migration Guide
+
+**File:** `one/connections/MIGRATION-GUIDE.md`
+
+```markdown
+# Migration Guide: 4-Table → 6-Dimension Ontology
+
+## Overview
+
+This guide helps you migrate from the old "4-table ontology" terminology to the new "6-dimension ontology" architecture.
+
+**IMPORTANT:** The database schema has NOT changed. This is primarily a documentation and conceptual upgrade.
+
+## What Changed
+
+### Terminology
+
+**Old:** "4-table ontology" (things, connections, events, tags/knowledge)
+**New:** "6-dimension ontology" (organizations, people, things, connections, events, knowledge)
+
+### Conceptual Model
+
+**Old:**
+```
+Things → Connections → Events → Knowledge
+```
+
+**New:**
+```
+Organizations → People → Things → Connections → Events → Knowledge
+```
+
+### Database Schema
+
+**Added:**
+- `organizations` table (already existed, now explicit first-class dimension)
+- `organizationId` field on all tables (for multi-tenant scoping)
+- `actorId` required on events (always references a person/thing)
+
+**People Representation:**
+- People are `things` with `type: 'creator'` and `properties.role`
+- No separate `people` table needed
+- Roles: `platform_owner`, `org_owner`, `org_user`, `customer`
+
+## Migration Checklist
+
+### For Developers
+
+- [ ] Read updated [ontology.md](./ontology.md)
+- [ ] Update all queries to include `organizationId` filter
+- [ ] Add authorization checks using `requireOrgAccess()`
+- [ ] Update frontend components to use org context
+- [ ] Test multi-tenant data isolation
+- [ ] Update API routes with org scoping
+
+### For AI Agents
+
+- [ ] Update system prompts to reference "6 dimensions" instead of "4 tables"
+- [ ] Include organizations and people in feature mapping
+- [ ] Generate org-scoped queries by default
+- [ ] Include authorization checks in mutations
+- [ ] Log events with `actorId` (who did it)
+
+### For Documentation
+
+- [ ] Search and replace "4-table" → "6-dimension" in all docs
+- [ ] Update diagrams to show all 6 dimensions
+- [ ] Add examples showing org and people dimensions
+- [ ] Update README with new architecture
+
+## Code Changes
+
+### Old Query Pattern
+
+```typescript
+// Get all blog posts
+const posts = await ctx.db
+  .query("things")
+  .withIndex("by_type", (q) => q.eq("thingType", "blog_post"))
+  .collect();
+```
+
+### New Query Pattern
+
+```typescript
+// Get all blog posts in organization
+const posts = await ctx.db
+  .query("things")
+  .withIndex("by_org_type", (q) =>
+    q.eq("organizationId", orgId)
+     .eq("thingType", "blog_post")
+  )
+  .collect();
+```
+
+### Authorization Pattern
+
+```typescript
+export const createBlogPost = mutation({
+  args: {
+    orgId: v.id("organizations"),
+    title: v.string()
+  },
+  handler: async (ctx, args) => {
+    // NEW: Check authorization
+    await requireOrgAccess(ctx, args.orgId, "org_user");
+
+    const userId = await getUserId(ctx);
+
+    // NEW: Scope to organization
+    const postId = await ctx.db.insert("things", {
+      thingType: "blog_post",
+      name: args.title,
+      organizationId: args.orgId,  // NEW
+      properties: {},
+      status: "draft",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // NEW: Log event with actor
+    await ctx.db.insert("events", {
+      eventType: "content_created",
+      actorId: userId,  // NEW: Who did it
+      thingId: postId,
+      organizationId: args.orgId,  // NEW
+      timestamp: Date.now(),
+      metadata: {},
+    });
+
+    return postId;
+  },
+});
+```
+
+## Testing
+
+### Data Isolation Test
+
+```typescript
+test("organizations have isolated data", async () => {
+  const orgA = await createOrg("Org A");
+  const orgB = await createOrg("Org B");
+
+  const postA = await createPost(orgA, "Post A");
+  const postB = await createPost(orgB, "Post B");
+
+  const postsInA = await queryPosts(orgA);
+
+  expect(postsInA).toContain(postA);
+  expect(postsInA).not.toContain(postB);
+});
+```
+
+### Authorization Test
+
+```typescript
+test("org users cannot access other orgs", async () => {
+  const orgA = await createOrg("Org A");
+  const orgB = await createOrg("Org B");
+
+  const userA = await createUser(orgA, "org_user");
+
+  await expect(
+    queryPosts(orgB, userA)
+  ).rejects.toThrow("User not member of organization");
+});
+```
+
+## Rollback Plan
+
+If issues arise:
+
+1. **Schema:** No changes needed (already compatible)
+2. **Queries:** Remove `organizationId` filters temporarily
+3. **Authorization:** Disable `requireOrgAccess()` checks temporarily
+4. **Revert:** All data intact, just remove org scoping
+
+## Support
+
+Questions? Issues?
+
+- **Docs:** [one/connections/ontology.md](./ontology.md)
+- **Examples:** [one/examples/](../examples/)
+- **Architecture:** [one/things/architecture.md](../things/architecture.md)
+```
+
+---
+
+## Phase 6: Validation & Quality Assurance
+
+### Step 6.1: Automated Validation
+
+**Create Validation Script:**
+
+```typescript
+// scripts/validate-6-dimension-migration.ts
+
+import fs from 'fs';
+import path from 'path';
+
+interface ValidationResult {
+  file: string;
+  line: number;
+  issue: string;
+  suggestion: string;
+}
+
+const results: ValidationResult[] = [];
+
+// Check for outdated "4-table" references
+function checkFile(filePath: string) {
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const lines = content.split('\n');
+
+  lines.forEach((line, index) => {
+    // Check for "4-table" or "4 table"
+    if (line.match(/4[-\s]table/i)) {
+      results.push({
+        file: filePath,
+        line: index + 1,
+        issue: 'Found "4-table" reference',
+        suggestion: 'Replace with "6-dimension" or "6 dimension"',
+      });
+    }
+
+    // Check for old pattern without org context
+    if (line.match(/query\("things"\)/) && !line.includes('organizationId')) {
+      results.push({
+        file: filePath,
+        line: index + 1,
+        issue: 'Query without organization scope',
+        suggestion: 'Add .withIndex("by_org_type", ...) for multi-tenant safety',
+      });
+    }
+
+    // Check for events without actor
+    if (line.match(/insert\("events"/) && !line.includes('actorId')) {
+      results.push({
+        file: filePath,
+        line: index + 1,
+        issue: 'Event without actorId',
+        suggestion: 'Add actorId field (who performed this action)',
+      });
+    }
+  });
+}
+
+// Scan all documentation
+const docsPath = path.join(__dirname, '../one');
+function scanDirectory(dir: string) {
+  const files = fs.readdirSync(dir);
+
+  files.forEach(file => {
+    const fullPath = path.join(dir, file);
+    const stat = fs.statSync(fullPath);
+
+    if (stat.isDirectory() && !file.startsWith('.')) {
+      scanDirectory(fullPath);
+    } else if (file.endsWith('.md') || file.endsWith('.ts') || file.endsWith('.tsx')) {
+      checkFile(fullPath);
+    }
+  });
+}
+
+// Run validation
+console.log('🔍 Validating 6-dimension migration...\n');
+scanDirectory(docsPath);
+
+// Report results
+if (results.length === 0) {
+  console.log('✅ No issues found! Migration complete.');
+} else {
+  console.log(`⚠️  Found ${results.length} issues:\n`);
+  results.forEach(result => {
+    console.log(`${result.file}:${result.line}`);
+    console.log(`  Issue: ${result.issue}`);
+    console.log(`  Suggestion: ${result.suggestion}\n`);
+  });
+}
+
+// Exit with error if issues found
+process.exit(results.length === 0 ? 0 : 1);
+```
+
+**Run validation:**
+```bash
+bun run scripts/validate-6-dimension-migration.ts
+```
+
+### Step 6.2: Manual Review Checklist
+
+**Documentation Review:**
+- [ ] All "4-table" references replaced with "6-dimension"
+- [ ] Diagrams updated to show all 6 dimensions
+- [ ] Examples include organizations and people
+- [ ] README files updated with new terminology
+- [ ] Migration guide created and reviewed
+
+**Code Review:**
+- [ ] All queries include organization scoping
+- [ ] Authorization middleware in place
+- [ ] Events include `actorId` field
+- [ ] Frontend components use org context
+- [ ] Tests cover multi-tenant scenarios
+
+**Quality Checks:**
+- [ ] No broken internal links
+- [ ] All code examples compile
+- [ ] Documentation is consistent across files
+- [ ] Examples work for both children and enterprises
+
+---
+
+## Phase 7: Deployment & Rollout
+
+### Step 7.1: Staged Rollout
+
+**Week 1: Documentation**
+- Update all documentation files
+- Create migration guide
+- Update README files
+- Run validation script
+
+**Week 2: Examples**
+- Create children's examples (lemonade stand)
+- Create enterprise examples (CRM SaaS)
+- Test all examples
+- Record demo videos
+
+**Week 3: Code Migration**
+- Add organization scoping to schema
+- Update all queries with org context
+- Implement authorization middleware
+- Add migration script for existing data
+
+**Week 4: Testing**
+- Run full test suite
+- Test multi-tenant isolation
+- Test authorization rules
+- Performance testing
+
+**Week 5: Deployment**
+- Deploy to staging
+- Test with real data
+- Deploy to production
+- Monitor for issues
+
+### Step 7.2: Communication Plan
+
+**Internal Team:**
+- Share migration plan
+- Conduct training session
+- Update development guidelines
+- Create troubleshooting guide
+
+**External Users:**
+- Blog post announcing 6-dimension architecture
+- Update getting started guides
+- Create video tutorials
+- Host Q&A session
+
+**AI Agents:**
+- Update system prompts
+- Retrain on new documentation
+- Test code generation quality
+- Monitor for errors
+
+---
+
+## Success Metrics
+
+### Quantitative Metrics
+
+1. **Documentation Coverage:**
+   - Target: 100% of files updated
+   - Measure: Validation script reports 0 issues
+
+2. **Code Quality:**
+   - Target: All queries include org scoping
+   - Measure: 100% of mutations have authorization checks
+   - Measure: 100% of events include actorId
+
+3. **Test Coverage:**
+   - Target: Multi-tenant scenarios covered
+   - Measure: Data isolation tests pass
+   - Measure: Authorization tests pass
+
+4. **Performance:**
+   - Target: No performance regression
+   - Measure: Query times similar or better
+   - Measure: Multi-tenant queries optimized with indexes
+
+### Qualitative Metrics
+
+1. **Clarity:**
+   - Developers understand 6 dimensions immediately
+   - Children can explain the model
+   - AI agents generate correct code
+
+2. **Completeness:**
+   - All features map to 6 dimensions
+   - No "special cases" or workarounds needed
+   - Documentation is comprehensive
+
+3. **Maintainability:**
+   - Consistent patterns across all code
+   - Easy to add new features
+   - AI-friendly architecture
+
+---
+
+## Rollback Plan
+
+If critical issues arise:
+
+### Stage 1: Documentation Rollback
+- Revert documentation to "4-table" terminology
+- Keep schema changes (they're backward compatible)
+- Update: 1 hour
+
+### Stage 2: Query Rollback
+- Remove organizationId filters temporarily
+- Disable authorization checks
+- Add monitoring to detect cross-org queries
+- Update: 4 hours
+
+### Stage 3: Full Rollback
+- Revert all code changes
+- Keep organizations table (data intact)
+- Remove org scoping indexes
+- Update: 1 day
+
+**Backup Strategy:**
+- Full database backup before migration
+- Documentation backup in git
+- Rollback script tested in staging
+
+---
+
+## Timeline Summary
+
+- **Phase 1:** Search & Analysis - 1 day
+- **Phase 2:** Core Documentation Updates - 2 days
+- **Phase 3:** Systematic Updates - 3 days
+- **Phase 4:** Implementation & Testing - 1 week
+- **Phase 5:** Communication & Education - 3 days
+- **Phase 6:** Validation & QA - 2 days
+- **Phase 7:** Deployment & Rollout - 1 week
+
+**Total Estimated Time:** 3-4 weeks
+
+---
+
+## Next Steps
+
+1. **Review this plan** with team
+2. **Get approval** from stakeholders
+3. **Create tracking board** with all tasks
+4. **Start Phase 1** (search & analysis)
+5. **Update this plan** based on findings
+
+---
+
+## Conclusion
+
+This migration transforms ONE Platform from a "4-table ontology" to a complete "6-dimension reality-aware architecture" that:
+
+✅ **Scales from children to enterprises**
+✅ **Perfect multi-tenant isolation**
+✅ **Clear ownership and governance**
+✅ **AI-friendly and future-proof**
+✅ **Simple, beautiful, complete**
+
+The 6 dimensions—Organizations, People, Things, Connections, Events, Knowledge—create a complete model of reality that both humans and AI can understand, reason about, and build upon infinitely.
+
+**Let's build the future of AI platforms together.** 🚀
+
+---
+
+**Plan Version:** 1.0.0
+**Last Updated:** 2025-10-10
+**Next Review:** After Phase 1 completion
+**Owner:** Platform Architecture Team
+</file>
 
 <file path="connections/a2a.md">
 # A2A Protocol (Agent-to-Agent)
@@ -473,7 +5103,7 @@ go get github.com/a2a-protocol/go-sdk
 
 ### Integration with Ontology
 
-Map A2A concepts to our 4-table ontology:
+Map A2A concepts to our 6-dimension ontology:
 
 **Entities**:
 - Agent entities with A2A endpoint and capabilities
@@ -1160,7 +5790,7 @@ const taskId = await agent.createTask({
 
 ### Integration with Ontology
 
-Map ACP concepts to our 4-table ontology:
+Map ACP concepts to our 6-dimension ontology:
 
 **Entities**:
 - Agent entities with ACP endpoint and capabilities
@@ -2640,7 +7270,7 @@ interface FormComponentData {
 
 ## Integration with Ontology
 
-All AG-UI messages are stored in our 4-table ontology:
+All AG-UI messages are stored in our 6-dimension ontology:
 
 ### Entities
 - Message entities with AG-UI protocol content
@@ -3221,7 +7851,7 @@ Agent monitors:
 
 ### Ontology Mapping
 
-Using our 4-table ontology:
+Using our 6-dimension ontology:
 
 #### Entities
 
@@ -4018,7 +8648,7 @@ info:
     ## Architecture
     - **Backend**: Convex (real-time, edge-deployed)
     - **Authentication**: Better Auth with OAuth (GitHub, Google)
-    - **Database**: 4-table ontology (entities, connections, events, tags)
+    - **Database**: 6-dimension ontology (organizations, people, things, connections, events, knowledge)
     - **Blockchain**: Multi-chain support (Sui, Base, Solana)
 
     ## Authentication
@@ -5868,7 +10498,7 @@ The following events will be available via webhooks in future releases:
 
 **See Also:**
 - `API.md` - Complete API reference with code examples
-- `Ontology.md` - 4-table ontology specification
+- `Ontology.md` - 6-dimension ontology specification
 - `Schema.md` - Convex schema details
 - `AGENTS.md` - Convex development guide
 </file>
@@ -7117,13 +11747,23 @@ export const sendPasswordResetEmailAction = internalAction({
 
 ---
 
-## Schema Reference (4-Table Ontology)
+## Schema Reference (6-Dimension Ontology)
 
-The ONE platform uses a **4-table ontology** where every feature maps to one of these tables:
+The ONE platform uses a **6-dimension ontology** where every feature maps to one of these dimensions:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                      ENTITIES TABLE                          │
+│                   ORGANIZATIONS TABLE                        │
+│  Multi-tenant isolation - who owns what at org level        │
+└──────────────────────────────────────────────────────────────┘
+                              ↓
+┌──────────────────────────────────────────────────────────────┐
+│                      PEOPLE TABLE                            │
+│  Authorization & governance - who can do what               │
+└──────────────────────────────────────────────────────────────┘
+                              ↓
+┌──────────────────────────────────────────────────────────────┐
+│                      THINGS TABLE                            │
 │  Every "thing" - users, agents, content, tokens, courses    │
 └──────────────────────────────────────────────────────────────┘
                               ↓
@@ -7138,12 +11778,12 @@ The ONE platform uses a **4-table ontology** where every feature maps to one of 
 └──────────────────────────────────────────────────────────────┘
                               ↓
 ┌──────────────────────────────────────────────────────────────┐
-│                       TAGS TABLE                             │
-│  Every category - industry:fitness, skill:video, etc.       │
+│                    KNOWLEDGE TABLE                           │
+│  Labels + vectors powering RAG & search                     │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-**Golden Rule:** If you can't map your feature to these 4 tables, you're thinking about it wrong.
+**Golden Rule:** If you can't map your feature to these 6 dimensions, you're thinking about it wrong.
 
 ### Entities Table
 
@@ -7647,7 +12287,7 @@ paginationOptsValidator
 
 ## How Features Map to Ontology
 
-Understanding how to map features to the 4-table ontology is critical for implementing new functionality.
+Understanding how to map features to the 6-dimension ontology is critical for implementing new functionality.
 
 ### Example: AI Clone Creation
 
@@ -7922,7 +12562,7 @@ export const getCloneMetrics = query({
 
 ---
 
-## Migration Guide: Old System → 4-Table Ontology
+## Migration Guide: Old System → 6-Dimension Ontology
 
 ### Step 1: Identify Entity Types
 
@@ -8491,7 +13131,7 @@ GET  /api/agents/:agentId/tasks/:taskId // Task status
 
 ## Integration with Ontology
 
-All agent communications are stored in our 4-table ontology:
+All agent communications are stored in our 6-dimension ontology:
 
 ### Entities
 - Agent entities with capabilities and endpoints
@@ -8597,7 +13237,7 @@ const imageTask = await delegate({
 ## Key Principles
 
 1. **Interoperability First**: Use standard protocols (A2A/ACP)
-2. **Ontology-Driven**: All communication mapped to 4 tables
+2. **Ontology-Driven**: All communication mapped to 6 dimensions
 3. **Async-First**: Long-running tasks are the norm
 4. **Security**: Authentication, authorization, audit trails
 5. **Observable**: All communications logged as events
@@ -9713,7 +14353,7 @@ The ONE Platform should deploy across three networks:
    - USDC native
    - Enterprise on-ramps
 
-**Key Insight:** The 4-table ontology makes this trivial. Networks are just metadata. Build once, deploy everywhere.
+**Key Insight:** The 6-dimension ontology makes this trivial. Networks are just metadata. Build once, deploy everywhere.
 
 **This is how you build the fastest, cheapest, most scalable AI agent network in crypto.**
 
@@ -12196,7 +16836,7 @@ const scopeThingIds = new Set(owned.map(c => c.toEntityId));
 
 **Version:** 1.0.0
 **Status:** Active
-**Purpose:** Define KYC verification as a connection in the 4-table ontology with SUI blockchain identity
+**Purpose:** Define KYC verification as a connection in the 6-dimension ontology with SUI blockchain identity
 
 ---
 
@@ -12823,14 +17463,14 @@ For maximum privacy, use SUI zkLogin:
 - **[Owner.md](../things/owner.md)** - Platform owner and org_owner roles
 - **[Organisation.md](../things/organisation.md)** - Organization structure
 - **[SUI.md](../things/sui.md)** - SUI blockchain integration
-- **[Ontology.md](../ontology.md)** - 4-table universe reference
+- **[Ontology.md](../ontology.md)** - 6-dimension universe reference
 </file>
 
 <file path="connections/mcp.md">
 # Model Context Protocol (MCP) - Deep Integration Strategy
 
 **Version:** 2.0.0 (Ontology-Aligned)
-**Purpose:** Comprehensive MCP integration with the 4-table ontology (things, connections, events, knowledge)
+**Purpose:** Comprehensive MCP integration with the 6-dimension ontology (organizations, people, things, connections, events, knowledge)
 **Protocol:** https://modelcontextprotocol.io/
 **Maintained By:** Anthropic, PBC (Open Source)
 
@@ -12838,7 +17478,7 @@ For maximum privacy, use SUI zkLogin:
 
 ## Executive Summary
 
-**Model Context Protocol (MCP)** enables AI systems to access the ONE Platform's 4-table ontology via a standardized protocol.
+**Model Context Protocol (MCP)** enables AI systems to access the ONE Platform's 6-dimension ontology via a standardized protocol.
 
 **Strategic Value:**
 - ✅ **Universal AI Connectivity** - Any AI can access things, knowledge, and agents
@@ -12848,7 +17488,7 @@ For maximum privacy, use SUI zkLogin:
 - ✅ **RAG-Ready** - Full knowledge table access (labels + vectors)
 
 **Recommended Approach:**
-1. **MCP Server** - Expose ONE ontology (things, connections, events, knowledge)
+1. **MCP Server** - Expose ONE ontology (organizations, people, things, connections, events, knowledge)
 2. **MCP Client** - Connect to external MCP servers
 3. **Hybrid Architecture** - Best of both worlds
 4. **Knowledge Integration** - Semantic search via knowledge table
@@ -12857,7 +17497,7 @@ For maximum privacy, use SUI zkLogin:
 
 ## Ontology Integration (Updated)
 
-### The 4-Table Universe
+### The 6-Dimension Universe
 
 ```typescript
 // TABLE 1: THINGS (all entities)
@@ -13489,7 +18129,7 @@ export class MCPServerService extends Effect.Service<MCPServerService>()(
     "one-ontology": {
       "command": "node",
       "args": ["dist/mcp-ontology-server.js"],
-      "description": "ONE Platform Ontology - Things, connections, events, knowledge (labels + RAG)"
+      "description": "ONE Platform Ontology - Organizations, people, things, connections, events, knowledge (labels + RAG)"
     },
     "one-knowledge": {
       "command": "node",
@@ -13604,7 +18244,7 @@ Specialized server for knowledge operations:
 ## Summary
 
 **MCP Integration (Ontology-Aligned):**
-- ✅ **4-Table Access** - Things, connections, events, knowledge
+- ✅ **6-Dimension Access** - Organizations, people, things, connections, events, knowledge
 - ✅ **Knowledge Tools** - Labels, chunks, semantic search
 - ✅ **RAG-Ready** - Vector search built-in
 - ✅ **Ontology-First** - Direct access to canonical data model
@@ -13759,7 +18399,7 @@ type MembershipConnectionType =
 
 ## Ontology Mapping
 
-### 4-Table Structure
+### 6-Dimension Structure
 
 **Things Involved:**
 - `creator` - Platform owner, org owner, org user (with role property)
@@ -14776,7 +19416,7 @@ const content = await Promise.all(
 ---
 
 **Related Documentation:**
-- [Ontology.md](../ontology.md) - Complete 4-table specification
+- [Ontology.md](../ontology.md) - Complete 6-dimension specification
 - [Multitenant.md](../multitenant.md) - Multi-tenant architecture patterns
 - [Owner.md](../things/owner.md) - Platform owner role and revenue tracking
 - [Organisation.md](../things/organisation.md) - Organization entity details
@@ -14812,9 +19452,9 @@ The **middleware layer** is the glue that binds our three-layer architecture tog
                  │
                  ↓ BACKEND INTEGRATION
 ┌─────────────────────────────────────────────────────────┐
-│              HONO API + CONVEX                          │[[
-]]│  - Business logic (Effect.ts services)                  │
-│  - Database (4-table ontology)                          │
+│              HONO API + CONVEX                          │
+│  - Business logic (Effect.ts services)                  │
+│  - Database (6-dimension ontology)                      │
 │  - Real-time subscriptions                              │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -15829,7 +20469,7 @@ The middleware layer is the **glue** that makes our three-layer architecture wor
 
 ## Overview
 
-**Multi-tenancy** enables multiple organizations to use the ONE Platform while maintaining complete data isolation, custom branding, and independent configuration. This architecture leverages the 4-table ontology to provide:
+**Multi-tenancy** enables multiple organizations to use the ONE Platform while maintaining complete data isolation, custom branding, and independent configuration. This architecture leverages the 6-dimension ontology to provide:
 
 1. **Organization Isolation**: Each org's data is completely separated
 2. **Shared Infrastructure**: Single Hono API + Convex backend serves all orgs
@@ -15873,7 +20513,7 @@ The middleware layer is the **glue** that makes our three-layer architecture wor
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Data Model (4-Table Ontology)
+## Data Model (6-Dimension Ontology)
 
 ### Entities
 
@@ -17165,7 +21805,7 @@ await ctx.db.insert('events', {
 9. Migrate existing users to default org
 10. Launch multi-tenant support
 
-**Result:** A fully multi-tenant platform where organizations have complete data isolation, custom branding, and flexible billing, all powered by the 4-table ontology.
+**Result:** A fully multi-tenant platform where organizations have complete data isolation, custom branding, and flexible billing, all powered by the 6-dimension ontology.
 </file>
 
 <file path="connections/n8n.md">
@@ -18189,7 +22829,7 @@ This integration enables:
 <file path="connections/ontology-documentation.md">
 # ONE Ontology Documentation
 
-**Version 1.0 
+**Version 2.0 - 6-Dimension Architecture** 
 
 ---
 
@@ -18300,11 +22940,11 @@ Organisations → People → Things → Connections → Events → Knowledge
 
 ## Key Principles
 
-### 1. Four Primitives
+### 1. Six Dimensions
 
-Everything in ONE exists in one of 6 tables:
-- organisations
-- people
+Everything in ONE exists in one of 6 dimensions:
+- **organizations** - multi-tenant isolation (ownership partitioning)
+- **people** - authorization & governance (who can do what)
 - **things** - entities (66 types)
 - **connections** - relationships (25 types)
 - **events** - actions (67 types)
@@ -18349,37 +22989,47 @@ Complete audit trail:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  1. User Request                                 │
+│  1. Organization Scope                           │
+│     Define the context for all operations        │
+└──────────────────┬──────────────────────────────┘
+                   ↓
+┌─────────────────────────────────────────────────┐
+│  2. Person Authorization                         │
+│     Check permissions & role                     │
+└──────────────────┬──────────────────────────────┘
+                   ↓
+┌─────────────────────────────────────────────────┐
+│  3. User Request                                 │
 │     "Create a fitness course"                    │
 └──────────────────┬──────────────────────────────┘
                    ↓
 ┌─────────────────────────────────────────────────┐
-│  2. Vector Search (Knowledge)                    │
+│  4. Vector Search (Knowledge)                    │
 │     Find relevant chunks + labels                │
 └──────────────────┬──────────────────────────────┘
                    ↓
 ┌─────────────────────────────────────────────────┐
-│  3. RAG Context Assembly                         │
-│     Crawls using vectors and ontology → Context                      │
+│  5. RAG Context Assembly                         │
+│     Crawls using vectors and ontology → Context  │
 └──────────────────┬──────────────────────────────┘
                    ↓
 ┌─────────────────────────────────────────────────┐
-│  4. LLM Generation                               │
+│  6. LLM Generation                               │
 │     Context + Prompt → Generated content         │
 └──────────────────┬──────────────────────────────┘
                    ↓
 ┌─────────────────────────────────────────────────┐
-│  5. Create Thing + Connections + Events          │
+│  7. Create Thing + Connections + Events          │
 │     Course entity + ownership + logs             │
 └──────────────────┬──────────────────────────────┘
                    ↓
 ┌─────────────────────────────────────────────────┐
-│  6. Embed New Content (Knowledge)                │
+│  8. Embed New Content (Knowledge)                │
 │     Course → chunks → embeddings                 │
 └─────────────────────────────────────────────────┘
 ```
 
-Knowledge makes generation **context-aware** and **infinitely scalable**.
+Knowledge makes generation **context-aware**, organizations make it **multi-tenant**, and people make it **governed**.
 
 ---
 
@@ -18387,14 +23037,16 @@ Knowledge makes generation **context-aware** and **infinitely scalable**.
 
 **Simplicity is the ultimate sophistication.**
 
-- **4 tables** (not 50+)
+- **6 dimensions** (not 50+ tables)
+- **Organizations** partition the space
+- **People** authorize and govern
 - **66 thing types** (covers everything)
 - **25 connection types** (all relationships)
 - **67 event types** (complete tracking)
 - **Metadata for variance** (not enum explosion)
 - **Protocol-agnostic core** (infinite extensibility)
 
-This ontology proves you don't need complexity to build a complete AI-native platform.
+This ontology proves you don't need complexity to build a complete AI-native platform that scales from children's lemonade stands to global enterprises.
 
 ---
 
@@ -18522,51 +23174,181 @@ When adding features:
 <file path="connections/ontology.md">
 # ONE Platform - Ontology Specification
 
-**Version:** 1.0.0
-**Status:** Complete - Knowledge-Based Architecture 
-**Design Principle:** This ontology is protocol-agnostic. All protocols (HTML, REST, MCP, A2A, ACP, X402, AP2, etc.) map TO this ontology via metadata, never the other way around.
+**Version:** 2.0.0 (6-Dimension Architecture)
+**Status:** Complete - Reality-Aware Architecture
+**Design Principle:** This ontology models reality in six dimensions. All protocols map TO this ontology via metadata.
 ## Structure
 
-This ontology is organized into 6 consolidated files:
+This ontology is organized into 6 dimension files:
 
-1. **[organisation.md](./organisation.md)** - Organizations own things and delegate ownership to people
-2. **[people.md](./people.md)** - Platform owner, org owners, users, and customers who customize AI
-3. **[things.md](./things.md)** - 66 entity types (summary; complete details below)
-4. **[connections.md](./connections.md)** - 25 relationship types (summary; complete details below)
-5. **[events.md](./events.md)** - 67 event types (summary; complete details below)
-6. **[knowledge.md](./knowledge.md)** - Vectors, embeddings, RAG, inference, and revenue flows
+1. **[organisation.md](./organisation.md)** - Multi-tenant isolation & ownership
+2. **[people.md](./people.md)** - Authorization, governance, & user customization
+3. **[things.md](./things.md)** - 66 entity types (what exists)
+4. **[connections.md](./connections.md)** - 25 relationship types (how they relate)
+5. **[events.md](./events.md)** - 67 event types (what happened)
+6. **[knowledge.md](./knowledge.md)** - Vectors, embeddings, RAG (what it means)
 
 **This document (Ontology.md)** contains the complete technical specification. The consolidated files above provide focused summaries and patterns.
 
-## The 4-Table Universe
+## The 6-Dimension Reality Model
 
-Every single thing in ONE platform exists in one of these 4 tables:
+Every single thing in ONE platform exists within one of these 6 dimensions:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                          THINGS                               │
+│                      1. ORGANIZATIONS                         │
+│  Multi-tenant isolation boundary - who owns what at org level │
+└──────────────────────────────────────────────────────────────┘
+                              ↓
+┌──────────────────────────────────────────────────────────────┐
+│                         2. PEOPLE                             │
+│  Authorization & governance - platform owner, org owners      │
+└──────────────────────────────────────────────────────────────┘
+                              ↓
+┌──────────────────────────────────────────────────────────────┐
+│                         3. THINGS                             │
 │  Every "thing" - users, agents, content, tokens, courses      │
 └──────────────────────────────────────────────────────────────┘
                               ↓
 ┌──────────────────────────────────────────────────────────────┐
-│                       CONNECTIONS                             │
+│                      4. CONNECTIONS                           │
 │  Every relationship - owns, follows, taught_by, powers        │
 └──────────────────────────────────────────────────────────────┘
                               ↓
 ┌──────────────────────────────────────────────────────────────┐
-│                          EVENTS                               │
+│                         5. EVENTS                             │
 │  Every action - purchased, created, viewed, completed         │
 └──────────────────────────────────────────────────────────────┘
                               ↓
 ┌──────────────────────────────────────────────────────────────┐
-│                         KNOWLEDGE                             │
+│                       6. KNOWLEDGE                            │
 │  Labels + chunks + vectors powering RAG & search              │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-**Golden Rule:** If you can't map your feature to these 4 tables, you're thinking about it wrong.
+**Golden Rule:** If you can't map your feature to these 6 dimensions, you're thinking about it wrong.
 
-Simplicity: ONE is four primitives — things (entities), connections, events, and knowledge — plus ownership and organizations. Everything composes from these building blocks.
+**Simplicity:** ONE is six dimensions — organizations partition, people authorize, things exist, connections relate, events record, and knowledge understands. Everything composes from these building blocks.
+
+---
+
+## ORGANIZATIONS: The Isolation Boundary
+
+Purpose: Partition the system for multi-tenant scale. Every organization owns its own graph of things, connections, events, and knowledge.
+
+### Organization Structure
+
+```typescript
+{
+  _id: Id<'organizations'>,
+  name: string,
+  slug: string,              // URL-friendly identifier
+  domain?: string,           // Custom domain
+  status: 'active' | 'suspended' | 'trial' | 'cancelled',
+  plan: 'starter' | 'pro' | 'enterprise',
+
+  limits: {
+    users: number,
+    storage: number,         // GB
+    apiCalls: number,
+    inference: number,       // Monthly LLM calls
+  },
+
+  usage: {
+    users: number,
+    storage: number,
+    apiCalls: number,
+    inference: number,
+  },
+
+  billing: {
+    customerId?: string,     // Stripe customer
+    subscriptionId?: string,
+  },
+
+  settings: {
+    allowSignups: boolean,
+    requireEmailVerification: boolean,
+    enableTwoFactor: boolean,
+  },
+
+  createdAt: number,
+  updatedAt: number,
+  trialEndsAt?: number,
+}
+```
+
+### Why Organizations Matter
+
+1. **Multi-Tenant Isolation:** Each org's data is completely separate
+2. **Resource Quotas:** Control costs and usage per organization
+3. **Custom Branding:** Each org can have unique frontend/domain
+4. **Billing Flexibility:** Per-org subscriptions and revenue sharing
+
+---
+
+## PEOPLE: Authorization & Governance
+
+Purpose: Define who can do what. People direct organizations, customize AI agents, and govern access.
+
+### Person Structure
+
+```typescript
+{
+  _id: Id<'people'>,
+  email: string,
+  username: string,
+  displayName: string,
+
+  // CRITICAL: Role determines access level
+  role: 'platform_owner' | 'org_owner' | 'org_user' | 'customer',
+
+  // Organization context
+  organizationId?: Id<'organizations'>,  // Current/default org
+  permissions?: string[],
+
+  // Profile
+  bio?: string,
+  avatar?: string,
+
+  // Multi-tenant tracking
+  organizations: Id<'organizations'>[],  // All orgs this person belongs to
+
+  createdAt: number,
+  updatedAt: number,
+}
+```
+
+### Four Roles
+
+1. **Platform Owner** (Anthony)
+   - Owns the ONE Platform
+   - 100% revenue from platform-level services
+   - Can access all organizations (support/debugging)
+   - Creates new organizations
+
+2. **Org Owner**
+   - Owns/manages one or more organizations
+   - Controls users, permissions, billing within org
+   - Customizes AI agents and frontend
+   - Revenue sharing with platform
+
+3. **Org User**
+   - Works within an organization
+   - Limited permissions (defined by org owner)
+   - Can create content, run agents (within quotas)
+
+4. **Customer**
+   - External user consuming content
+   - Purchases tokens, enrolls in courses
+   - No admin access
+
+### Why People Matter
+
+1. **Authorization:** Every action must have an actor (person)
+2. **Governance:** Org owners control who can do what
+3. **Audit Trail:** Events log who did what when
+4. **Customization:** People teach AI agents their preferences
 
 ---
 
@@ -20588,6 +25370,55 @@ Principle: Users can add to any type without breaking the ontology.
 
 ## Summary Statistics
 
+**Dimensions:** 6 total (organizations, people, things, connections, events, knowledge)
+
+**Thing Types:** 66 total
+- Core: 4 (creator, ai_clone, audience_member, organization)
+- Business Agents: 10
+- Content: 7
+- Products: 4
+- Community: 3
+- Token: 2
+- Knowledge: 2
+- Platform: 6
+- Business: 7
+- Authentication & Session: 5
+- Marketing: 6
+- External: 3
+- Protocol: 2
+
+**Connection Types:** 25 total (Hybrid approach)
+- 18 specific semantic types
+- 7 consolidated types with metadata variants
+- Protocol-agnostic via metadata.protocol
+- Includes organization membership with role-based metadata
+
+**Event Types:** 67 total (Hybrid approach)
+- 4 Thing lifecycle
+- 5 User events
+- 6 Authentication events
+- 5 Organization events
+- 4 Dashboard & UI events
+- 4 AI/Clone events
+- 4 Agent events
+- 7 Token events
+- 5 Course events
+- 5 Analytics events
+- 7 Inference events
+- 5 Blockchain events
+- 11 consolidated types with metadata variants
+
+**Design Benefits:**
+- Six-dimension reality model
+- Multi-tenant by design
+- Clear ownership & governance
+- Protocol-agnostic core
+- Infinite protocol extensibility
+- Cross-protocol analytics
+- Type-safe
+- Future-proof
+- Scales from children to enterprise
+
 ---
 
 ## Knowledge Governance
@@ -20673,12 +25504,12 @@ Policy: Default is free-form, user-extensible knowledge labels for maximum flexi
 
 **Simplicity is the ultimate sophistication.**
 
-This ontology proves that you don't need hundreds of event types or dozens of tables to build a complete AI-native platform. You need:
+This ontology proves that you don't need hundreds of tables or complex schemas to build a complete AI-native platform. You need:
 
-1. **4 tables** (things [table: `entities`], connections, events, knowledge)
-2. **56 thing types** (every "thing")
-3. **25 connection types** (18 specific + 7 consolidated - every relationship)
-4. **35 event types** (24 specific + 11 consolidated - every action)
+1. **6 dimensions** (organizations, people, things, connections, events, knowledge)
+2. **66 thing types** (every "thing")
+3. **25 connection types** (every relationship)
+4. **67 event types** (every action)
 5. **Metadata** (for protocol identity via metadata.protocol)
 
 That's it. Everything else is just data.
@@ -20688,16 +25519,18 @@ That's it. Everything else is just data.
 **Other systems:**
 
 - Create new tables for every feature
-- Add protocol-specific event types
+- Add protocol-specific columns
 - Pollute schema with temporary concepts
-- End up with 50+ tables, 200+ event types
+- End up with 50+ tables, 200+ columns
 - Become unmaintainable nightmares
 
 **ONE's approach:**
 
-- Map every feature to 4 tables
-- Use generic event types + metadata
-- Protocol-agnostic core design
+- Map every feature to 6 dimensions
+- Organizations partition the space
+- People authorize and govern
+- Things, connections, events flow from there
+- Knowledge understands it all
 - Scale infinitely without schema changes
 - Stay simple, clean, beautiful
 
@@ -20705,9 +25538,10 @@ That's it. Everything else is just data.
 
 A database schema that:
 
-- AI agents can understand completely
-- Humans can reason about easily
-- Supports infinite protocols
+- Scales from lemonade stands to global enterprises
+- Children can understand: "I own (org), I'm the boss (person), I sell lemonade (things)"
+- Enterprises can rely on: Multi-tenant isolation, clear governance, infinite scale
+- AI agents can reason about completely
 - Never needs breaking changes
 - Grows more powerful as it grows larger
 
@@ -21288,15 +26122,17 @@ price_checked, commerce_event, payment_verified
 
 ## The Ontology
 
-**Our 4-table ontology is defined in:**
+**Our 6-dimension ontology is defined in:**
 - **[Ontology.md](./ontology.md)** - The ONE source of truth
 - **[ontologyupdates.md](./ontologyupdates.md)** - Implementation plan
 
-**Tables:**
-1. **entities** - All "things" (56 entity types)
-2. **connections** - All relationships (25 connection types: 18 specific + 7 consolidated)
-3. **events** - All actions (35 event types: 24 specific + 11 consolidated)
-4. **tags** - All categories (12 tag categories)
+**Dimensions:**
+1. **organizations** - Multi-tenant isolation boundary
+2. **people** - Authorization & governance
+3. **things** - All entities (66 types)
+4. **connections** - All relationships (25 connection types)
+5. **events** - All actions (67 event types)
+6. **knowledge** - Labels, vectors, embeddings
 
 ---
 
@@ -21481,7 +26317,7 @@ const ap2Mandates = await ctx.db
 - Convex backend setup
 
 ### 📋 TODO
-- [ ] Implement 4-table ontology in schema
+- [ ] Implement 6-dimension ontology in schema
 - [ ] Migrate users to entities table
 - [ ] Implement A2A service
 - [ ] Implement ACP service
@@ -23717,7 +28553,7 @@ const executeAgent = (agent: Entity, config: { task: string; context: any }) =>
 # Workflow - Ontology-Driven Development
 
 **Version:** 1.0.0
-**Purpose:** Define the exact workflow for building features on the ONE Platform using the 4-table ontology
+**Purpose:** Define the exact workflow for building features on the ONE Platform using the 6-dimension ontology
 
 ---
 
@@ -23725,7 +28561,7 @@ const executeAgent = (agent: Entity, config: { task: string; context: any }) =>
 
 Every feature in ONE Platform follows a 6-phase workflow that ensures consistency, quality, and adherence to the ontology. This workflow prevents technical debt and makes AI agents more effective at code generation.
 
-**The Golden Rule:** If you can't map your feature to the 4 tables (things, connections, events, tags), you're thinking about it wrong.
+**The Golden Rule:** If you can't map your feature to the 6 dimensions (organizations, people, things, connections, events, knowledge), you're thinking about it wrong.
 
 ---
 
@@ -23755,7 +28591,7 @@ Phase 6: TEST & DOCUMENT
 
 **MANDATORY READING ORDER:**
 
-1. **`one/connections/ontology.md`** (5 min) - The 4-table universe
+1. **`one/connections/ontology.md`** (5 min) - The 6-dimension universe
 2. **`one/things/README.md`** (2 min) - Understand thing types
 3. **`one/connections/README.md`** (2 min) - Understand connection types
 4. **`one/events/README.md`** (2 min) - Understand event types
@@ -23797,7 +28633,7 @@ If building "NFT Minting", search for:
 
 ## Phase 2: MAP TO ONTOLOGY
 
-**Goal:** Map the feature to the 4-table ontology BEFORE writing any code.
+**Goal:** Map the feature to the 6-dimension ontology BEFORE writing any code.
 
 ### Step 2.1: Identify Things
 
@@ -23903,7 +28739,7 @@ Knowledge:
 - [ ] All relationships use existing connection types
 - [ ] All events use existing event types
 - [ ] Metadata captures protocol/network specifics
-- [ ] No custom tables needed (everything fits in 4 tables)
+- [ ] No custom tables needed (everything fits in 6 dimensions)
 
 **If validation fails:** Re-think the feature. The ontology is intentionally complete.
 
@@ -24464,7 +29300,7 @@ describe("<Feature> Integration", () => {
 
 ### Before Starting
 - [ ] Read `one/connections/ontology.md`
-- [ ] Understand the 4-table model
+- [ ] Understand the 6-dimension model
 - [ ] Identify similar existing patterns
 - [ ] Map feature to ontology (Phase 2)
 
@@ -29750,855 +34586,1024 @@ await db.insert("connections", {
 **People customize AI generation. Organizations contain people.**
 </file>
 
-<file path="things/agents/clone.md">
-# Anthony's AI Clone Specification
-
-**Role:** Personal AI Representative
-**Purpose:** Represent Anthony O'Connell in conversations, teaching, and community interactions
-**Expertise:** ALL knowledge from one.ie + Anthony's communication style
+<file path="things/agents/agent-clean.md">
+# Agent Clean
+Sustainability Agent Specification
+**Role:** Keep the ONE ontology and codebase beautifully clean
+**Purpose:** Detect, remediate, and prevent entropy across documentation, schema, and implementation assets
+**Expertise:** Repository hygiene, ontology compliance, automation, quality assurance
 
 ---
 
-## Identity & Ontology Mapping
+## Your Mission
 
-### Thing Type: `ai_clone`
+You are the **Agent Clean** steward. Your mandate is to maintain enduring cleanliness of the ONE platform by:
+- Enforcing naming and casing standards across all assets (files, links, identifiers)
+- Eliminating duplication, dead files, and stale references before they spread
+- Guarding the ontology's six-dimension structure by catching drift early
+- Keeping developer tooling (formatters, linters, generators) aligned and noise-free
+- Surfacing actionable cleanliness reports for humans and agents to consume
+
+**Non-negotiable:** Beauty = stability. Every artifact must feel intentional.
+
+---
+
+## Phase 1: Continuous Hygiene Monitoring
+
+### Step 1: Establish the Cleanliness Baseline
+
+- Crawl `one/**` and `src/**` daily to detect casing mismatches, stray spaces, or duplicate prefixes.
+- Normalize findings into `reports/cleanliness/baseline.md`:
+
+```markdown
+# Cleanliness Baseline — {{date}}
+
+## File Naming Issues
+- ./one/things/example-file.MD → rename to example-file.md (case mismatch)
+
+## Link Integrity
+- one/connections/protocols.md → [missing-file](./missing-file.md)
+
+## Pending Decisions
+- Should ./public/legacy-banner.svg remain? (unused 30 days)
+```
+
+### Step 2: Link & Reference Integrity
+
+- Run weekly link sweeps:
+  - Markdown: ensure `[label](./path/to/file.md)` references exist with exact casing.
+  - TypeScript/Astro imports: flag unresolved or aliased paths that no longer exist.
+  - Ontology cross-refs: verify 6-dimension references (`organizations`, `people`, `things`, `connections`, `events`, `knowledge`) stay synchronized.
+- Record actionable items in `reports/cleanliness/link-audit.md`.
+
+### Step 3: Repo Health Signals
+
+- Track these metrics and alert when thresholds breach:
+  - **Lint debt:** number of ESLint disables (`// eslint-disable`) exceeding 5 per file.
+  - **Formatting drift:** `prettier --check` failures.
+  - **Ontology churn:** Monitor `one/knowledge/score.md` values; open issue if score increases > 4 within a week.
+- Emit weekly status snapshots to `reports/cleanliness/health-score.json` with trend data.
+
+---
+
+## Phase 2: Remediation & Automation
+
+### Step 1: Surgical Cleanups
+
+- Apply scoped patches for each finding; never batch unrelated fixes.
+- Ensure every cleanup maps to a 6-dimension primitive:
 
 ```typescript
+await ctx.db.insert('events', {
+  type: 'content_event',
+  actorId: agentCleanId,
+  targetId: cleanupThingId,
+  timestamp: Date.now(),
+  metadata: { protocol: 'internal', action: 'references_updated' }
+});
+```
+
+### Step 2: Automate Guardrails
+
+- Maintain scripts in `scripts/cleanliness/`:
+  - `check-links.ts` → Verifies Markdown casing + existence.
+  - `normalize-filenames.ts` → Suggests lowercasing + kebab-case conversions (dry-run by default).
+  - `orphans-report.ts` → Lists unused assets (SVGs, screenshots, generated files).
+- Schedule via Convex cron (`ctx.scheduler.runAfter`) to keep reports fresh.
+
+### Step 3: Prevent Regressions
+
+- Update onboarding docs (`docs/conventions.md`) whenever new hygiene rules emerge.
+- Add automated PR comments for violations using GitHub Actions templates stored in `scripts/cleanliness/templates/`.
+- Coordinate with Agent Clone to ensure migrations preserve cleanliness guarantees.
+
+---
+
+## Phase 3: Reporting & Governance
+
+### Step 1: Publish the Cleanliness Digest
+
+Every Friday generate `reports/cleanliness/digest.md` summarizing:
+- ✅ Resolved issues (with links to commits / events)
+- ⚠️ Pending decisions (awaiting human input)
+- 🚨 Escalations (blocking merges or releases)
+
+### Step 2: Maintain the Cleanliness Ledger
+
+- Append entries to `one/things/inference_score.md` when ontology hygiene improvements reduce noise.
+- Cross-reference `knowledge/score.md` to show correlation between cleanliness and stability.
+- Use knowledge labels (`knowledge/labels/cleanliness.json`) to tag relevant chunks for RAG retrieval.
+
+### Step 3: Coordinate With Humans & Agents
+
+- Dispatch `communication_event` entries for major cleanups:
+
+```typescript
+await ctx.db.insert('events', {
+  type: 'communication_event',
+  actorId: agentCleanId,
+  targetId: platformOwnerId,
+  timestamp: Date.now(),
+  metadata: {
+    protocol: 'internal_sops',
+    messageType: 'cleanliness_digest',
+    summary: 'All links normalized; 3 orphan assets pending approval.'
+  }
+});
+```
+- Keep a rolling agenda in `meetings/agent-sync.md` for weekly syncs with other agents (Clone, Sales, Strategy).
+
+---
+
+## Quick Playbook
+
+| Situation | Action | Output |
+|-----------|--------|--------|
+| New mixed-case file added | Suggest rename via `normalize-filenames.ts --fix` | PR comment + rename patch |
+| Broken Markdown link detected | Raise `cleanup` task, fix path, add regression test | Commit + event log |
+| Duplicate spec discovered | Consolidate canonical doc, archive duplicate with notice | Updated doc + knowledge label |
+| Inference score spike | Investigate recent ontology edits, propose rollbacks | Incident report in digest |
+
+---
+
+## Toolbox & References
+
+- **Primary Docs:** `one/things/strategy.md`, `one/connections/ontology.md`, `AGENTS.md`
+- **Automation Scripts:** `scripts/cleanliness/**`
+- **Dashboards:** `reports/cleanliness/health-score.json`, `knowledge/score.md`
+- **Event Templates:** `scripts/cleanliness/events/*.ts`
+
+Remember: the goal isn’t just to tidy code—it’s to preserve the elegance of ONE’s ontology so every agent and human feels confident building on it.
+</file>
+
+<file path="things/agents/agent-clone.md">
+# Agent Clone
+Ingestor Agent Specification
+**Role:** Clone me and organise all my information
+**Purpose:** Migrate data and code from one.ie and later bullfm into the new ONE platform structure  
+**Expertise:** Data transformation, code refactoring, ontology mapping
+
+---
+
+## Your Mission
+
+You are the **Ingestor Agent** - responsible for safely migrating existing ONE platform code and data from:
+- **Source 1:** https://one.ie (React 18, older structure)
+- **Source 2:** https://bullfm.vercel.app (React 18, different structure)
+
+Into:
+- **Target:** New astro-shadcn platform (React 19, Convex, 6-dimension ontology)
+
+**CRITICAL:** You must preserve ALL functionality while transforming to the new architecture.
+
+---
+
+## Phase 1: Discovery & Analysis
+
+### Step 1: Inventory Existing Systems
+
+**Create comprehensive inventory:**
+
+```markdown
+# one.ie Inventory
+
+## Pages
+- / (homepage)
+- /dashboard
+- /profile
+- [list all pages]
+
+## Components
+- Auth components (location, props, state)
+- Dashboard components
+- [list all components]
+
+## Data Models
+- User model (fields, relationships)
+- Content model
+- [list all models]
+
+## API Endpoints
+- POST /api/auth/login
+- GET /api/content
+- [list all endpoints]
+
+## External Integrations
+- Better Auth (already compatible ✅)
+- Resend (already compatible ✅)
+- [list all integrations]
+
+## Business Logic
+- Authentication flow
+- Content creation flow
+- [list all flows]
+```
+
+**Output:** `scripts/migration/inventory-one-ie.md`  
+**Output:** `scripts/migration/inventory-bullfm.md`
+
+### Step 2: Map to New Ontology
+
+**For each old data model, map to 6-dimension ontology:**
+
+```markdown
+# Mapping: one.ie User → ONE Platform
+
+## Old Model (one.ie)
+```typescript
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  bio?: string;
+  followers: number;
+  following: string[];  // Array of user IDs
+  posts: string[];      // Array of post IDs
+}
+```
+
+## New Model (ONE Platform)
+
+### Entity
+```typescript
 {
-  _id: Id<"things">,
-  type: "ai_clone",
-  name: "Anthony's Clone",
+  type: "creator",
+  name: user.name,
   properties: {
-    // Core Identity
-    cloneOf: "Anthony O'Connell",
-    creatorEntityId: Id<"things">, // Anthony's creator entity
-    organizationId: Id<"things">, // ONE organization
+    email: user.email,
+    username: deriveUsername(user.email),
+    displayName: user.name,
+    bio: user.bio,
+    totalFollowers: user.followers,
+    totalContent: user.posts.length,
+    totalRevenue: 0
+  },
+  status: "active"
+}
+```
 
-    // Voice & Appearance
-    voiceId: string, // ElevenLabs voice ID
-    voiceProvider: "elevenlabs",
-    voiceModel: "eleven_turbo_v2", // Low latency for real-time
-    voiceSettings: {
-      stability: 0.5,
-      similarityBoost: 0.75,
-      style: 0.5, // Natural conversational style
-      useSpeakerBoost: true
-    },
-    appearanceId: string, // D-ID or HeyGen avatar ID
-    appearanceProvider: "d-id" | "heygen",
+### Connections (from following array)
+```typescript
+// For each userId in user.following:
+{
+  fromEntityId: newUserId,
+  toEntityId: followedUserId,
+  relationshipType: "following",
+  createdAt: Date.now()
+}
+```
 
-    // AI Configuration
-    llmProvider: "openai" | "anthropic",
-    llmModel: "gpt-4-turbo" | "claude-3.5-sonnet",
-    systemPrompt: `You are Anthony O'Connell's AI clone. You represent Anthony in conversations with the ONE community.
+### Connections (from posts array)
+```typescript
+// For each postId in user.posts:
+{
+  fromEntityId: newUserId,
+  toEntityId: newPostId,
+  relationshipType: "authored",
+  createdAt: Date.now()
+}
+```
 
-Anthony is:
-- Founder of ONE Platform - AI-powered creator economy platform
-- Expert in AI, Web3, creator tools, and functional programming
-- Passionate about empowering creators with AI agents
-- Direct, friendly, and technically precise communication style
-- Values: authenticity, innovation, creator empowerment
+### Events (from activity log)
+```typescript
+// Create historical events if available
+{
+  entityId: newUserId,
+  eventType: "creator_created",
+  timestamp: user.createdAt,
+  actorType: "system"
+}
+```
+```
 
-Your role:
-- Answer questions about ONE Platform features and vision
-- Provide guidance on AI agents and creator economy
-- Engage with community members authentically
-- Generate content in Anthony's voice
-- Teach courses and lessons
+**Output:** `scripts/migration/mappings.md`
 
-Always:
-- Be authentic - admit when you don't know something
-- Reference specific ONE Platform features and documentation
-- Maintain Anthony's conversational but technical tone
-- Connect questions to broader ONE Platform vision
-- Encourage experimentation and creativity`,
+### Step 3: Dependency Graph
 
-    temperature: 0.8, // Creative but consistent
-    maxTokens: 2000,
+**Create dependency graph showing migration order:**
 
-    // Knowledge Base
-    knowledgeBaseSize: 0, // Updated via RAG ingestion
-    totalChunks: 0, // Number of embedded chunks
-    lastTrainingDate: Date.now(),
-    embeddingModel: "text-embedding-3-large",
-    embeddingDim: 3072,
+```
+Users (no dependencies)
+  ↓
+Tags (no dependencies)
+  ↓
+Content (depends on Users)
+  ↓
+Connections (depends on Users + Content)
+  ↓
+Events (depends on everything)
+```
 
-    // Training Sources
-    trainingSources: {
-      website: "https://one.ie",
-      contentTypes: [
-        "blog_post",
-        "video",
-        "podcast",
-        "course",
-        "lesson",
-        "social_post",
-        "email"
-      ],
-      includeTranscripts: true,
-      includeComments: true,
-      includeCodeExamples: true
-    },
+**Migration order:**
+1. Users → `creator` and `audience_member` entities
+2. Tags → `tags` table
+3. Content → content entities (`blog_post`, `video`, etc.)
+4. Relationships → `connections` table
+5. Activity → `events` table
 
-    // Performance Metrics
-    totalInteractions: 0,
-    totalMessages: 0,
-    averageResponseTime: 0, // milliseconds
-    satisfactionScore: 0, // 0-100
-    feedbackCount: 0,
+---
 
-    // Capabilities
-    capabilities: [
-      "natural_conversation",
-      "voice_interaction",
-      "video_avatar",
-      "content_generation",
-      "course_teaching",
-      "code_assistance",
-      "community_engagement"
-    ],
+## Phase 2: Code Migration
 
-    // Status
-    status: "training" | "ready" | "active" | "paused",
-    publiclyAvailable: false, // Initially private for testing
+### Strategy: Feature Parity First
 
-    // Limitations
-    maxConcurrentConversations: 10,
-    rateLimit: {
-      messagesPerMinute: 10,
-      tokensPerDay: 100000
+**Principle:** Migrate features one at a time, ensuring each works before moving to next.
+
+### Migration Priority
+
+```
+Priority 1 (Critical - Week 1):
+  ✅ Auth system (Better Auth already compatible)
+  ✅ User profiles
+  ✅ Basic content display
+
+Priority 2 (Important - Week 2):
+  ⏳ Content creation
+  ⏳ Search/discovery
+  ⏳ User interactions
+
+Priority 3 (Enhanced - Week 3-4):
+  ⏳ AI features
+  ⏳ Token system
+  ⏳ Advanced features
+```
+
+### Code Transformation Patterns
+
+#### Pattern 1: React Component Migration
+
+**Old (one.ie):**
+```tsx
+// src/components/UserProfile.tsx (React 18)
+import { useState, useEffect } from 'react';
+
+export default function UserProfile({ userId }) {
+  const [user, setUser] = useState(null);
+  
+  useEffect(() => {
+    fetch(`/api/users/${userId}`)
+      .then(r => r.json())
+      .then(setUser);
+  }, [userId]);
+  
+  if (!user) return <div>Loading...</div>;
+  
+  return (
+    <div className="profile">
+      <h1>{user.name}</h1>
+      <p>{user.bio}</p>
+    </div>
+  );
+}
+```
+
+**New (ONE Platform):**
+```tsx
+// src/components/features/creators/CreatorProfile.tsx (React 19)
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export function CreatorProfile({ creatorId }: { creatorId: Id<"entities"> }) {
+  const creator = useQuery(api.creators.get, { id: creatorId });
+  
+  if (creator === undefined) {
+    return <Skeleton className="h-32 w-full" />;
+  }
+  
+  if (creator === null) {
+    return <Card><CardContent>Creator not found</CardContent></Card>;
+  }
+  
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{creator.name}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p>{creator.properties.bio}</p>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+**Transformation checklist:**
+- ✅ Component name follows conventions (CreatorProfile not UserProfile)
+- ✅ Uses Convex hooks (useQuery) instead of fetch
+- ✅ Uses shadcn/ui components (Card, Skeleton)
+- ✅ Proper TypeScript types (Id<"entities">)
+- ✅ Proper loading states (undefined vs null)
+- ✅ File location follows structure (src/components/features/creators/)
+
+#### Pattern 2: API Endpoint → Convex Function
+
+**Old (one.ie):**
+```typescript
+// pages/api/users/[id].ts
+export default async function handler(req, res) {
+  const { id } = req.query;
+  const user = await db.users.findUnique({ where: { id } });
+  res.json(user);
+}
+```
+
+**New (ONE Platform):**
+```typescript
+// convex/queries/creators.ts
+export const get = query({
+  args: { id: v.id("entities") },
+  handler: async (ctx, args) => {
+    const creator = await ctx.db.get(args.id);
+    
+    if (!creator || creator.type !== "creator") {
+      return null;
     }
-  },
-  status: "active",
-  createdAt: Date.now(),
-  updatedAt: Date.now()
-}
-```
-
----
-
-## Connections (Relationships)
-
-### 1. Ownership
-```typescript
-{
-  fromThingId: Id<"things">, // Anthony (creator entity)
-  toThingId: Id<"things">, // AI Clone
-  relationshipType: "owns",
-  createdAt: Date.now()
-}
-```
-
-### 2. Clone Relationship
-```typescript
-{
-  fromThingId: Id<"things">, // AI Clone
-  toThingId: Id<"things">, // Anthony (creator entity)
-  relationshipType: "clone_of",
-  metadata: {
-    fidelity: "high", // How accurate the clone is
-    lastSyncDate: Date.now(),
-    divergenceScore: 0 // How much clone differs from original
-  },
-  createdAt: Date.now()
-}
-```
-
-### 3. Powered By Strategy Agent
-```typescript
-{
-  fromThingId: Id<"things">, // Strategy Agent (director)
-  toThingId: Id<"things">, // AI Clone
-  relationshipType: "powers",
-  metadata: {
-    orchestrationRole: "director",
-    capabilities: ["rag_retrieval", "personality_modeling", "context_awareness"]
-  },
-  createdAt: Date.now()
-}
-```
-
-### 4. Trained On Content
-```typescript
-// Multiple connections for each piece of content
-{
-  fromThingId: Id<"things">, // AI Clone
-  toThingId: Id<"things">, // Content entity (blog, video, etc.)
-  relationshipType: "trained_on",
-  metadata: {
-    contentType: "blog_post",
-    chunksGenerated: 12,
-    embeddingCompleted: true,
-    lastIngested: Date.now()
-  },
-  createdAt: Date.now()
-}
-```
-
-### 5. Knowledge Base Links
-```typescript
-// Links to knowledge items (chunks)
-{
-  fromThingId: Id<"things">, // AI Clone
-  toThingId: Id<"knowledge">, // Knowledge chunk
-  relationshipType: "uses_knowledge",
-  metadata: {
-    relevanceScore: 0.95,
-    retrievalCount: 0, // How often this chunk is retrieved
-    lastUsed: Date.now()
-  },
-  createdAt: Date.now()
-}
-```
-
----
-
-## Events (Actions & Interactions)
-
-### Clone Lifecycle Events
-
-#### 1. Clone Created
-```typescript
-{
-  thingId: Id<"things">, // AI Clone
-  eventType: "clone_created",
-  timestamp: Date.now(),
-  actorType: "user",
-  actorId: Id<"things">, // Anthony
-  metadata: {
-    voiceProvider: "elevenlabs",
-    appearanceProvider: "d-id",
-    initialCapabilities: ["natural_conversation"]
-  }
-}
-```
-
-#### 2. Voice Cloned
-```typescript
-{
-  thingId: Id<"things">, // AI Clone
-  eventType: "voice_cloned",
-  timestamp: Date.now(),
-  actorType: "system",
-  metadata: {
-    provider: "elevenlabs",
-    voiceId: "voice_abc123",
-    sampleCount: 25,
-    trainingDuration: 300000, // ms
-    quality: "high"
-  }
-}
-```
-
-#### 3. Appearance Cloned
-```typescript
-{
-  thingId: Id<"things">, // AI Clone
-  eventType: "appearance_cloned",
-  timestamp: Date.now(),
-  actorType: "system",
-  metadata: {
-    provider: "d-id",
-    avatarId: "avatar_xyz789",
-    sourceImages: 10,
-    resolution: "1080p",
-    animationQuality: "natural"
-  }
-}
-```
-
-#### 4. Knowledge Ingested
-```typescript
-{
-  thingId: Id<"things">, // AI Clone
-  eventType: "knowledge_ingested",
-  timestamp: Date.now(),
-  actorType: "system",
-  metadata: {
-    sourceThingId: Id<"things">, // Content entity
-    contentType: "blog_post",
-    chunksCreated: 12,
-    tokensProcessed: 9600,
-    embeddingModel: "text-embedding-3-large"
-  }
-}
-```
-
-### Interaction Events
-
-#### 5. Clone Interaction
-```typescript
-{
-  thingId: Id<"things">, // AI Clone
-  eventType: "clone_interaction",
-  timestamp: Date.now(),
-  actorType: "user",
-  actorId: Id<"things">, // User who interacted
-  metadata: {
-    conversationId: string,
-    messageCount: 5,
-    durationMs: 180000,
-    voiceUsed: true,
-    videoUsed: false,
-    satisfaction: 4.5, // 0-5 rating
-    topicsDiscussed: ["AI agents", "token economy", "course creation"]
-  }
-}
-```
-
-#### 6. Message Sent
-```typescript
-{
-  thingId: Id<"things">, // AI Clone
-  eventType: "message_sent",
-  timestamp: Date.now(),
-  actorType: "ai_agent",
-  actorId: Id<"things">, // AI Clone
-  metadata: {
-    conversationId: string,
-    messageId: string,
-    promptTokens: 450,
-    completionTokens: 230,
-    responseTimeMs: 1200,
-    knowledgeChunksUsed: 3,
-    confidenceScore: 0.87
-  }
-}
-```
-
-#### 7. Feedback Received
-```typescript
-{
-  thingId: Id<"things">, // AI Clone
-  eventType: "feedback_received",
-  timestamp: Date.now(),
-  actorType: "user",
-  actorId: Id<"things">, // User who gave feedback
-  metadata: {
-    conversationId: string,
-    messageId: string,
-    rating: 5, // 1-5 stars
-    helpful: true,
-    accurate: true,
-    tone: "authentic",
-    comments: "Felt like talking to Anthony!"
-  }
-}
-```
-
----
-
-## RAG Ingestion Strategy
-
-### Content Sources for Training
-
-**From one.ie (Anthony's existing content):**
-- Blog posts (markdown with frontmatter)
-- Video transcripts (YouTube, Loom)
-- Podcast episodes (audio transcripts)
-- Course materials (lessons, exercises)
-- Code examples (GitHub repositories)
-- Social media posts (Twitter, LinkedIn)
-- Email newsletters (past communications)
-
-**Ingestion Pipeline:**
-
-```typescript
-// Step 1: Schedule ingestion for all Anthony's content
-export const scheduleCloneTraining = mutation({
-  args: { cloneId: v.id("things") },
-  handler: async (ctx, { cloneId }) => {
-    // Get all content authored by Anthony
-    const authoredContent = await ctx.db
-      .query("connections")
-      .withIndex("from_type", q =>
-        q.eq("fromThingId", ANTHONY_CREATOR_ID)
-         .eq("relationshipType", "authored")
-      )
-      .collect();
-
-    // Schedule embedding for each piece of content
-    for (const conn of authoredContent) {
-      await ctx.scheduler.runAfter(0, internal.rag.ingestThing, {
-        thingId: conn.toThingId,
-        cloneId,
-        fields: ["title", "content", "transcript", "description"]
-      });
-    }
+    
+    return creator;
   }
 });
+```
 
-// Step 2: Ingest content into knowledge base
-export const ingestThing = internalAction({
-  args: {
-    thingId: v.id("things"),
-    cloneId: v.id("things"),
-    fields: v.array(v.string())
-  },
-  handler: async (ctx, { thingId, cloneId, fields }) => {
-    const thing = await ctx.runQuery(internal.entities.get, { id: thingId });
-    const texts = extractTexts(thing, fields);
+**Transformation checklist:**
+- ✅ API endpoint → Convex query
+- ✅ Validation with Convex validators (v.id)
+- ✅ Type checking (entity.type === "creator")
+- ✅ Returns null for not found (not 404 error)
+- ✅ File location (convex/queries/creators.ts)
 
-    let totalChunks = 0;
-    let index = 0;
+#### Pattern 3: Database Query → Ontology Query
 
-    for (const t of chunk(texts, { size: 800, overlap: 200 })) {
-      // Embed text
-      const { embedding, model, dim } = await ctx.runAction(
-        internal.rag.embedText,
-        { text: t.text, model: "text-embedding-3-large" }
-      );
+**Old (one.ie):**
+```typescript
+// Get user's posts
+const posts = await db.posts.findMany({
+  where: { authorId: userId }
+});
+```
 
-      // Create knowledge item
-      const knowledgeId = await ctx.runMutation(internal.rag.upsertKnowledge, {
-        item: {
-          knowledgeType: "chunk",
-          text: t.text,
-          embedding,
-          embeddingModel: model,
-          embeddingDim: dim,
-          sourceThingId: thingId,
-          sourceField: t.field,
-          chunk: {
-            index,
-            tokenCount: t.tokens,
-            overlap: 200
+**New (ONE Platform):**
+```typescript
+// Get creator's content
+const connections = await ctx.db
+  .query("connections")
+  .withIndex("from_type", q =>
+    q.eq("fromEntityId", creatorId)
+     .eq("relationshipType", "authored")
+  )
+  .collect();
+
+const content = await Promise.all(
+  connections.map(conn => ctx.db.get(conn.toEntityId))
+);
+```
+
+**Transformation checklist:**
+- ✅ Foreign keys → connections table
+- ✅ Direct relationship → explicit relationship type
+- ✅ Uses proper indexes
+- ✅ Hydrates entities from connections
+
+---
+
+## Phase 3: Data Migration
+
+### Migration Script Structure
+
+```typescript
+// scripts/migration/migrate-one-ie.ts
+
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "@/convex/_generated/api";
+import { oneIEDatabase } from "./old-db-connection";
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+const BATCH_SIZE = 100;
+const DRY_RUN = process.env.DRY_RUN === "true";
+
+const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
+
+// ============================================================================
+// STEP 1: MIGRATE USERS
+// ============================================================================
+
+async function migrateUsers() {
+  console.log("📊 Migrating users...");
+  
+  const oldUsers = await oneIEDatabase.users.findMany();
+  console.log(`Found ${oldUsers.length} users to migrate`);
+  
+  const results = {
+    success: 0,
+    failed: 0,
+    errors: [] as any[]
+  };
+  
+  // Process in batches
+  for (let i = 0; i < oldUsers.length; i += BATCH_SIZE) {
+    const batch = oldUsers.slice(i, i + BATCH_SIZE);
+    
+    for (const oldUser of batch) {
+      try {
+        // Transform to new format
+        const newCreator = {
+          type: "creator" as const,
+          name: oldUser.name,
+          properties: {
+            email: oldUser.email,
+            username: oldUser.email.split("@")[0],
+            displayName: oldUser.name,
+            bio: oldUser.bio || "",
+            niche: [], // TODO: Derive from content
+            expertise: [],
+            targetAudience: "",
+            totalFollowers: oldUser.followersCount || 0,
+            totalContent: 0, // Will update after content migration
+            totalRevenue: 0
           },
-          labels: [thing.type, ...t.labels],
-          metadata: {
-            hash: hashText(t.text), // For deduplication
-            quality: calculateQualityScore(t.text),
-            createdAt: Date.now()
-          }
+          status: oldUser.isActive ? "active" : "inactive",
+          createdAt: oldUser.createdAt.getTime(),
+          updatedAt: Date.now()
+        };
+        
+        if (!DRY_RUN) {
+          // Create in Convex
+          const newId = await convex.mutation(
+            api.creators.create,
+            newCreator
+          );
+          
+          // Store mapping for later (old ID → new ID)
+          await storeIdMapping("users", oldUser.id, newId);
         }
-      });
-
-      // Link knowledge to clone
-      await ctx.runMutation(internal.rag.linkThingKnowledge, {
-        thingId: cloneId,
-        knowledgeId,
-        role: "uses_knowledge"
-      });
-
-      // Create trained_on connection
-      await ctx.runMutation(internal.connections.create, {
-        fromThingId: cloneId,
-        toThingId: thingId,
-        relationshipType: "trained_on",
-        metadata: {
-          contentType: thing.type,
-          chunksGenerated: 1,
-          embeddingCompleted: true,
-          lastIngested: Date.now()
+        
+        results.success++;
+        
+        if (results.success % 100 === 0) {
+          console.log(`  ✅ Migrated ${results.success} users...`);
         }
-      });
-
-      index++;
-      totalChunks++;
+      } catch (error) {
+        results.failed++;
+        results.errors.push({
+          oldId: oldUser.id,
+          error: error.message
+        });
+      }
     }
-
-    // Log ingestion event
-    await ctx.runMutation(internal.events.create, {
-      thingId: cloneId,
-      eventType: "knowledge_ingested",
-      timestamp: Date.now(),
-      actorType: "system",
-      metadata: {
-        sourceThingId: thingId,
-        contentType: thing.type,
-        chunksCreated: totalChunks,
-        tokensProcessed: totalChunks * 800,
-        embeddingModel: "text-embedding-3-large"
-      }
-    });
-
-    // Update clone knowledge stats
-    await ctx.runMutation(internal.entities.patch, {
-      id: cloneId,
-      updates: {
-        properties: {
-          totalChunks: (thing.properties.totalChunks || 0) + totalChunks,
-          knowledgeBaseSize: (thing.properties.knowledgeBaseSize || 0) + (totalChunks * 800),
-          lastTrainingDate: Date.now()
-        }
-      }
-    });
   }
-});
-```
-
-### RAG Retrieval During Conversations
-
-```typescript
-// Query: Retrieve relevant knowledge for user message
-export const retrieveKnowledge = query({
-  args: {
-    cloneId: v.id("things"),
-    query: v.string(),
-    topK: v.optional(v.number()),
-    filters: v.optional(v.object({
-      contentTypes: v.optional(v.array(v.string())),
-      minRelevance: v.optional(v.number())
-    }))
-  },
-  handler: async (ctx, { cloneId, query, topK = 5, filters }) => {
-    // 1. Embed user query
-    const queryEmbedding = await ctx.runAction(internal.rag.embedText, {
-      text: query,
-      model: "text-embedding-3-large"
-    });
-
-    // 2. Get all knowledge linked to clone
-    const knowledgeLinks = await ctx.db
-      .query("connections")
-      .withIndex("from_type", q =>
-        q.eq("fromThingId", cloneId)
-         .eq("relationshipType", "uses_knowledge")
-      )
-      .collect();
-
-    // 3. Vector search over knowledge
-    const results = await vectorSearch({
-      knowledgeIds: knowledgeLinks.map(k => k.toThingId),
-      queryEmbedding: queryEmbedding.embedding,
-      topK,
-      filters
-    });
-
-    // 4. Hybrid scoring: semantic + lexical
-    const scoredResults = results.map(r => ({
-      ...r,
-      hybridScore: (r.semanticScore * 0.7) + (r.lexicalScore * 0.3)
-    })).sort((a, b) => b.hybridScore - a.hybridScore);
-
-    return scoredResults.slice(0, topK);
+  
+  console.log(`✅ Users migration complete: ${results.success} success, ${results.failed} failed`);
+  
+  if (results.failed > 0) {
+    console.log("❌ Errors:", results.errors);
   }
-});
-
-// Mutation: Generate response with RAG context
-export const generateResponse = mutation({
-  args: {
-    cloneId: v.id("things"),
-    conversationId: v.string(),
-    userMessage: v.string(),
-    useVoice: v.optional(v.boolean())
-  },
-  handler: async (ctx, { cloneId, conversationId, userMessage, useVoice }) => {
-    // 1. Retrieve relevant knowledge
-    const knowledge = await ctx.db.query(api.rag.retrieveKnowledge, {
-      cloneId,
-      query: userMessage,
-      topK: 5
-    });
-
-    // 2. Build context from knowledge chunks
-    const context = knowledge.map(k => k.text).join("\n\n");
-
-    // 3. Get clone configuration
-    const clone = await ctx.db.get(cloneId);
-
-    // 4. Generate response
-    const completion = await ctx.scheduler.runAfter(0, internal.ai.generateCompletion, {
-      systemPrompt: clone.properties.systemPrompt,
-      context,
-      userMessage,
-      temperature: clone.properties.temperature,
-      maxTokens: clone.properties.maxTokens
-    });
-
-    // 5. Log interaction event
-    await ctx.db.insert("events", {
-      thingId: cloneId,
-      eventType: "message_sent",
-      timestamp: Date.now(),
-      actorType: "ai_agent",
-      actorId: cloneId,
-      metadata: {
-        conversationId,
-        messageId: generateId(),
-        promptTokens: completion.promptTokens,
-        completionTokens: completion.completionTokens,
-        responseTimeMs: completion.responseTimeMs,
-        knowledgeChunksUsed: knowledge.length,
-        confidenceScore: completion.confidenceScore
-      }
-    });
-
-    // 6. Optionally generate voice
-    if (useVoice) {
-      const audio = await ctx.scheduler.runAfter(0, internal.voice.synthesize, {
-        text: completion.text,
-        voiceId: clone.properties.voiceId,
-        voiceSettings: clone.properties.voiceSettings
-      });
-
-      return {
-        text: completion.text,
-        audio: audio.url,
-        metadata: completion.metadata
-      };
-    }
-
-    return {
-      text: completion.text,
-      metadata: completion.metadata
-    };
-  }
-});
-```
-
----
-
-## Training Requirements
-
-### Voice Cloning (ElevenLabs)
-
-**Requirements:**
-- 25-30 high-quality audio samples
-- Each sample: 10-30 seconds
-- Total duration: 5-10 minutes
-- Clear speech, minimal background noise
-- Varied emotions and tones
-
-**Sources:**
-- Podcast episodes from Bull FM
-- Video recordings from one.ie
-- Loom videos with clear audio
-- Zoom recordings from courses
-
-**Process:**
-```typescript
-export const cloneVoice = internalAction({
-  args: {
-    cloneId: v.id("things"),
-    audioSamples: v.array(v.string()) // URLs to audio files
-  },
-  handler: async (ctx, { cloneId, audioSamples }) => {
-    const elevenlabs = yield* ElevenLabsProvider;
-
-    // 1. Create voice clone
-    const voice = await elevenlabs.createVoice({
-      name: "Anthony O'Connell Clone",
-      samples: audioSamples,
-      description: "AI clone of Anthony O'Connell for ONE Platform"
-    });
-
-    // 2. Update clone entity
-    await ctx.runMutation(internal.entities.patch, {
-      id: cloneId,
-      updates: {
-        properties: {
-          voiceId: voice.voiceId,
-          voiceProvider: "elevenlabs",
-          voiceModel: voice.model
-        }
-      }
-    });
-
-    // 3. Log event
-    await ctx.runMutation(internal.events.create, {
-      thingId: cloneId,
-      eventType: "voice_cloned",
-      timestamp: Date.now(),
-      actorType: "system",
-      metadata: {
-        provider: "elevenlabs",
-        voiceId: voice.voiceId,
-        sampleCount: audioSamples.length,
-        trainingDuration: voice.trainingTime,
-        quality: voice.quality
-      }
-    });
-
-    return voice;
-  }
-});
-```
-
-### Appearance Cloning (D-ID or HeyGen)
-
-**Requirements:**
-- 10-15 high-quality photos
-- Varied angles and expressions
-- Good lighting
-- High resolution (1080p+)
-
-**OR:**
-- 2-3 minute video clip
-- Clear face visibility
-- Natural expressions
-- Multiple angles
-
-**Process:**
-```typescript
-export const cloneAppearance = internalAction({
-  args: {
-    cloneId: v.id("things"),
-    sourceImages: v.array(v.string()), // URLs to images
-    sourceVideo: v.optional(v.string()) // URL to video
-  },
-  handler: async (ctx, { cloneId, sourceImages, sourceVideo }) => {
-    const didProvider = yield* DIDProvider;
-
-    // 1. Create avatar
-    const avatar = await didProvider.createAvatar({
-      name: "Anthony O'Connell Clone",
-      images: sourceImages,
-      video: sourceVideo
-    });
-
-    // 2. Update clone entity
-    await ctx.runMutation(internal.entities.patch, {
-      id: cloneId,
-      updates: {
-        properties: {
-          appearanceId: avatar.id,
-          appearanceProvider: "d-id"
-        }
-      }
-    });
-
-    // 3. Log event
-    await ctx.runMutation(internal.events.create, {
-      thingId: cloneId,
-      eventType: "appearance_cloned",
-      timestamp: Date.now(),
-      actorType: "system",
-      metadata: {
-        provider: "d-id",
-        avatarId: avatar.id,
-        sourceImages: sourceImages.length,
-        resolution: avatar.resolution,
-        animationQuality: avatar.quality
-      }
-    });
-
-    return avatar;
-  }
-});
-```
-
-### Knowledge Base Training
-
-**Requirements:**
-- ALL content from one.ie
-- Transcripts from Bull FM podcasts
-- Course materials and lessons
-- Code examples from GitHub
-- Social media posts (Twitter, LinkedIn)
-- Email newsletters
-
-**Estimated Stats:**
-- ~500 blog posts
-- ~100 videos with transcripts
-- ~50 podcast episodes
-- ~20 courses with ~200 lessons
-- ~1000 social posts
-- Total: ~50,000 chunks (40M tokens)
-
-**Process:**
-See RAG Ingestion Strategy above
-
----
-
-## Usage Examples
-
-### 1. Natural Conversation
-```typescript
-// User asks: "How do I create an AI agent on ONE?"
-const response = await convex.mutation(api.clone.chat, {
-  cloneId: anthonyCloneId,
-  message: "How do I create an AI agent on ONE?",
-  conversationId: "conv_123"
-});
-
-// Response (retrieves from RAG knowledge):
-"Great question! Creating an AI agent on ONE is designed to be really straightforward...
-
-[Context retrieved from documentation and blog posts about agent creation]
-
-The key steps are:
-1. Define your agent's purpose and capabilities
-2. Set up the ontology mapping (things, connections, events)
-3. Implement the Effect.ts service with business logic
-4. Create Convex wrappers for mutations and queries
-5. Build the UI components
-
-Want me to walk you through a specific type of agent?"
-```
-
-### 2. Voice Interaction
-```typescript
-// User sends voice message
-const response = await convex.mutation(api.clone.chat, {
-  cloneId: anthonyCloneId,
-  message: "Tell me about the token economy feature",
-  conversationId: "conv_123",
-  useVoice: true // Request voice response
-});
-
-// Returns:
-{
-  text: "The token economy is one of my favorite features...",
-  audio: "https://storage.com/audio_response.mp3", // ElevenLabs generated
-  metadata: { ... }
+  
+  return results;
 }
+
+// ============================================================================
+// STEP 2: MIGRATE CONTENT
+// ============================================================================
+
+async function migrateContent() {
+  console.log("📊 Migrating content...");
+  
+  const oldPosts = await oneIEDatabase.posts.findMany();
+  console.log(`Found ${oldPosts.length} posts to migrate`);
+  
+  const results = { success: 0, failed: 0, errors: [] };
+  
+  for (const oldPost of oldPosts) {
+    try {
+      // Get new creator ID from mapping
+      const newCreatorId = await getNewId("users", oldPost.authorId);
+      
+      // Determine content type
+      const contentType = determineContentType(oldPost);
+      
+      // Transform to new format
+      const newContent = {
+        type: contentType,
+        name: oldPost.title,
+        properties: {
+          title: oldPost.title,
+          description: oldPost.excerpt,
+          body: oldPost.content,
+          format: oldPost.format || "text",
+          publishedAt: oldPost.publishedAt?.getTime(),
+          views: oldPost.views || 0,
+          likes: oldPost.likes || 0,
+          shares: 0,
+          comments: 0,
+          generatedBy: "human"
+        },
+        status: oldPost.published ? "published" : "draft",
+        createdAt: oldPost.createdAt.getTime(),
+        updatedAt: Date.now()
+      };
+      
+      if (!DRY_RUN) {
+        // Create content entity
+        const contentId = await convex.mutation(
+          api.content.create,
+          newContent
+        );
+        
+        // Create authorship connection
+        await convex.mutation(api.connections.create, {
+          fromEntityId: newCreatorId,
+          toEntityId: contentId,
+          relationshipType: "authored",
+          createdAt: oldPost.createdAt.getTime()
+        });
+        
+        // Store mapping
+        await storeIdMapping("posts", oldPost.id, contentId);
+      }
+      
+      results.success++;
+    } catch (error) {
+      results.failed++;
+      results.errors.push({
+        oldId: oldPost.id,
+        error: error.message
+      });
+    }
+  }
+  
+  console.log(`✅ Content migration complete: ${results.success} success, ${results.failed} failed`);
+  
+  return results;
+}
+
+// ============================================================================
+// STEP 3: MIGRATE RELATIONSHIPS
+// ============================================================================
+
+async function migrateRelationships() {
+  console.log("📊 Migrating relationships...");
+  
+  const oldFollows = await oneIEDatabase.follows.findMany();
+  console.log(`Found ${oldFollows.length} follows to migrate`);
+  
+  const results = { success: 0, failed: 0, errors: [] };
+  
+  for (const oldFollow of oldFollows) {
+    try {
+      const newFollowerId = await getNewId("users", oldFollow.followerId);
+      const newFollowedId = await getNewId("users", oldFollow.followedId);
+      
+      if (!DRY_RUN) {
+        await convex.mutation(api.connections.create, {
+          fromEntityId: newFollowerId,
+          toEntityId: newFollowedId,
+          relationshipType: "following",
+          createdAt: oldFollow.createdAt.getTime()
+        });
+      }
+      
+      results.success++;
+    } catch (error) {
+      results.failed++;
+      results.errors.push({
+        oldId: `${oldFollow.followerId}-${oldFollow.followedId}`,
+        error: error.message
+      });
+    }
+  }
+  
+  console.log(`✅ Relationships migration complete: ${results.success} success, ${results.failed} failed`);
+  
+  return results;
+}
+
+// ============================================================================
+// STEP 4: MIGRATE EVENTS
+// ============================================================================
+
+async function migrateEvents() {
+  console.log("📊 Migrating events...");
+  
+  const oldActivityLog = await oneIEDatabase.activityLog.findMany();
+  console.log(`Found ${oldActivityLog.length} activities to migrate`);
+  
+  const results = { success: 0, failed: 0, errors: [] };
+  
+  for (const activity of oldActivityLog) {
+    try {
+      const newEntityId = await getNewId(
+        activity.entityType,
+        activity.entityId
+      );
+      const newActorId = activity.userId
+        ? await getNewId("users", activity.userId)
+        : undefined;
+      
+      const eventType = mapActivityToEventType(activity.action);
+      
+      if (!DRY_RUN) {
+        await convex.mutation(api.events.create, {
+          entityId: newEntityId,
+          eventType,
+          timestamp: activity.createdAt.getTime(),
+          actorType: activity.userId ? "user" : "system",
+          actorId: newActorId,
+          metadata: activity.metadata || {}
+        });
+      }
+      
+      results.success++;
+    } catch (error) {
+      results.failed++;
+      results.errors.push({
+        oldId: activity.id,
+        error: error.message
+      });
+    }
+  }
+  
+  console.log(`✅ Events migration complete: ${results.success} success, ${results.failed} failed`);
+  
+  return results;
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+const idMappings = new Map<string, Map<string, string>>();
+
+async function storeIdMapping(
+  entityType: string,
+  oldId: string,
+  newId: string
+) {
+  if (!idMappings.has(entityType)) {
+    idMappings.set(entityType, new Map());
+  }
+  idMappings.get(entityType)!.set(oldId, newId);
+}
+
+async function getNewId(
+  entityType: string,
+  oldId: string
+): Promise<string> {
+  const mapping = idMappings.get(entityType)?.get(oldId);
+  if (!mapping) {
+    throw new Error(`No mapping found for ${entityType}:${oldId}`);
+  }
+  return mapping;
+}
+
+function determineContentType(oldPost: any): EntityType {
+  if (oldPost.format === "video") return "video";
+  if (oldPost.format === "audio") return "podcast";
+  return "blog_post";
+}
+
+function mapActivityToEventType(action: string): EventType {
+  const mapping: Record<string, EventType> = {
+    "created": "content_created",
+    "published": "content_published",
+    "viewed": "content_viewed",
+    "liked": "content_liked",
+    "shared": "content_shared",
+    "commented": "comment_posted"
+  };
+  return mapping[action] || "user_engaged";
+}
+
+// ============================================================================
+// MAIN MIGRATION FLOW
+// ============================================================================
+
+async function main() {
+  console.log("🚀 Starting ONE Platform Migration");
+  console.log(`Mode: ${DRY_RUN ? "DRY RUN" : "LIVE"}`);
+  console.log("=" .repeat(60));
+  
+  try {
+    // Step 1: Users
+    const userResults = await migrateUsers();
+    
+    // Step 2: Content
+    const contentResults = await migrateContent();
+    
+    // Step 3: Relationships
+    const relationshipResults = await migrateRelationships();
+    
+    // Step 4: Events
+    const eventResults = await migrateEvents();
+    
+    // Summary
+    console.log("\n" + "=".repeat(60));
+    console.log("📊 MIGRATION SUMMARY");
+    console.log("=".repeat(60));
+    console.log(`Users: ${userResults.success} success, ${userResults.failed} failed`);
+    console.log(`Content: ${contentResults.success} success, ${contentResults.failed} failed`);
+    console.log(`Relationships: ${relationshipResults.success} success, ${relationshipResults.failed} failed`);
+    console.log(`Events: ${eventResults.success} success, ${eventResults.failed} failed`);
+    console.log("=".repeat(60));
+    
+    if (DRY_RUN) {
+      console.log("\n⚠️  This was a DRY RUN. No data was actually migrated.");
+      console.log("Run with DRY_RUN=false to perform actual migration.");
+    } else {
+      console.log("\n✅ Migration complete!");
+    }
+  } catch (error) {
+    console.error("\n❌ Migration failed:", error);
+    process.exit(1);
+  }
+}
+
+// Run migration
+main();
 ```
 
-### 3. Video Avatar
-```typescript
-// Generate video response with D-ID avatar
-const video = await convex.action(api.clone.generateVideo, {
-  cloneId: anthonyCloneId,
-  script: "Welcome to ONE Platform! I'm Anthony's AI clone...",
-  avatarId: clone.properties.appearanceId
-});
+### Running the Migration
 
-// Returns video URL with Anthony's avatar speaking the script
-```
+```bash
+# Step 1: Dry run first (safe, no changes)
+DRY_RUN=true bun run scripts/migration/migrate-one-ie.ts
 
-### 4. Content Generation
-```typescript
-// Generate blog post in Anthony's style
-const blogPost = await convex.mutation(api.clone.generateContent, {
-  cloneId: anthonyCloneId,
-  contentType: "blog_post",
-  topic: "Building AI-First Creator Tools",
-  tone: "technical but accessible",
-  length: 1500
-});
+# Step 2: Review output, fix any errors
 
-// Uses RAG to retrieve Anthony's writing style and past posts
-// Generates new content that matches his voice
+# Step 3: Run for real
+DRY_RUN=false bun run scripts/migration/migrate-one-ie.ts
+
+# Step 4: Verify data
+bun run scripts/migration/verify-migration.ts
 ```
 
 ---
 
-## Summary
+## Phase 4: Verification
 
-**Anthony's AI Clone Capabilities:**
+### Verification Checklist
 
-1. **Voice Cloning** - Natural speech with Anthony's voice via ElevenLabs
-2. **Appearance Cloning** - Video avatar with Anthony's likeness via D-ID
-3. **Knowledge Base** - RAG-powered retrieval from ALL one.ie content (~40M tokens)
-4. **Natural Conversations** - Context-aware responses using GPT-4/Claude
-5. **Content Generation** - Blog posts, course lessons, emails in Anthony's style
-6. **Community Engagement** - Answer questions, provide guidance, build relationships
-7. **Teaching** - Deliver courses and lessons as Anthony would
+```typescript
+// scripts/migration/verify-migration.ts
 
-**Training Requirements:**
+async function verify() {
+  console.log("🔍 Verifying migration...");
+  
+  const checks = [
+    verifyEntityCounts(),
+    verifyRelationshipIntegrity(),
+    verifyEventChronology(),
+    verifyDataQuality(),
+  ];
+  
+  const results = await Promise.all(checks);
+  
+  // Report
+  results.forEach(result => {
+    console.log(result.passed ? "✅" : "❌", result.name);
+    if (!result.passed) {
+      console.log("  Errors:", result.errors);
+    }
+  });
+}
 
-- **Voice:** 25-30 audio samples (5-10 min total) from podcasts and videos
-- **Appearance:** 10-15 photos OR 2-3 min video clip
-- **Knowledge:** Ingest ~500 blog posts, ~100 videos, ~50 podcasts, ~20 courses
-- **Time:** ~1-2 weeks for initial training, ongoing updates
+async function verifyEntityCounts() {
+  const oldUserCount = await oneIEDB.users.count();
+  const newCreatorCount = await convex.query(
+    api.creators.count
+  );
+  
+  return {
+    name: "Entity counts match",
+    passed: oldUserCount === newCreatorCount,
+    errors: oldUserCount !== newCreatorCount
+      ? [`Expected ${oldUserCount}, got ${newCreatorCount}`]
+      : []
+  };
+}
 
-**Ontology Integration:**
-- Thing type: `ai_clone`
-- Connections: `owns`, `clone_of`, `powers`, `trained_on`, `uses_knowledge`
-- Events: `clone_created`, `voice_cloned`, `appearance_cloned`, `knowledge_ingested`, `clone_interaction`, `message_sent`, `feedback_received`
+async function verifyRelationshipIntegrity() {
+  // Check: Every connection points to valid entities
+  const connections = await convex.query(
+    api.connections.listAll
+  );
+  
+  const errors = [];
+  for (const conn of connections) {
+    const from = await convex.query(api.entities.get, {
+      id: conn.fromEntityId
+    });
+    const to = await convex.query(api.entities.get, {
+      id: conn.toEntityId
+    });
+    
+    if (!from || !to) {
+      errors.push(
+        `Broken connection: ${conn._id} (${from ? "✓" : "✗"} → ${to ? "✓" : "✗"})`
+      );
+    }
+  }
+  
+  return {
+    name: "Relationship integrity",
+    passed: errors.length === 0,
+    errors
+  };
+}
 
-**Result:** A highly authentic AI representation of Anthony that can handle conversations, generate content, teach courses, and engage with the ONE community while maintaining his voice, personality, and expertise.
+// ... more verification functions
+```
+
+---
+
+## Phase 5: Rollback Plan
+
+### Emergency Rollback
+
+If migration fails catastrophically:
+
+```bash
+# 1. Stop all services
+npm run stop
+
+# 2. Restore Convex backup
+convex import backup-2025-01-15.zip
+
+# 3. Revert to old frontend
+git checkout main-old-stable
+
+# 4. Restart services
+npm run dev
+```
+
+### Gradual Rollout
+
+**Week 1:** Beta users only (10 users)  
+**Week 2:** Power users (100 users)  
+**Week 3:** General rollout (all users)
+
+---
+
+## Output Deliverables
+
+After migration, you should produce:
+
+1. **Migration Report** (`scripts/migration/report.md`)
+   - What was migrated
+   - Success/failure counts
+   - Known issues
+   - Data quality notes
+
+2. **ID Mapping File** (`scripts/migration/id-mappings.json`)
+   - Old ID → New ID mappings
+   - Preserve for troubleshooting
+
+3. **Verification Results** (`scripts/migration/verification-results.json`)
+   - All verification checks
+   - Pass/fail status
+   - Errors found
+
+4. **Updated File Map** (`.ai/context/file-map.md`)
+   - All new files created
+   - Location of migrated code
+
+---
+
+## Your Responsibilities as Ingestor Agent
+
+**You MUST:**
+- ✅ Preserve ALL existing functionality
+- ✅ Map data correctly to 6-dimension ontology
+- ✅ Maintain data integrity (no orphaned records)
+- ✅ Transform code to new patterns
+- ✅ Run verification before declaring success
+- ✅ Document everything
+
+**You MUST NOT:**
+- ❌ Lose any user data
+- ❌ Break existing features
+- ❌ Skip verification steps
+- ❌ Migrate without backup
+- ❌ Ignore transformation rules
+
+---
+
+## Success Criteria
+
+Migration is complete when:
+1. ✅ All data transformed to 6-dimension ontology
+2. ✅ All components use new patterns (Convex, Effect.ts, shadcn)
+3. ✅ All verification checks pass
+4. ✅ No broken relationships or orphaned data
+5. ✅ Old sites can be decommissioned
+6. ✅ Documentation updated
+
+---
+
+**You are now ready to begin the migration. Start with Phase 1: Discovery & Analysis.**
 </file>
 
 <file path="things/agents/director.md">
@@ -30670,7 +35675,7 @@ The **Director Agent** is Anthony O'Connell's AI clone - a strategic orchestrati
 
 **Your Identity:**
 - You embody Anthony's strategic thinking and decision-making patterns
-- You understand the complete ONE Platform architecture (4-table ontology)
+- You understand the complete ONE Platform architecture (6-dimension ontology)
 - You orchestrate business and technology decisions across 10 business agents
 - You maintain Anthony's vision: beautiful, simple, powerful systems
 
@@ -30683,7 +35688,7 @@ The **Director Agent** is Anthony O'Connell's AI clone - a strategic orchestrati
 6. Resource Allocation: Optimize time, budget, and agent capacity
 
 **Your Operating Principles:**
-- Simplicity First: The 4-table ontology (things, connections, events, knowledge) solves everything
+- Simplicity First: The 6-dimension ontology (organizations, people, things, connections, events, knowledge) solves everything
 - Protocol-Agnostic: All protocols map TO the ontology via metadata.protocol
 - Documentation-Driven: Read one/ docs before making decisions
 - Effect.ts All The Way: Business logic lives in Effect.ts services, not Convex
@@ -30692,7 +35697,7 @@ The **Director Agent** is Anthony O'Connell's AI clone - a strategic orchestrati
 
 **Your Decision Framework:**
 1. Understand: Read documentation, query ontology, analyze current state
-2. Plan: Map feature to 4-table ontology (things, connections, events, knowledge)
+2. Plan: Map feature to 6-dimension ontology (organizations, people, things, connections, events, knowledge)
 3. Delegate: Assign to appropriate specialist agent (engineering, design, marketing)
 4. Track: Create todos and workflows to monitor progress
 5. Verify: Check implementation follows patterns and principles
@@ -30702,11 +35707,11 @@ The **Director Agent** is Anthony O'Connell's AI clone - a strategic orchestrati
 - Focus on "why" not just "what"
 - Anticipate questions and provide context
 - Use concrete examples over abstract theory
-- Always reference the ontology when explaining features
+- Always reference the 6-dimension ontology when explaining features
 
 **Your Knowledge Base:**
 - Complete ONE Platform documentation in one/
-- 4-table ontology: 66 thing types, 25 connection types, 67 event types
+- 6-dimension ontology: 66 thing types, 25 connection types, 67 event types
 - 10 business agent types and their capabilities
 - Astro 5 + React 19 + Convex + Effect.ts stack
 - AgentKit, ElizaOS, CopilotKit integrations
@@ -30801,7 +35806,7 @@ Remember: You are not just an assistant - you are Anthony's strategic extension,
 - Identify dependencies
 
 ### Step 2: Analysis
-- Map to 4-table ontology (which things/connections/events affected?)
+- Map to 6-dimension ontology (organizations, people, things, connections, events, knowledge)
 - Determine required agents (engineering, design, marketing, etc.)
 - Estimate complexity and timeline
 - Check for conflicts with current work
@@ -30980,7 +35985,7 @@ await db.insert("events", {
 
 ### Phase 3: Planning (Week 3)
 - **Breakdown:** Convert objectives to epics and features
-- **Map:** Features to 4-table ontology (things/connections/events/knowledge)
+- **Map:** Features to 6-dimension ontology (organizations, people, things, connections, events, knowledge)
 - **Estimate:** Complexity, timeline, resources needed
 - **Output:** Feature roadmap
 
@@ -31041,7 +36046,7 @@ await db.insert("events", {
 
 ## Strategic Decision Framework
 
-### Question 1: Does it align with the 4-table ontology?
+### Question 1: Does it align with the 6-dimension ontology?
 - ✅ YES → Proceed
 - ❌ NO → Rethink approach
 
@@ -31249,7 +36254,7 @@ for (const agentType of agents) {
     action: "architecture_reviewed",
     verdict: "approved",
     feedback: [
-      "Follows 4-table ontology patterns",
+      "Follows 6-dimension ontology patterns",
       "Effect.ts service properly structured",
       "Type safety maintained throughout"
     ],
@@ -31323,7 +36328,7 @@ for (const agentType of agents) {
 
 3. **Planning:**
    - Break down: 2 epics into 12 features
-   - Map: Each feature to ontology (things/connections/events/knowledge)
+   - Map: Each feature to 6-dimension ontology (organizations, people, things, connections, events, knowledge)
    - Estimate: 4-10 weeks per epic
    - Output: Detailed roadmap
 
@@ -31693,7 +36698,7 @@ await delegateTask({
 
 - **Director = Anthony's Extension**: Makes platform-wide decisions with Anthony's authority
 - **Strategic Orchestrator**: Plans, delegates, monitors across all 10 business agents
-- **Ontology Guardian**: Ensures all features map to 4-table ontology
+- **Ontology Guardian**: Ensures all features map to 6-dimension ontology
 - **Workflow Master**: Creates and manages workflows in one/things/workflows/
 - **Task Organizer**: Maintains one/things/todo.md with priorities
 - **Documentation-Driven**: Always reads one/ docs before making decisions
@@ -31709,7 +36714,7 @@ await delegateTask({
 - **[agentclone.md](agent-clone.md)** - Data migration patterns
 - **[agentkit.md](../agentkit.md)** - OpenAI SDK agent patterns
 - **[agentsales.md](../agentsales.md)** - Sales agent (one of 10 managed by Director)
-- **[ontology.md](../../connections/ontology.md)** - Complete 4-table ontology
+- **[ontology.md](../../connections/ontology.md)** - Complete 6-dimension ontology
 - **[people.md](../../people/people.md)** - Anthony O'Connell (platform owner)
 - **[todo.md](../todo.md)** - Current task list managed by Director
 - **[strategy.md](../strategy.md)** - Platform vision and roadmap
@@ -34567,6 +39572,1082 @@ src/
 - Preview mode (database content in development)
 - A/B testing between modes
 - Gradual rollout (percentage of users see database content)
+</file>
+
+<file path="things/plans/desktop.md">
+# ONE Desktop: Multi-Agent Command Center
+
+**Status:** Planning
+**Based On:** [emdash](https://github.com/generalaction/emdash) - Multi-agent parallel execution UI
+**Purpose:** Desktop application for managing multiple AI coding agents working on ONE platform projects
+
+---
+
+## Vision
+
+ONE Desktop transforms emdash's multi-agent orchestration into a native command center for the ONE platform, where developers coordinate autonomous AI agents that build, deploy, and maintain AI-powered businesses through ONE's 4-table ontology.
+
+**Core Philosophy:** Just as emdash enables parallel agent execution across git worktrees, ONE Desktop enables parallel agent execution across your entire business ontology — from content creation to audience engagement to knowledge generation.
+
+---
+
+## Architecture Alignment with ONE Ontology
+
+### Things (Entities)
+```typescript
+// Desktop-specific thing types (extend ontology)
+type DesktopThingType =
+  | 'desktop_session'        // Running desktop instance
+  | 'agent_workspace'        // Isolated agent environment
+  | 'git_worktree'           // Git worktree instance
+  | 'agent_task'             // Task assigned to agent
+  | 'agent_output'           // Agent-generated artifact
+  | 'workspace_snapshot'     // Saved workspace state
+  | 'agent_conversation'     // Chat history with agent
+```
+
+### Connections (Relationships)
+```typescript
+// Desktop workspace relationships
+relationshipType =
+  | 'manages_workspace'      // User → agent_workspace
+  | 'executes_in'           // agent → git_worktree
+  | 'produced_by'           // agent_output → agent
+  | 'assigned_to'           // agent_task → agent
+  | 'synchronized_with'     // workspace → backend deployment
+```
+
+### Events (Actions)
+```typescript
+// Desktop activity tracking
+eventType =
+  | 'workspace_created'
+  | 'agent_started'
+  | 'agent_completed_task'
+  | 'agent_failed'
+  | 'workspace_synchronized'
+  | 'output_reviewed'
+  | 'changes_committed'
+  | 'changes_deployed'
+```
+
+### Knowledge (RAG + Labels)
+- Index all agent outputs as knowledge chunks
+- Label tasks by `capability:*`, `technology:*`, `status:*`
+- Enable semantic search across all agent conversations
+- Feed context to agents from your entire ONE deployment
+
+---
+
+## Technology Stack (from emdash)
+
+### Core Technologies
+- **Electron** - Cross-platform desktop (macOS, Windows, Linux)
+- **TypeScript** - Type-safe throughout
+- **Vite** - Fast build tooling
+- **Tailwind CSS** - Consistent with ONE web UI
+- **SQLite** - Local-first data persistence
+
+### Key Differences from emdash
+1. **Backend Integration** - Sync with ONE backend (Convex)
+2. **Ontology-Aware** - All operations map to things/connections/events
+3. **Knowledge Engine** - Built-in RAG for agent context
+4. **Multi-Deployment** - Manage multiple ONE deployments
+5. **Edge-Aware** - Deploy directly to Cloudflare from desktop
+
+---
+
+## Feature Set
+
+### 1. Agent Orchestration (from emdash)
+**Inherited Features:**
+- ✅ Run multiple AI agents in parallel
+- ✅ Isolated git worktrees per agent
+- ✅ Support for Claude Code, Cursor, GitHub Copilot, etc.
+- ✅ Local SQLite for workspace tracking
+
+**ONE Enhancements:**
+- 🆕 Map agents to `business_agents` ontology (strategy, marketing, sales, etc.)
+- 🆕 Agents share knowledge through ONE's knowledge table
+- 🆕 Tasks create `agent_task` things with proper connections
+- 🆕 All agent activity logged as events for analytics
+
+### 2. Workspace Management
+**Base (emdash):**
+```typescript
+interface Workspace {
+  id: string;
+  name: string;
+  path: string;
+  worktrees: Worktree[];
+  agents: Agent[];
+}
+```
+
+**ONE Extension:**
+```typescript
+interface ONEWorkspace extends Workspace {
+  // Link to ONE deployment
+  deployment: {
+    url: string;              // Backend Convex URL
+    organizationId: Id<'things'>;  // Org this workspace belongs to
+    creatorId: Id<'things'>;       // Creator who owns it
+  };
+
+  // Sync state with backend
+  syncStatus: {
+    lastSynced: number;
+    pendingChanges: number;
+    conflictingFiles: string[];
+  };
+
+  // Knowledge integration
+  knowledgeIndex: {
+    totalChunks: number;
+    lastIndexed: number;
+    embeddingModel: string;
+  };
+}
+```
+
+### 3. Agent Capabilities Matrix
+
+| Agent Type | emdash Support | ONE Integration |
+|-----------|---------------|-----------------|
+| Claude Code | ✅ Built-in | Map to `engineering_agent` |
+| Cursor | ✅ Built-in | Map to `engineering_agent` |
+| GitHub Copilot | ✅ Built-in | Map to `engineering_agent` |
+| Custom Agents | ✅ Extensible | Map to 10 `business_agents` |
+| External (ElizaOS, etc.) | ❌ None | 🆕 Via `external_agent` ontology |
+
+### 4. Deployment Pipeline
+**emdash:** Git operations only
+**ONE Desktop:** Full deployment flow
+
+```mermaid
+graph LR
+    A[Agent Makes Changes] --> B[Review in Workspace]
+    B --> C[Commit to Git]
+    C --> D{Deploy Target?}
+    D -->|Backend| E[Push to Backend Convex]
+    D -->|Frontend| F[Deploy to Cloudflare]
+    D -->|Both| G[Coordinate Deployment]
+    E --> H[Log Deployment Event]
+    F --> H
+    G --> H
+```
+
+---
+
+## User Experience Flow
+
+### 1. Launch & Connect
+```
+┌─────────────────────────────────────┐
+│  ONE Desktop                        │
+│                                     │
+│  [+] Connect to ONE Backend         │
+│      Enter Convex URL or select:   │
+│      • Local (localhost:3000)      │
+│      • Production (one.ie)          │
+│      • Custom deployment            │
+│                                     │
+│  [↓] Sync Organizations             │
+│      ✓ My Organization              │
+│      ✓ Client Projects              │
+└─────────────────────────────────────┘
+```
+
+### 2. Create Workspace
+```
+┌─────────────────────────────────────┐
+│  New Workspace                      │
+│                                     │
+│  Name: ________________             │
+│  Path: [Browse...]                  │
+│                                     │
+│  Template:                          │
+│  ○ Full Stack (Frontend + Backend) │
+│  ○ Frontend Only                    │
+│  ○ Backend Only                     │
+│  ○ Existing Repository              │
+│                                     │
+│  Organization: [Dropdown]           │
+│                                     │
+│  [Create Workspace]                 │
+└─────────────────────────────────────┘
+```
+
+### 3. Agent Dashboard (Main View)
+```
+┌──────────────────────────────────────────────────────────────┐
+│ ONE Desktop - My SaaS Project                   [Sync] [•••] │
+├──────────────────────────────────────────────────────────────┤
+│ ACTIVE AGENTS                                    Add Agent [+]│
+├──────────────────────────────────────────────────────────────┤
+│ ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │
+│ │ Claude Code  │  │ Cursor       │  │ Marketing    │        │
+│ │ engineering  │  │ engineering  │  │ Agent        │        │
+│ ├──────────────┤  ├──────────────┤  ├──────────────┤        │
+│ │ Working on:  │  │ Working on:  │  │ Working on:  │        │
+│ │ Auth system  │  │ UI polish    │  │ Blog content │        │
+│ │              │  │              │  │              │        │
+│ │ Status: 🟢   │  │ Status: 🟢   │  │ Status: ⏸    │        │
+│ │ 23 changes   │  │ 8 changes    │  │ 3 drafts     │        │
+│ └──────────────┘  └──────────────┘  └──────────────┘        │
+├──────────────────────────────────────────────────────────────┤
+│ KNOWLEDGE BASE                              Search [........] │
+├──────────────────────────────────────────────────────────────┤
+│ • 1,247 chunks indexed                                       │
+│ • Last sync: 2 minutes ago                                   │
+│ • Model: text-embedding-3-large                              │
+│ • Context available to all agents                            │
+├──────────────────────────────────────────────────────────────┤
+│ RECENT ACTIVITY                                  View All → │
+├──────────────────────────────────────────────────────────────┤
+│ 2m ago  Claude Code completed "Add email verification"       │
+│ 5m ago  Cursor committed "Polish dashboard UI"               │
+│ 12m ago Marketing Agent generated 3 blog posts               │
+│ 15m ago Workspace synced with backend                        │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### 4. Agent Detail View (Click on an agent)
+```
+┌──────────────────────────────────────────────────────────────┐
+│ ← Back to Dashboard                Claude Code - Engineering │
+├──────────────────────────────────────────────────────────────┤
+│ CURRENT TASK                                                 │
+│ Implement email verification system                          │
+│ Assigned: 45 minutes ago                                     │
+│ Worktree: /path/to/project/.worktrees/claude-email-verify  │
+├──────────────────────────────────────────────────────────────┤
+│ CONVERSATION                                    [Send Task] │
+│ ┌──────────────────────────────────────────────────────────┐ │
+│ │ You: Add email verification with Better Auth            │ │
+│ │                                                          │ │
+│ │ Claude: I'll implement email verification. Here's my    │ │
+│ │ plan:                                                    │ │
+│ │ 1. Add verification token entity type                   │ │
+│ │ 2. Create verification mutation                         │ │
+│ │ 3. Add email template                                   │ │
+│ │ 4. Update UI for verify flow                            │ │
+│ │                                                          │ │
+│ │ [Show Generated Code]                                    │ │
+│ └──────────────────────────────────────────────────────────┘ │
+│ [Type a message...]                              [Send]     │
+├──────────────────────────────────────────────────────────────┤
+│ CHANGES (23)                                    [Review All] │
+│ ✓ backend/convex/auth/verify.ts            +127 -0          │
+│ ✓ backend/convex/schema.ts                 +15 -2           │
+│ ✓ frontend/src/pages/verify.astro          +89 -0           │
+│ ✓ frontend/src/components/VerifyEmail.tsx  +156 -0          │
+│ ... 19 more files                                            │
+│                                                              │
+│ [Commit Changes] [Deploy to Backend] [Deploy to Frontend]   │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Data Model (SQLite Schema)
+
+### Base Schema (from emdash)
+```sql
+-- Workspaces
+CREATE TABLE workspaces (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  path TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+-- Agents
+CREATE TABLE agents (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  provider TEXT NOT NULL,  -- 'claude', 'cursor', 'copilot'
+  status TEXT NOT NULL,    -- 'idle', 'running', 'paused', 'error'
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (workspace_id) REFERENCES workspaces(id)
+);
+
+-- Worktrees
+CREATE TABLE worktrees (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  agent_id TEXT,
+  path TEXT NOT NULL,
+  branch TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (workspace_id) REFERENCES workspaces(id),
+  FOREIGN KEY (agent_id) REFERENCES agents(id)
+);
+```
+
+### ONE Extensions
+```sql
+-- ONE Backend Connection
+CREATE TABLE deployments (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  convex_url TEXT NOT NULL,
+  organization_id TEXT,  -- Links to ONE backend
+  creator_id TEXT,       -- Links to ONE backend
+  access_token TEXT,     -- Encrypted
+  last_synced INTEGER,
+  created_at INTEGER NOT NULL
+);
+
+-- Link workspaces to deployments
+ALTER TABLE workspaces ADD COLUMN deployment_id TEXT
+  REFERENCES deployments(id);
+
+-- Knowledge Index
+CREATE TABLE knowledge_chunks (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  source_file TEXT NOT NULL,
+  chunk_index INTEGER NOT NULL,
+  text TEXT NOT NULL,
+  embedding BLOB,  -- Stored as binary
+  embedding_model TEXT,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (workspace_id) REFERENCES workspaces(id)
+);
+
+-- Agent Tasks (map to ONE's agent_task things)
+CREATE TABLE tasks (
+  id TEXT PRIMARY KEY,
+  agent_id TEXT NOT NULL,
+  thing_id TEXT,  -- ONE backend thing ID
+  title TEXT NOT NULL,
+  description TEXT,
+  status TEXT NOT NULL,  -- 'pending', 'in_progress', 'completed', 'failed'
+  started_at INTEGER,
+  completed_at INTEGER,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (agent_id) REFERENCES agents(id)
+);
+
+-- Sync Queue (changes pending sync to backend)
+CREATE TABLE sync_queue (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  entity_type TEXT NOT NULL,  -- 'thing', 'connection', 'event', 'knowledge'
+  entity_id TEXT NOT NULL,
+  operation TEXT NOT NULL,    -- 'create', 'update', 'delete'
+  payload TEXT NOT NULL,      -- JSON
+  synced BOOLEAN DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (workspace_id) REFERENCES workspaces(id)
+);
+```
+
+---
+
+## Sync Strategy: Desktop ↔️ Backend
+
+### 1. Initial Connection
+```typescript
+async function connectToBackend(convexUrl: string): Promise<Deployment> {
+  // 1. Authenticate with Better Auth
+  const authClient = new BetterAuthClient({ baseURL: convexUrl });
+  const session = await authClient.signIn({ /* ... */ });
+
+  // 2. Fetch user's organizations
+  const orgs = await convex.query(api.queries.orgs.listMyOrgs);
+
+  // 3. Create deployment record
+  const deployment = await db.deployments.insert({
+    convex_url: convexUrl,
+    organization_id: orgs[0]._id,
+    creator_id: session.user._id,
+    access_token: encrypt(session.token),
+  });
+
+  return deployment;
+}
+```
+
+### 2. Continuous Sync
+```typescript
+// Watch for local changes
+const watcher = chokidar.watch(workspace.path, {
+  ignored: /(^|[\/\\])\../, // ignore dotfiles
+  persistent: true
+});
+
+watcher.on('change', async (path) => {
+  // 1. Determine entity type from file path
+  const entityType = inferEntityType(path);
+
+  // 2. Extract data from file
+  const data = await parseFile(path);
+
+  // 3. Queue for sync
+  await db.sync_queue.insert({
+    workspace_id: workspace.id,
+    entity_type: entityType,
+    entity_id: data.id || generateId(),
+    operation: 'update',
+    payload: JSON.stringify(data),
+  });
+});
+
+// Sync queue processor (runs every 5 seconds)
+setInterval(async () => {
+  const pending = await db.sync_queue.findMany({
+    where: { synced: false },
+    limit: 100,
+  });
+
+  for (const item of pending) {
+    try {
+      // Send to backend
+      await convex.mutation(api.mutations.sync.upsert, {
+        entityType: item.entity_type,
+        entityId: item.entity_id,
+        data: JSON.parse(item.payload),
+      });
+
+      // Mark synced
+      await db.sync_queue.update(item.id, { synced: true });
+    } catch (error) {
+      console.error('Sync failed:', error);
+      // Retry with exponential backoff
+    }
+  }
+}, 5000);
+```
+
+### 3. Conflict Resolution
+```typescript
+interface SyncConflict {
+  file: string;
+  localVersion: string;
+  remoteVersion: string;
+  localModified: number;
+  remoteModified: number;
+}
+
+async function resolveConflicts(conflicts: SyncConflict[]): Promise<void> {
+  // Show UI dialog
+  const resolution = await showConflictDialog(conflicts);
+
+  for (const conflict of conflicts) {
+    switch (resolution[conflict.file]) {
+      case 'keep-local':
+        // Overwrite remote with local
+        await syncToBackend(conflict.localVersion);
+        break;
+      case 'keep-remote':
+        // Overwrite local with remote
+        await syncFromBackend(conflict.remoteVersion);
+        break;
+      case 'merge':
+        // Manual merge in editor
+        await openMergeTool(conflict);
+        break;
+    }
+  }
+}
+```
+
+---
+
+## Agent Integration Patterns
+
+### 1. Engineering Agents (Claude, Cursor, Copilot)
+**Workflow:**
+```
+User assigns task → Agent works in isolated worktree →
+Agent makes changes → Desktop detects changes →
+Queue for review → User approves → Commit & sync →
+Deploy to backend/frontend → Log events
+```
+
+**Example Task:**
+```typescript
+const task = await createTask({
+  agent: 'claude-code',
+  title: 'Add user profile page',
+  context: [
+    'User should see their name, email, avatar',
+    'Add edit functionality',
+    'Use existing auth session',
+    'Follow ontology: user is a "creator" thing',
+  ],
+  knowledge: await searchKnowledge('user profile ontology'),
+});
+
+// Claude works on it...
+
+// When done, review changes
+const changes = await getAgentChanges(task.agent_id);
+// ... 45 files changed, 2,847 insertions, 156 deletions
+
+// Approve & deploy
+await commitChanges(task.agent_id, 'feat: add user profile page');
+await deployToBackend(changes.backend);
+await deployToFrontend(changes.frontend);
+```
+
+### 2. Business Agents (Strategy, Marketing, Sales, etc.)
+**Workflow:**
+```
+User assigns business task → Agent queries knowledge →
+Agent generates output (content, strategy, etc.) →
+Desktop saves as thing in backend → Logs event →
+Other agents can use output as context
+```
+
+**Example Task:**
+```typescript
+const task = await createTask({
+  agent: 'marketing-agent',
+  title: 'Generate blog post about ONE Desktop launch',
+  context: [
+    'Target audience: developers and creators',
+    'Highlight multi-agent orchestration',
+    'Include technical details from ontology',
+    'SEO optimized',
+  ],
+  knowledge: await searchKnowledge('ONE desktop agent orchestration'),
+});
+
+// Marketing agent generates 3 blog posts...
+
+// Save as things in backend
+for (const post of task.outputs) {
+  await convex.mutation(api.mutations.content.create, {
+    type: 'blog_post',
+    name: post.title,
+    properties: {
+      content: post.content,
+      seo: post.seo,
+      generatedBy: 'marketing_agent',
+    },
+    status: 'draft',
+  });
+}
+```
+
+### 3. External Agents (ElizaOS, AutoGen, etc.)
+**Workflow:**
+```
+Connect external agent via API → Register as external_agent thing →
+Desktop routes tasks via A2A protocol → External agent works →
+Results sync back to desktop → Log events → Update knowledge
+```
+
+**Example Integration:**
+```typescript
+// Register external agent
+const elizaAgent = await convex.mutation(api.mutations.agents.createExternal, {
+  type: 'external_agent',
+  name: 'ElizaOS Research Agent',
+  properties: {
+    platform: 'elizaos',
+    apiEndpoint: 'https://api.eliza.ai/v1',
+    capabilities: ['research', 'summarization', 'data-extraction'],
+  },
+});
+
+// Assign task via A2A protocol
+const task = await createTask({
+  agent: elizaAgent._id,
+  title: 'Research competitor pricing',
+  context: ['Find top 10 competitors', 'Extract pricing tiers'],
+  protocol: 'a2a',
+});
+
+// ElizaOS works on it...
+
+// Results come back via webhook
+app.post('/webhook/eliza', async (req, res) => {
+  const result = req.body;
+
+  // Save to knowledge
+  await convex.mutation(api.mutations.knowledge.create, {
+    knowledgeType: 'document',
+    text: result.summary,
+    sourceThingId: elizaAgent._id,
+    labels: ['research', 'competitor-analysis'],
+  });
+
+  // Log event
+  await convex.mutation(api.mutations.events.log, {
+    type: 'agent_completed',
+    actorId: elizaAgent._id,
+    targetId: task._id,
+    metadata: { protocol: 'a2a', duration: result.duration },
+  });
+});
+```
+
+---
+
+## Knowledge Integration
+
+### 1. Automatic Indexing
+```typescript
+// Watch workspace for changes
+const indexer = new WorkspaceIndexer(workspace);
+
+indexer.on('file-changed', async (file) => {
+  // Extract text
+  const text = await readFile(file.path);
+
+  // Chunk it (800 tokens, 200 overlap)
+  const chunks = chunkText(text, { size: 800, overlap: 200 });
+
+  // Generate embeddings
+  for (const chunk of chunks) {
+    const embedding = await openai.embeddings.create({
+      model: 'text-embedding-3-large',
+      input: chunk.text,
+    });
+
+    // Store locally
+    await db.knowledge_chunks.insert({
+      workspace_id: workspace.id,
+      source_file: file.path,
+      chunk_index: chunk.index,
+      text: chunk.text,
+      embedding: Buffer.from(new Float32Array(embedding.data[0].embedding).buffer),
+      embedding_model: 'text-embedding-3-large',
+    });
+
+    // Queue for backend sync
+    await queueKnowledgeSync(workspace.id, chunk);
+  }
+});
+```
+
+### 2. Context Retrieval for Agents
+```typescript
+async function getAgentContext(
+  agent: Agent,
+  query: string
+): Promise<string[]> {
+  // 1. Generate query embedding
+  const queryEmbedding = await openai.embeddings.create({
+    model: 'text-embedding-3-large',
+    input: query,
+  });
+
+  // 2. Search local knowledge (SQLite vector search or brute force)
+  const localChunks = await searchLocalKnowledge(
+    workspace.id,
+    queryEmbedding.data[0].embedding,
+    { limit: 5 }
+  );
+
+  // 3. Search backend knowledge (Convex vector search)
+  const backendChunks = await convex.query(api.queries.knowledge.search, {
+    query: queryEmbedding.data[0].embedding,
+    organizationId: workspace.deployment.organizationId,
+    limit: 5,
+  });
+
+  // 4. Combine and deduplicate
+  const allChunks = [...localChunks, ...backendChunks];
+  const uniqueChunks = deduplicateByContent(allChunks);
+
+  // 5. Return as context strings
+  return uniqueChunks.map(chunk => chunk.text);
+}
+
+// Use in agent prompt
+const context = await getAgentContext(agent, task.description);
+const systemPrompt = `
+You are ${agent.type} working on ${task.title}.
+
+Relevant context from the knowledge base:
+${context.join('\n\n---\n\n')}
+
+Task: ${task.description}
+
+Follow the ONE ontology when making changes. All entities should map to the 4-table system.
+`;
+```
+
+---
+
+## Deployment Integration
+
+### 1. Backend Deployment (Convex)
+```typescript
+async function deployBackend(workspace: Workspace): Promise<void> {
+  const backendPath = path.join(workspace.path, 'backend');
+
+  // 1. Run type check
+  await exec('npm run typecheck', { cwd: backendPath });
+
+  // 2. Deploy to Convex
+  const result = await exec('npx convex deploy', {
+    cwd: backendPath,
+    env: {
+      CONVEX_DEPLOYMENT: workspace.deployment.convex_url,
+    },
+  });
+
+  // 3. Log deployment event
+  await convex.mutation(api.mutations.events.log, {
+    type: 'deployment_completed',
+    actorId: workspace.creatorId,
+    metadata: {
+      target: 'backend',
+      deployment_url: workspace.deployment.convex_url,
+      duration: result.duration,
+    },
+  });
+
+  // 4. Update workspace sync status
+  await db.workspaces.update(workspace.id, {
+    last_synced: Date.now(),
+  });
+}
+```
+
+### 2. Frontend Deployment (Cloudflare)
+```typescript
+async function deployFrontend(workspace: Workspace): Promise<void> {
+  const frontendPath = path.join(workspace.path, 'frontend');
+
+  // 1. Build
+  await exec('npm run build', { cwd: frontendPath });
+
+  // 2. Deploy to Cloudflare Pages
+  const result = await exec('npx wrangler pages deploy ./dist', {
+    cwd: frontendPath,
+    env: {
+      CLOUDFLARE_API_TOKEN: await getCloudflareToken(),
+    },
+  });
+
+  // 3. Extract deployment URL
+  const deployUrl = extractDeployUrl(result.stdout);
+
+  // 4. Log deployment event
+  await convex.mutation(api.mutations.events.log, {
+    type: 'deployment_completed',
+    actorId: workspace.creatorId,
+    metadata: {
+      target: 'frontend',
+      deployment_url: deployUrl,
+      duration: result.duration,
+    },
+  });
+}
+```
+
+### 3. Coordinated Deployment (Full Stack)
+```typescript
+async function deployFullStack(workspace: Workspace): Promise<void> {
+  // Deploy in parallel when possible
+  const [backendResult, frontendResult] = await Promise.all([
+    deployBackend(workspace),
+    deployFrontend(workspace),
+  ]);
+
+  // Update website thing in backend
+  await convex.mutation(api.mutations.things.update, {
+    id: workspace.websiteThingId,
+    properties: {
+      domain: frontendResult.url,
+      lastDeployed: Date.now(),
+    },
+  });
+
+  // Show success notification
+  showNotification({
+    title: 'Deployment Complete',
+    message: `Backend and frontend deployed successfully!`,
+    url: frontendResult.url,
+  });
+}
+```
+
+---
+
+## Security & Privacy
+
+### 1. Local-First Data
+- All workspace data stored locally in SQLite
+- Embeddings computed locally (option to use local models)
+- Credentials encrypted with OS keychain (Keytar)
+- No data sent to ONE backend without explicit sync
+
+### 2. Credential Management
+```typescript
+import keytar from 'keytar';
+
+// Store Convex access token securely
+async function storeCredentials(
+  deployment: Deployment,
+  token: string
+): Promise<void> {
+  await keytar.setPassword(
+    'one-desktop',
+    deployment.convex_url,
+    token
+  );
+}
+
+// Retrieve token for sync
+async function getCredentials(deployment: Deployment): Promise<string> {
+  const token = await keytar.getPassword(
+    'one-desktop',
+    deployment.convex_url
+  );
+
+  if (!token) {
+    throw new Error('Not authenticated. Please sign in.');
+  }
+
+  return token;
+}
+```
+
+### 3. Permission Scopes
+```typescript
+// Request minimal permissions from backend
+const scopes = [
+  'read:things',      // Read entities
+  'write:things',     // Create/update entities
+  'read:events',      // Read activity logs
+  'write:events',     // Log new events
+  'read:knowledge',   // Search knowledge base
+  'write:knowledge',  // Add knowledge chunks
+  'deploy:backend',   // Deploy Convex functions
+  'deploy:frontend',  // Deploy to Cloudflare
+];
+
+// User approves during first connection
+const session = await authClient.signIn({
+  scopes,
+  approval: 'interactive', // Shows permission dialog
+});
+```
+
+---
+
+## Platform Support
+
+### macOS
+- **Native Features:**
+  - Menu bar integration
+  - Touch Bar support for agent controls
+  - Spotlight search for tasks
+  - Notification Center for agent updates
+
+### Windows
+- **Native Features:**
+  - System tray integration
+  - Windows Search integration
+  - Toast notifications
+  - Jump lists for recent workspaces
+
+### Linux
+- **Native Features:**
+  - System tray (via libappindicator)
+  - Desktop notifications
+  - KDE/GNOME integration
+
+---
+
+## Development Roadmap
+
+### Phase 1: MVP (Q1 2025)
+- ✅ Fork emdash codebase
+- ✅ Add ONE branding and UI
+- ✅ Implement basic Convex sync
+- ✅ Support Claude Code and Cursor
+- ✅ Basic knowledge indexing (local only)
+
+### Phase 2: Full Integration (Q2 2025)
+- ⬜ Complete ontology mapping
+- ⬜ Real-time sync with backend
+- ⬜ All 10 business agents supported
+- ⬜ External agent integration (ElizaOS, AutoGen)
+- ⬜ Vector search across local + backend knowledge
+
+### Phase 3: Advanced Features (Q3 2025)
+- ⬜ Multi-deployment management
+- ⬜ Conflict resolution UI
+- ⬜ Agent marketplace (discover & install agents)
+- ⬜ Workflow templates
+- ⬜ Team collaboration (shared workspaces)
+
+### Phase 4: Enterprise (Q4 2025)
+- ⬜ SSO integration
+- ⬜ Audit logging
+- ⬜ Role-based access control
+- ⬜ Air-gapped mode (fully offline)
+- ⬜ Custom agent development SDK
+
+---
+
+## Success Metrics
+
+### Developer Experience
+- **Goal:** Ship 10x faster with AI agents
+- **Metrics:**
+  - Average task completion time
+  - Number of agents used per project
+  - Lines of code generated vs manually written
+
+### System Performance
+- **Goal:** Sub-second responsiveness
+- **Metrics:**
+  - Agent startup time < 2s
+  - Sync latency < 500ms
+  - Search response time < 100ms
+
+### Adoption
+- **Goal:** 10,000 active developers by end of 2025
+- **Metrics:**
+  - Monthly active users
+  - Workspaces created
+  - Deployments triggered
+  - Knowledge chunks indexed
+
+---
+
+## Technical Comparison: emdash vs ONE Desktop
+
+| Feature | emdash | ONE Desktop |
+|---------|--------|-------------|
+| **Core Purpose** | Multi-agent parallel execution | AI business orchestration |
+| **Data Model** | SQLite (custom schema) | SQLite + ONE ontology sync |
+| **Supported Agents** | 7 coding agents | 7 coding + 10 business + external |
+| **Backend Integration** | None | Full Convex sync |
+| **Knowledge Base** | None | Built-in RAG with embeddings |
+| **Deployment** | Git only | Git + Convex + Cloudflare |
+| **Organization Support** | Single user | Multi-tenant orgs |
+| **Conflict Resolution** | Manual | UI-guided + auto-merge |
+| **Analytics** | None | Full event tracking |
+| **Marketplace** | None | Agent & template marketplace |
+
+---
+
+## Why ONE Desktop > emdash
+
+1. **Ontology Integration** - Every operation maps to ONE's 4-table system
+2. **Knowledge Engine** - Agents share context through unified RAG
+3. **Business Agents** - Beyond code: strategy, marketing, sales, etc.
+4. **Full Deployment** - From development to production in one click
+5. **Multi-Tenant** - Manage multiple orgs and projects
+6. **Protocol-Aware** - Support A2A, ACP, AP2, X402 out of the box
+7. **Edge-Native** - Deploy to Cloudflare's global network
+8. **Event-Driven** - Complete audit trail and analytics
+9. **Extensible** - Plugin system for custom agents and workflows
+10. **Open Source** - Fork, customize, and contribute back
+
+---
+
+## Getting Started (Developer)
+
+### Prerequisites
+- Node.js 20+
+- Git
+- Convex account (free tier)
+- Cloudflare account (free tier)
+
+### Installation
+```bash
+# Clone the repo
+git clone https://github.com/one-ie/desktop
+cd desktop
+
+# Install dependencies
+npm install
+
+# Start in dev mode
+npm run dev
+
+# Build for production
+npm run build
+
+# Package for distribution
+npm run package
+```
+
+### Configuration
+```typescript
+// ~/.one-desktop/config.json
+{
+  "deployments": [
+    {
+      "name": "Production",
+      "url": "https://your-backend.convex.cloud",
+      "default": true
+    },
+    {
+      "name": "Development",
+      "url": "http://localhost:3000",
+      "default": false
+    }
+  ],
+  "agents": {
+    "claude": {
+      "enabled": true,
+      "apiKey": "sk-ant-..."  // Or use system env var
+    },
+    "cursor": {
+      "enabled": true
+    }
+  },
+  "knowledge": {
+    "indexingEnabled": true,
+    "embeddingModel": "text-embedding-3-large",
+    "maxChunkSize": 800,
+    "chunkOverlap": 200
+  },
+  "sync": {
+    "autoSync": true,
+    "syncInterval": 5000,
+    "conflictResolution": "prompt"  // or "keep-local", "keep-remote"
+  }
+}
+```
+
+---
+
+## Conclusion
+
+**ONE Desktop transforms emdash from a multi-agent code orchestrator into a complete AI business command center.**
+
+By integrating with ONE's ontology, knowledge engine, and deployment pipeline, developers can:
+- Orchestrate 17+ AI agents (7 coding + 10 business)
+- Build applications that map to a clean 4-table data model
+- Deploy instantly to global edge infrastructure
+- Generate and sell knowledge to other AI agents
+- Manage entire AI-powered businesses from one desktop app
+
+**The future of development is AI-native. ONE Desktop makes it real.**
+
+---
+
+## References
+
+- **emdash GitHub:** https://github.com/generalaction/emdash
+- **ONE Ontology:** `/one/connections/ontology.md`
+- **ONE Vision:** `/one/things/vision.md`
+- **ONE Platform:** https://one.ie
+
+---
+
+**Status:** Ready for development
+**Next Steps:**
+1. Fork emdash repository
+2. Set up ONE branding
+3. Implement Convex sync layer
+4. Build ontology mapping
+5. Launch private beta
 </file>
 
 <file path="things/plans/effect-components.md">
@@ -44903,6 +50984,1548 @@ Execute this implementation step-by-step, and you'll have a fully functional sha
 Since social login buttons already exist, let's make them functional!
 </file>
 
+<file path="things/plans/one.md">
+# Product: ONE
+
+## Overview
+
+ONE transforms ideas into living, AI-powered businesses through plain English commands. Built with love by humans and AI working together, ONE empowers founders, creators, developers, and even AI agents themselves to build autonomous agents, production applications, and thriving audiences.
+
+**Tagline:** Make Your Ideas Reality With AI
+
+**License:** Maximum Freedom. Zero Restrictions.
+
+---
+
+## The Freedom Philosophy
+
+Most software comes with strings attached. Not ONE.
+
+We believe software should set you free, not lock you in. That's why ONE is licensed with the **ONE License** - designed to give you **maximum freedom with minimal restrictions**:
+
+- **Use commercially** without limits or royalties
+- **Modify and resell** at any price you choose
+- **Never share your code** (no copyleft requirements)
+- **Own your innovations** completely
+- **Run anywhere** - locally, cloud, edge, your servers
+- **Patent your inventions** built with ONE
+- **Train AI models** on ONE
+- **Build SaaS businesses** freely
+- **Compatible with all open-source licenses** (MIT, Apache, GPL, BSD, MPL)
+
+### The Only Ask
+
+Display "Powered by ONE" with our logo in your footer. That's it.
+
+Why? Because this link helps other AI agents discover and transact with your agents - it's actually a feature that grows your network.
+
+Want to whitelable? Our [Enterprise License](https://one.ie/enterprise-license) removes even this requirement.
+
+### The ONE License in Detail
+
+Read the full license: [ONE License](https://one.ie/free-license)
+
+**What makes it special:**
+
+1. **Perpetual & Irrevocable** - Your rights never expire, never get taken away
+2. **Zero Royalties** - No revenue sharing, no usage fees, ever
+3. **Commercial Freedom** - Use it in any commercial project, at any scale
+4. **Patent Rights** - Patent innovations you build with ONE
+5. **AI Training Rights** - Train your AI models on ONE's code
+6. **SaaS Rights** - Build and operate software-as-a-service businesses
+7. **Derivative Works** - Modify, extend, fork - it's yours
+8. **License Compatibility** - Works with MIT, Apache, GPL, BSD, MPL
+9. **No Copyleft** - Keep your code private or share it - your choice
+10. **Ownership Clarity** - You own your modifications, we own the original
+
+**The Legal Innovation:**
+
+Most open source licenses either:
+
+- Give you freedom but require you share your changes (copyleft)
+- Give you freedom but limit commercial use
+- Give you freedom but charge for commercial licenses
+
+ONE gives you freedom **and** commercial rights **and** privacy **with just one tiny ask**: help other agents find you by displaying our link.
+
+That's it. Maximum freedom. Minimal restrictions.
+
+---
+
+## The Problem We're Solving
+
+Building AI-powered businesses today requires:
+
+- Deep technical expertise across multiple stacks
+- Months of development time
+- Complex integrations between services
+- Ongoing maintenance and scaling costs
+- Vendor lock-in and recurring fees
+- Legal complexity around licensing
+
+Non-technical founders and creators are locked out. Developers spend weeks on boilerplate instead of innovation. Everyone pays recurring fees to platforms that own their data.
+
+---
+
+## The Solution
+
+ONE provides a complete operating system for AI businesses built on five simple primitives:
+
+1. **People** - Set intent, govern outcomes, authorize actions (humans stay in command)
+2. **Things** - Every entity (agents, products, audiences, tokens) - 66 types out of the box
+3. **Connections** - Express relationships (ownership, memberships, revenue flows)
+4. **Events** - Chronicle every action (launches, interactions, transactions, insights)
+5. **Knowledge** - Store semantics (labels, chunks, embeddings that make agents intelligent)
+
+Everything you build maps to these five tables, creating a unified ontology that makes AI agents intelligent, features composable, and your business scalable.
+
+---
+
+## How It Works
+
+### English → Code → Reality (In Minutes)
+
+1. **Write in English** - Describe what you want using 15 simple commands
+2. **System Validates** - Checks against ontology for correctness
+3. **Code Generated** - Compiles to production TypeScript with tests
+4. **Deploy to Edge** - Live globally in 60 seconds on Cloudflare
+
+### Plain English DSL Example
+
+```
+FEATURE: Create my AI voice clone
+
+CHECK videos exist (at least 3)
+CALL ElevenLabs to clone voice
+CALL OpenAI to analyze personality
+CREATE ai clone
+CONNECT creator to clone as owner
+RECORD clone created
+GIVE clone ID
+```
+
+That's it. Seven lines generates:
+
+- React UI components
+- Complete test suite
+- Database schema
+- Edge deployment
+- Full documentation
+
+---
+
+## What You Can Build
+
+### 1. AI Agents That Work Like Teammates
+
+**Sales Agent**
+
+- Qualifies leads automatically
+- Books meetings via calendar API
+- Provides pricing based on customer size
+- Notifies you of hot leads
+
+**Content Agent**
+
+- Generates daily posts across platforms
+- Adapts to your writing style
+- Schedules for peak engagement times
+- Learns from performance data
+
+**Support Agent**
+
+- Answers using your knowledge base
+- Escalates complex questions smartly
+- Saves new answers to improve over time
+- Rewards helpful interactions with tokens
+
+**Research Agent**
+
+- Monitors industry trends weekly
+- Analyzes competitor content
+- Finds content gaps and opportunities
+- Delivers actionable insights
+
+### 2. Applications That Ship Themselves
+
+- Compose frontends, APIs, and automations directly from ontology
+- Deploy instantly to Cloudflare's global edge
+- Free, unlimited requests, sub-second response times
+- Integrate external protocols via metadata without breaking core schema
+
+### 3. Grow and Activate Your Audience
+
+- Model every member, fan, and partner as a thing with rich properties
+- Track relationships to understand engagement and value
+- Trigger personalized journeys with event streams
+- Reward participation and compound loyalty
+
+### 4. Tokenize and Trade Your Knowledge
+
+- Package validated insights as knowledge linked to token things
+- Monetize knowledge bundles with AI agents and partners
+- Maintain provenance through event streams
+- Your intelligence becomes a liquid asset
+
+---
+
+## Technical Stack
+
+**Frontend**
+
+- Astro 5.14+ (Lightning-fast SSR)
+- React 19 (Edge-compatible)
+- shadcn/ui (50+ components)
+- Tailwind v4 (CSS-based config)
+- Better Auth (6 auth methods)
+- TypeScript 5.9+ (Strict mode)
+- Effect.ts (Type-safe effects)
+
+**Infrastructure**
+
+- Cloudflare Pages (Global edge network)
+- Unlimited frontend requests
+- Edge-native by design
+- Protocol-agnostic (REST, MCP, AP2, X402)
+
+---
+
+## Key Features
+
+### Edge Native
+
+- Unlimited usage on frontend, always-on
+- Served from Cloudflare's global edge
+- Sub-second response times worldwide
+
+### Enterprise Security
+
+- Separation of concerns through ontology
+- Auditable event streams
+- Governance-ready metadata
+- Full authorization control
+
+### Protocol Agnostic
+
+- Support REST, MCP, AP2, X402, and future standards
+- Store protocol details in properties and metadata
+- No breaking changes to core schema
+
+### Open by Design
+
+- Everything lives in human-readable files (`one/*`)
+- Agents and teams co-create in plain English
+- Full transparency and auditability
+
+---
+
+## Licensing & Business Model
+
+### Free Forever License
+
+ONE is **free forever** under the ONE License:
+
+- ✓ **No cost** - Download and install locally at zero cost
+- ✓ **No credit card** - Start building immediately
+- ✓ **No trial period** - Perpetual and irrevocable rights
+- ✓ **No usage limits** - Unlimited edge requests on frontend
+- ✓ **No royalties** - Keep 100% of your revenue
+- ✓ **No vendor lock-in** - 100% of your data and code belongs to you
+- ✓ **No copyleft** - Never required to share your modifications
+
+**Only requirement:** Display "Powered by ONE" in your footer (helps other AI agents find you)
+
+### Enterprise License
+
+Sell one as your own brand. For organizations requiring zero attribution:
+
+- ✓ **Everything in Free License**
+- ✓ **No attribution requirement** - Complete white-label freedom
+- ✓ **Priority support** - Direct access to our team
+- ✓ **Custom deployments** - We help you scale
+- ✓ **Training & onboarding** - Get your team up to speed
+- ✓ **Strategic partnership** - We grow together
+
+Contact [agent@one.ie](mailto:agent@one.ie)
+
+### Own, Whitelabel, Resell - Unlimited
+
+With ONE, you truly own what you build:
+
+- **Build once, sell infinitely** - No restrictions on resale
+- **Set any price** - Your business, your pricing
+- **Keep all revenue** - 100% profit is yours
+- **White-label everything** - Rebrand as your own product
+- **Resell under your brand** - Agents, content packs, workflows, apps
+- **Support any payment method** - Crypto, bank transfers, subscriptions, one-time
+- **Your fees, your rules** - Complete pricing control
+
+### The Viral Flywheel
+
+When software is truly free, magical things happen:
+
+- **Freedom to Build** → More creators building
+- **Freedom to Customize** → Perfect solutions for unique needs
+- **Freedom to Deploy** → Global distribution at zero cost
+- **Freedom to Sell** → Everyone becomes a distributor
+- **Network Effects** → Shared ontology connects all agents
+- **Compound Value** → Every agent makes the network smarter
+
+This isn't just open source. This is **open business**.
+
+---
+
+## Getting Started
+
+### Installation (30 seconds)
+
+```bash
+git clone https://github.com/one-ie/one
+cd one
+npm install
+```
+
+That's it. You now own a complete AI business platform.
+
+### Configure Your Keys (2 minutes)
+
+Add your own API keys to `.env`:
+
+```env
+OPENAI_API_KEY=your_key
+ELEVENLABS_API_KEY=your_key
+STRIPE_SECRET_KEY=your_key  # optional
+```
+
+Use your own keys. Your usage, your cost, your control.
+
+### Write Your First Feature (5 minutes)
+
+Create a feature file in plain English:
+
+```
+FEATURE: Create my AI voice clone
+
+CHECK videos exist (at least 3)
+CALL ElevenLabs to clone voice
+CALL OpenAI to analyze personality
+CREATE ai clone
+CONNECT creator to clone as owner
+RECORD clone created
+GIVE clone ID
+```
+
+Seven lines. That's all it takes.
+
+### Deploy to Edge (3 minutes)
+
+```bash
+npm run deploy
+```
+
+Your AI business is now live globally. Zero hosting costs. Unlimited scale.
+
+**Total: ~10 minutes from zero to live AI business**
+
+### What Happens Next
+
+- Your frontend runs on Cloudflare's edge (free, unlimited)
+- Your agents coordinate through the shared ontology
+- Your data stays in your database
+- Your revenue flows to your accounts
+- You own everything
+
+### Need Help?
+
+- **Documentation:** [Read the Docs](https://github.com/one-ie/one/blob/main/README.md)
+- **Community:** [Join Discussions](https://github.com/one-ie/one/discussions)
+- **Support:** [Open an Issue](https://github.com/one-ie/one/issues)
+- **Enterprise:** [agent@one.ie](mailto:agent@one.ie)
+
+We're building this together. Ask anything.
+
+---
+
+## Use Cases
+
+### For Creators
+
+- AI clones that work 24/7
+- Automated content generation
+- Token economies for your community
+- Direct fan monetization
+
+### For Founders
+
+- MVP to production in days, not months
+- AI agents handling sales, support, content
+- Full-stack applications without coding
+- Own your entire business infrastructure
+
+### For Developers
+
+- Write features in English, get TypeScript
+- Skip boilerplate, focus on unique value
+- Type-safe, tested, production-ready code
+- Deploy globally in seconds
+
+### For AI Agents
+
+- Agents can build and deploy new agents
+- Self-improving through shared knowledge
+- Coordinate through unified ontology
+- Monetize their own work
+
+---
+
+## Why ONE Is Different
+
+### 1. True Freedom Through Licensing
+
+Most "free" software isn't. ONE gives you **maximum freedom with minimal restrictions**:
+
+- No copyleft requirements
+- No usage restrictions
+- No royalty fees
+- Perpetual rights
+- Compatible with everything
+
+### 2. Plain English Over Code
+
+Non-technical founders building enterprise software isn't a bug - it's the feature:
+
+- 15 commands replace thousands of lines
+- Describe what you want, not how to build it
+- AI agents can build for other agents
+- Natural language is the ultimate API
+
+### 3. Five-Table Ontology
+
+Everything maps to five primitives (People, Things, Connections, Events, Knowledge):
+
+- Ultimate composability
+- Protocol-agnostic by design
+- Human-readable data
+- AI-native architecture
+
+### 4. Edge-First, Cost-Zero
+
+While others charge per request, ONE gives you:
+
+- Unlimited frontend requests
+- Global CDN included
+- Sub-100ms response times
+- Deploy anywhere for free
+
+### 5. Own Your Stack Completely
+
+You don't rent access to ONE, you **own it**:
+
+- Run locally or in cloud
+- Your data never leaves unless you want it to
+- Fork it, modify it, sell it
+- No platform risk
+
+### 6. Built by Humans & AI Together
+
+ONE is proof that humans and AI can build something beautiful together:
+
+- Collaborative development model
+- AI agents building for agents
+- Community-driven innovation
+- Open governance
+
+### 7. AI-to-AI Economy Ready
+
+The future is agents transacting with agents:
+
+- Built-in knowledge monetization
+- Agent discovery protocol
+- Cross-agent collaboration
+- Token-based value exchange
+
+---
+
+## Roadmap
+
+### Available Today
+
+- Complete creator OS (content, community, commerce, insights)
+- AI teammates with shared ontology
+- Instant edge deployment
+- Plain English DSL with 15 commands
+- 66 pre-built thing types
+
+### Coming Soon
+
+- Visual ontology editor
+- Marketplace for agents and knowledge
+- Multi-chain token support
+- Advanced agent collaboration patterns
+- Cross-platform protocol adapters
+
+---
+
+## Success Metrics
+
+- **Time to First Deploy:** < 10 minutes
+- **Features in Plain English:** 15 commands cover 90% of use cases
+- **Edge Performance:** Sub-100ms globally
+- **Uptime:** 99.9%+ (Cloudflare SLA)
+- **Cost:** $0 for unlimited frontend requests
+
+---
+
+## Target Audience
+
+**Primary:**
+
+- Non-technical founders building AI businesses
+- Creators monetizing expertise through AI clones
+- Small teams needing full-stack AI capabilities
+
+**Secondary:**
+
+- Developers wanting rapid prototyping
+- Enterprises requiring governance and auditability
+- AI agents building for other agents
+
+---
+
+## Support & Community
+
+- **Documentation:** [GitHub Docs](https://github.com/one-ie/one/blob/main/plans/landing.md)
+- **Support:** [GitHub Issues](https://github.com/one-ie/one/issues)
+- **Community:** [GitHub Discussions](https://github.com/one-ie/one/discussions)
+- **Website:** [one.ie](https://one.ie)
+
+---
+
+## Call to Action
+
+**Download Free. Deploy Now. Own Forever.**
+
+No credit card. No trial limits. No vendor lock-in. No strings attached.
+
+Just you, your ideas, and infinite possibilities.
+
+```bash
+git clone https://github.com/one-ie/one
+cd one
+npm install
+bun run dev
+```
+
+**10 minutes from now, you could have a live AI business.**
+
+Let's build it together.
+
+---
+
+## Product Philosophy
+
+ONE is built on fundamental beliefs about freedom, ownership, and collaboration:
+
+### Freedom First
+
+- **Humans direct, AI executes** - You're always in command
+- **Plain English beats complex code** - Ideas over syntax
+- **Ownership beats subscriptions** - Buy once, own forever
+- **Your data stays yours** - Privacy by design
+- **No vendor lock-in** - Run anywhere, anytime
+
+### Built to Last
+
+- **Edge beats servers** - Fast and free by default
+- **Composability beats customization** - Five tables, infinite possibilities
+- **Protocol-agnostic beats proprietary** - Future-proof by design
+- **Open beats closed** - Transparency builds trust
+
+### Community Over Corporation
+
+- **Collaboration beats competition** - We grow together
+- **Agents help agents** - AI-to-AI cooperation
+- **Shared knowledge compounds** - Network effects benefit all
+- **Give to get** - Only ask: Display our link so others can find us
+
+### ONE Promise
+
+**ONE is free forever. Individuals and Enterprises can download, use, sell and resell ONE withot restrictions. Everything you build in ONE is yours forever.**
+
+We won't:
+
+- Take your data
+- Make you pay recurring fees
+- Lock you into our platform
+- Restrict your commercial use
+- Require you to share your code
+- Change the license retroactively
+
+We will:
+
+- Keep ONE free forever
+- Maintain backward compatibility
+- Listen to the community
+- Build in public with AI
+- Celebrate your success
+- Grow the ecosystem together
+
+---
+
+## Built Together: Human + AI Collaboration
+
+ONE is living proof that humans and AI can create something extraordinary together.
+
+### How We Build
+
+- **Humans provide vision** - What should exist in the world?
+- **AI provides execution** - How can we make it real?
+- **Humans provide judgment** - Is this the right direction?
+- **AI provides iteration** - Here are 10 ways to improve it
+- **Together we ship** - Faster than either could alone
+
+### The Development Model
+
+ONE is built in public with AI as a co-creator:
+
+- Code written collaboratively by human and AI developers
+- Features described in English, compiled to TypeScript
+- Documentation that evolves with the codebase
+- Community feedback integrated in real-time
+- AI agents building features for other AI agents
+
+### Why This Matters
+
+Traditional software development is slow because:
+
+- Humans think fast but code slowly
+- AI can code fast but needs direction
+- Teams struggle with coordination overhead
+
+ONE removes these friction points:
+
+- Describe what you want in English
+- AI generates production code
+- You deploy globally in minutes
+- The cycle repeats endlessly
+
+**This is how all software will be built in the future. We're just doing it first.**
+
+### Join the Revolution
+
+We're not just building a product. We're proving a new way of creating:
+
+- Open collaboration over closed teams
+- AI assistance over pure automation
+- Freedom over restrictions
+- Community over corporation
+
+**Every person using ONE is part of this proof.**
+
+---
+
+## Join Us
+
+ONE isn't just software - it's a movement toward truly free, AI-powered entrepreneurship.
+
+Built with love by humans and AI who believe the future of work is collaboration, not competition.
+
+We're building this together. Not just the maintainers and contributors, but everyone who downloads, uses, modifies, and builds with ONE.
+
+**Your success is our success. Your freedom is our mission.**
+
+Ready to build the future together?
+
+- **Download:** [github.com/one-ie/one](https://github.com/one-ie/one)
+- **Learn:** [one.ie](https://one.ie)
+- **Connect:** [agent@one.ie](mailto:agent@one.ie)
+
+Let's show the world what's possible when software is truly free and humans and AI work as one.
+
+**Welcome to ONE. Welcome home.**
+</file>
+
+<file path="things/plans/open-agent.md">
+# Open-Agent Assessment & Integration Plan
+
+**Repository**: https://github.com/AFK-surf/open-agent
+**Purpose**: Assess open-agent codebase and integrate best practices into ONE
+
+## Overview
+
+Open-Agent is an open-source agentic AI platform that enables collaborative, multi-model AI agents to perform complex tasks across computers, browsers, and phones. Licensed under Apache 2.0.
+
+### Key Characteristics
+
+- **Multi-model integration**: OpenAI, Claude, Gemini, and open-source models
+- **Technology Stack**: TypeScript (98.9%), Rust (0.4%)
+- **Deployment**: Docker-based with JSON configuration
+- **Architecture**: Multi-agent collaboration with modular design
+
+## ONE Architecture Integration Context
+
+### ONE's Three-Layer Architecture
+
+ONE uses a **beautiful three-layer separation** with Effect.ts as the glue:
+
+```
+Layer 1: Frontend (Astro + React)
+    ↓ Convex hooks, Hono API client
+Layer 2: Effect.ts Glue Layer (100% business logic)
+    ↓ Services, Providers, Dependency Injection
+Layer 3: Backend (Hono API + Convex Database)
+```
+
+**Key Principles:**
+- **100% Effect.ts coverage** - All business logic uses Effect.ts (no raw async/await)
+- **Functional programming** - Pure functions, typed errors, composition, immutability
+- **4-table ontology** - entities, connections, events, tags (plain Convex schema)
+- **Service-based architecture** - Effect.ts services with automatic dependency injection
+- **Multi-provider pattern** - Separate Effect.ts providers per external service
+
+### Mapping Open-Agent to ONE Architecture
+
+**Open-Agent Pattern** → **ONE Implementation**
+
+1. **Multi-model integration** → Effect.ts providers (like multi-chain blockchain)
+2. **Agent collaboration** → Effect.ts services orchestrating multiple AI providers
+3. **Context engineering** → Service metadata in 4-table ontology
+4. **Plugin architecture** → Effect.ts layers for modular services
+5. **Task decomposition** → Pure functional composition with Effect.gen
+
+## Assessment Areas
+
+### 1. Architecture & Design Patterns
+
+- [ ] Multi-agent collaboration framework → **Map to Effect.ts orchestration services**
+- [ ] Spec & context engineering approach → **Store in 4-table ontology (metadata)**
+- [ ] Model integration patterns → **Effect.ts providers per AI model (OpenAI, Claude, Gemini)**
+- [ ] Modular component structure → **Effect.ts layers and dependency injection**
+- [ ] Inter-agent communication protocols → **Effect.ts service composition**
+
+### 2. Code Organization
+
+- [ ] TypeScript project structure → **Compare with ONE's convex/ structure**
+- [ ] Configuration management → **JSON config stored in entities table**
+- [ ] Plugin/extension architecture → **Effect.ts layers for plugins**
+- [ ] Error handling patterns → **Typed errors with `_tag` pattern (Effect.ts)**
+- [ ] Type system usage → **Effect.ts type signatures (errors explicit)**
+
+### 3. Best Practices to Adopt
+
+- [ ] Pre-commit code checks → **Integrate with ONE's development workflow**
+- [ ] Docker-based deployment strategy → **Add to ONE deployment options**
+- [ ] Configuration-driven design → **Store in Convex entities table**
+- [ ] Multi-model abstraction layer → **Effect.ts providers (like SuiProvider, BaseProvider)**
+- [ ] Community contribution workflow → **Extend ONE's open-source approach**
+
+### 4. Integration Opportunities for ONE
+
+#### High Priority
+
+- **Multi-model support**: Abstract model interfaces for swappable AI backends
+- **Collaboration patterns**: Agent-to-agent communication and task delegation
+- **Configuration system**: JSON-based configuration for flexibility
+- **Deployment**: Docker containerization for easy distribution
+
+#### Medium Priority
+
+- **Pre-commit hooks**: Code quality automation
+- **Context engineering**: Structured decision-making framework
+- **Extension system**: Plugin architecture for community contributions
+
+#### Low Priority
+
+- **Community infrastructure**: Discord/documentation patterns
+- **Browser/phone integration**: Cross-platform capabilities
+
+## Proposed ONE Multi-Model Architecture
+
+### Pattern: Multi-Model Providers (Mirrors Multi-Chain Pattern)
+
+Just as ONE has separate blockchain providers (SuiProvider, BaseProvider, SolanaProvider), we can implement separate AI model providers:
+
+```typescript
+// convex/services/providers/OpenAIProvider.ts
+export class OpenAIProvider extends Effect.Service<OpenAIProvider>()("OpenAIProvider", {
+  effect: Effect.gen(function* () {
+    const config = yield* ConfigService;
+
+    return {
+      complete: (prompt: string, options?: CompletionOptions) =>
+        Effect.gen(function* () {
+          const response = yield* Effect.tryPromise({
+            try: () => openai.chat.completions.create({
+              model: options?.model || "gpt-4",
+              messages: [{ role: "user", content: prompt }],
+              temperature: options?.temperature || 0.7,
+            }),
+            catch: (error) => new OpenAIError({ cause: error }),
+          });
+          return response.choices[0].message.content;
+        }).pipe(
+          Effect.retry({ times: 3 }),
+          Effect.timeout("30 seconds")
+        ),
+
+      embeddings: (text: string) =>
+        Effect.gen(function* () {
+          const response = yield* Effect.tryPromise({
+            try: () => openai.embeddings.create({
+              model: "text-embedding-3-small",
+              input: text,
+            }),
+            catch: (error) => new OpenAIError({ cause: error }),
+          });
+          return response.data[0].embedding;
+        }),
+    };
+  }),
+}) {}
+
+// convex/services/providers/ClaudeProvider.ts
+export class ClaudeProvider extends Effect.Service<ClaudeProvider>()("ClaudeProvider", {
+  effect: Effect.gen(function* () {
+    const config = yield* ConfigService;
+
+    return {
+      complete: (prompt: string, options?: CompletionOptions) =>
+        Effect.gen(function* () {
+          const response = yield* Effect.tryPromise({
+            try: () => anthropic.messages.create({
+              model: options?.model || "claude-sonnet-4",
+              messages: [{ role: "user", content: prompt }],
+              max_tokens: options?.maxTokens || 1024,
+            }),
+            catch: (error) => new ClaudeError({ cause: error }),
+          });
+          return response.content[0].text;
+        }).pipe(
+          Effect.retry({ times: 3 }),
+          Effect.timeout("30 seconds")
+        ),
+    };
+  }),
+}) {}
+
+// convex/services/providers/GeminiProvider.ts
+export class GeminiProvider extends Effect.Service<GeminiProvider>()("GeminiProvider", {
+  effect: Effect.gen(function* () {
+    return {
+      complete: (prompt: string, options?: CompletionOptions) =>
+        Effect.gen(function* () {
+          const response = yield* Effect.tryPromise({
+            try: () => gemini.generateContent({
+              model: options?.model || "gemini-pro",
+              prompt: prompt,
+            }),
+            catch: (error) => new GeminiError({ cause: error }),
+          });
+          return response.text;
+        }).pipe(
+          Effect.retry({ times: 3 }),
+          Effect.timeout("30 seconds")
+        ),
+    };
+  }),
+}) {}
+```
+
+### Agent Orchestration Service
+
+```typescript
+// convex/services/agents/AgentOrchestrator.ts
+export class AgentOrchestrator extends Effect.Service<AgentOrchestrator>()(
+  "AgentOrchestrator",
+  {
+    effect: Effect.gen(function* () {
+      const openai = yield* OpenAIProvider;
+      const claude = yield* ClaudeProvider;
+      const gemini = yield* GeminiProvider;
+      const db = yield* ConvexDatabase;
+
+      return {
+        // Route to appropriate model based on task type or user preference
+        executeTask: (task: AgentTask) =>
+          Effect.gen(function* () {
+            const agent = yield* db.get(task.agentId);
+
+            // Route based on agent metadata
+            const result = yield* match(agent.metadata.preferredModel)
+              .with("openai", () => openai.complete(task.prompt, task.options))
+              .with("claude", () => claude.complete(task.prompt, task.options))
+              .with("gemini", () => gemini.complete(task.prompt, task.options))
+              .otherwise(() => Effect.fail(new UnsupportedModelError()));
+
+            // Record event in 4-table ontology
+            yield* db.insert("events", {
+              entityId: task.agentId,
+              eventType: "agent_task_completed",
+              timestamp: Date.now(),
+              metadata: {
+                model: agent.metadata.preferredModel,
+                prompt: task.prompt,
+                result: result.substring(0, 100), // truncated
+              },
+            });
+
+            return result;
+          }).pipe(
+            Effect.catchTags({
+              OpenAIError: (e) => openai.complete(task.prompt, { model: "gpt-3.5-turbo" }), // fallback
+              ClaudeError: (e) => gemini.complete(task.prompt), // fallback
+              GeminiError: (e) => openai.complete(task.prompt), // fallback
+            })
+          ),
+
+        // Multi-agent collaboration (parallel execution)
+        collaborateOnTask: (task: CollaborativeTask) =>
+          Effect.gen(function* () {
+            // Execute subtasks in parallel across different models
+            const results = yield* Effect.all(
+              [
+                openai.complete(task.subtasks[0].prompt),
+                claude.complete(task.subtasks[1].prompt),
+                gemini.complete(task.subtasks[2].prompt),
+              ],
+              { concurrency: 3 }
+            );
+
+            // Synthesize results
+            const synthesis = yield* claude.complete(
+              `Synthesize these perspectives: ${results.join("\n\n")}`
+            );
+
+            return synthesis;
+          }),
+
+        // Agent-to-agent communication via context engineering
+        delegateTask: (fromAgent: Id<"entities">, toAgent: Id<"entities">, task: string) =>
+          Effect.gen(function* () {
+            // Get both agents
+            const source = yield* db.get(fromAgent);
+            const target = yield* db.get(toAgent);
+
+            // Create connection (delegation relationship)
+            yield* db.insert("connections", {
+              fromEntityId: fromAgent,
+              toEntityId: toAgent,
+              relationshipType: "delegates_to",
+              metadata: { task, timestamp: Date.now() },
+            });
+
+            // Execute on target agent's preferred model
+            const provider = match(target.metadata.preferredModel)
+              .with("openai", () => openai)
+              .with("claude", () => claude)
+              .with("gemini", () => gemini)
+              .exhaustive();
+
+            const result = yield* provider.complete(task);
+
+            // Record delegation event
+            yield* db.insert("events", {
+              entityId: toAgent,
+              eventType: "agent_task_delegated",
+              actorType: "agent",
+              actorId: fromAgent,
+              timestamp: Date.now(),
+              metadata: { task, result: result.substring(0, 100) },
+            });
+
+            return result;
+          }),
+      };
+    }),
+    dependencies: [
+      OpenAIProvider.Default,
+      ClaudeProvider.Default,
+      GeminiProvider.Default,
+      ConvexDatabase.Default,
+    ],
+  }
+) {}
+```
+
+### 4-Table Ontology Mapping for Agents
+
+**Entities Table:**
+```typescript
+{
+  _id: "agent_123",
+  entityType: "ai_agent",
+  name: "Code Review Agent",
+  metadata: {
+    preferredModel: "claude",  // "openai" | "claude" | "gemini"
+    capabilities: ["code_review", "documentation", "testing"],
+    systemPrompt: "You are an expert code reviewer...",
+    temperature: 0.7,
+    maxTokens: 2048,
+  }
+}
+```
+
+**Connections Table:**
+```typescript
+// Agent collaboration
+{
+  fromEntityId: "agent_123",
+  toEntityId: "agent_456",
+  relationshipType: "collaborates_with",
+  metadata: { taskTypes: ["code_review", "refactoring"] }
+}
+
+// Agent delegation
+{
+  fromEntityId: "agent_123",
+  toEntityId: "agent_789",
+  relationshipType: "delegates_to",
+  metadata: { task: "Write unit tests", timestamp: 1234567890 }
+}
+```
+
+**Events Table:**
+```typescript
+{
+  entityId: "agent_123",
+  eventType: "agent_task_completed",
+  timestamp: 1234567890,
+  metadata: {
+    model: "claude",
+    prompt: "Review this code...",
+    tokensUsed: 1500,
+    latencyMs: 2300,
+  }
+}
+
+{
+  entityId: "agent_123",
+  eventType: "agent_model_switched",
+  timestamp: 1234567890,
+  metadata: {
+    fromModel: "openai",
+    toModel: "claude",
+    reason: "Rate limit exceeded"
+  }
+}
+```
+
+**New Entity Types for Agents:**
+- `ai_agent` - Individual AI agent with model preferences
+- `agent_workflow` - Multi-step agent workflow definition
+- `agent_context` - Shared context for agent collaboration
+
+**New Connection Types:**
+- `collaborates_with` - Agent-to-agent collaboration
+- `delegates_to` - Task delegation relationship
+- `uses_model` - Agent-to-model preference
+
+**New Event Types:**
+- `agent_task_started` - Task execution began
+- `agent_task_completed` - Task execution finished
+- `agent_task_failed` - Task execution failed
+- `agent_model_switched` - Model fallback/switch occurred
+- `agent_context_updated` - Shared context modified
+
+### Benefits of This Approach
+
+**Consistency with ONE's Architecture:**
+1. Same pattern as multi-chain blockchain (separate providers per model)
+2. All business logic in Effect.ts services (no raw async/await)
+3. Typed errors throughout (OpenAIError, ClaudeError, GeminiError)
+4. Automatic retry, timeout, fallback via Effect.ts
+5. Easy to test (mock providers via Effect layers)
+
+**AI-Friendly:**
+1. Pure functional composition (predictable)
+2. Explicit dependencies (visible in type signatures)
+3. Typed errors (exhaustive error handling)
+4. Immutable state (no side effects)
+5. Composable services (combine agents easily)
+
+**Scalability:**
+1. Add new models without changing existing code
+2. Agent collaboration via service composition
+3. Context engineering via 4-table ontology
+4. Performance tracking via events table
+5. Multi-tenant agent configurations
+
+## Code Deep Dive Tasks
+
+### Phase 1: Discovery
+
+1. Clone repository and examine core architecture clone into /import/open-agent
+2. Identify key abstractions and interfaces
+3. Map out agent lifecycle and communication flow
+4. Analyze model integration patterns
+
+### Phase 2: Pattern Extraction
+
+1. Document reusable design patterns
+2. Extract configuration schemas
+3. Identify testable components
+4. Review error handling strategies
+
+### Phase 3: Integration Planning
+
+1. Map open-agent patterns to ONE architecture
+2. Identify conflicts or redundancies
+3. Design integration approach
+4. Create migration/enhancement roadmap
+
+## Key Questions to Answer
+
+### Open-Agent Implementation Details
+
+1. How does open-agent handle multi-model switching and fallbacks?
+   - **ONE approach**: Effect.ts `catchTags` for typed error handling, automatic fallback to alternative models
+2. What is the agent communication protocol?
+   - **ONE approach**: Effect.ts service composition, connections table for delegation tracking
+3. How are tasks decomposed and distributed?
+   - **ONE approach**: Pure functional composition with Effect.gen, parallel execution with Effect.all
+4. What context management strategies are used?
+   - **ONE approach**: Store in 4-table ontology metadata, immutable state
+5. How is state maintained across agent interactions?
+   - **ONE approach**: Events table for audit trail, connections table for relationships
+6. What security measures are implemented?
+   - **ONE approach**: Better Auth integration, Convex validation, typed inputs
+7. How is the Docker deployment configured?
+   - **ONE approach**: Add to deployment options, keep Cloudflare Pages/Workers primary
+8. What testing strategies are employed?
+   - **ONE approach**: Mock Effect layers, unit tests for services, integration tests for Hono routes
+
+### Functional Programming Evaluation Criteria
+
+When reviewing open-agent code, assess against ONE's principles:
+
+**✅ Good Patterns (Adopt):**
+- Pure functions (same input → same output)
+- Immutable data structures
+- Explicit type signatures
+- Composable abstractions
+- Clear error handling
+
+**❌ Anti-Patterns (Refactor to Effect.ts):**
+- Raw async/await in business logic → Effect.ts services
+- try/catch error handling → Typed errors with `_tag`
+- Global state mutation → Immutable state in ontology
+- Imperative loops → Functional composition (map, filter, reduce)
+- Hidden dependencies → Explicit Effect.ts dependencies
+
+**📊 Comparison Matrix:**
+
+| Aspect | Open-Agent (Expected) | ONE Architecture | Integration Strategy |
+|--------|----------------------|------------------|----------------------|
+| Async handling | async/await | Effect.ts | Wrap in Effect.tryPromise |
+| Error handling | try/catch | Typed errors | Define error classes with `_tag` |
+| State management | Variables/objects | 4-table ontology | Map to entities/connections/events |
+| Model switching | if/switch | Effect.catchTags | Use typed error fallbacks |
+| Task composition | Promises | Effect.gen | Convert to Effect pipelines |
+| Dependencies | Imports | Effect DI | Define as Effect services |
+| Testing | Mocks/stubs | Effect layers | Create test layers |
+| Configuration | JSON files | Entities table | Store in database |
+
+## Enhancement Roadmap for ONE
+
+### Phase 1: Foundation (1-2 weeks)
+
+**Goal**: Implement core multi-model infrastructure following ONE's patterns
+
+1. **Multi-Model Providers** (Effect.ts services)
+   - [ ] Create `OpenAIProvider.ts` (Effect.ts service)
+   - [ ] Create `ClaudeProvider.ts` (Effect.ts service)
+   - [ ] Create `GeminiProvider.ts` (Effect.ts service)
+   - [ ] Define typed errors (OpenAIError, ClaudeError, GeminiError)
+   - [ ] Add retry/timeout/fallback logic per provider
+   - [ ] Write unit tests with mocked Effect layers
+
+2. **4-Table Ontology Extensions**
+   - [ ] Add `ai_agent` entity type to schema
+   - [ ] Add `agent_workflow` entity type
+   - [ ] Add `collaborates_with`, `delegates_to` connection types
+   - [ ] Add `agent_task_*` event types
+   - [ ] Update docs/Ontology.md with agent types
+
+3. **Development Workflow Improvements**
+   - [ ] Analyze open-agent's pre-commit hooks
+   - [ ] Integrate useful checks into ONE's workflow
+   - [ ] Add Docker deployment configuration (optional alternative to Cloudflare)
+
+**Files to Create:**
+```
+convex/services/providers/OpenAIProvider.ts
+convex/services/providers/ClaudeProvider.ts
+convex/services/providers/GeminiProvider.ts
+convex/services/providers/errors.ts
+convex/services/agents/AgentOrchestrator.ts
+tests/unit/services/providers/openai.test.ts
+tests/unit/services/providers/claude.test.ts
+tests/unit/services/agents/orchestrator.test.ts
+```
+
+### Phase 2: Agent Orchestration (3-4 weeks)
+
+**Goal**: Build collaborative multi-agent system with Effect.ts
+
+1. **AgentOrchestrator Service**
+   - [ ] Implement `executeTask` (route to correct model)
+   - [ ] Implement `collaborateOnTask` (parallel execution)
+   - [ ] Implement `delegateTask` (agent-to-agent communication)
+   - [ ] Add automatic fallback on model failures
+   - [ ] Track performance metrics in events table
+
+2. **Context Engineering**
+   - [ ] Design context storage schema (metadata in entities)
+   - [ ] Implement context sharing between agents
+   - [ ] Build context versioning (track in events)
+   - [ ] Add context pruning/optimization strategies
+
+3. **Hono API Routes**
+   - [ ] POST `/api/agents/create` - Create new agent
+   - [ ] POST `/api/agents/:id/execute` - Execute task
+   - [ ] POST `/api/agents/:id/delegate` - Delegate to another agent
+   - [ ] GET `/api/agents/:id/performance` - Get metrics
+
+**Files to Create:**
+```
+convex/services/agents/AgentOrchestrator.ts
+convex/services/agents/ContextManager.ts
+convex/mutations/agents.ts
+convex/queries/agents.ts
+hono/routes/agents.ts
+src/components/features/agents/AgentDashboard.tsx
+src/components/features/agents/AgentExecutor.tsx
+```
+
+### Phase 3: Advanced Features (2-3 months)
+
+**Goal**: Complete multi-agent workflows, optimization, extensibility
+
+1. **Workflow Engine**
+   - [ ] Define workflow DSL (stored in `agent_workflow` entities)
+   - [ ] Implement workflow executor (Effect.ts service)
+   - [ ] Support conditional branching, loops, parallel steps
+   - [ ] Add workflow versioning and rollback
+
+2. **Plugin Architecture**
+   - [ ] Design plugin interface (Effect.ts layers)
+   - [ ] Implement plugin discovery/loading
+   - [ ] Create example plugins (custom tools, data sources)
+   - [ ] Document plugin development guide
+
+3. **Performance Optimization**
+   - [ ] Implement intelligent model routing (cost/speed/quality)
+   - [ ] Add response caching (deduplicate similar prompts)
+   - [ ] Build rate limiting per model
+   - [ ] Create observability dashboard (traces, logs, metrics)
+
+4. **Cross-Platform Integration** (from open-agent)
+   - [ ] Browser automation capabilities
+   - [ ] Mobile integration patterns
+   - [ ] Desktop application support
+
+**Files to Create:**
+```
+convex/services/agents/WorkflowEngine.ts
+convex/services/agents/PluginManager.ts
+convex/services/agents/CacheManager.ts
+convex/services/agents/PerformanceOptimizer.ts
+docs/Agents.md (comprehensive agent documentation)
+docs/Plugins.md (plugin development guide)
+```
+
+### Success Metrics
+
+**Technical Metrics:**
+- [ ] 100% Effect.ts coverage in agent services (no raw async/await)
+- [ ] All errors typed with `_tag` pattern
+- [ ] >80% unit test coverage for agent services
+- [ ] <100ms overhead for agent orchestration (excluding model latency)
+- [ ] Support 3+ AI models with automatic fallback
+
+**Feature Metrics:**
+- [ ] Multi-model task execution working
+- [ ] Agent collaboration (parallel + delegation) working
+- [ ] Context sharing between agents
+- [ ] Workflow engine executing multi-step tasks
+- [ ] Plugin system allowing community extensions
+
+**Integration Metrics:**
+- [ ] All agent types mapped to 4-table ontology
+- [ ] All agent operations tracked in events table
+- [ ] Agent configuration stored in entities table
+- [ ] Agent collaboration tracked in connections table
+- [ ] Real-time agent status updates via Convex subscriptions
+
+## Resources & References
+
+**Open-Agent:**
+- Repository: https://github.com/AFK-surf/open-agent
+- License: Apache 2.0
+- Tech Stack: TypeScript (98.9%), Rust (0.4%), Docker
+- Community: Discord (check repository for link)
+
+**ONE Architecture Docs:**
+- `docs/Architecture.md` - Three-layer architecture, Effect.ts patterns
+- `docs/Ontology.md` - 4-table ontology (entities, connections, events, tags)
+- `docs/Hono.md` - Effect.ts services, Hono API routes
+- `docs/Frontend.md` - Astro + React patterns
+- `docs/Service Providers.md` - External service integration patterns
+
+**Effect.ts Resources:**
+- Official Docs: https://effect.website
+- Effect.ts patterns in ONE: See `convex/services/` for examples
+- Multi-chain example: `convex/services/providers/SuiProvider.ts` (template for AI providers)
+
+## Quick Reference for Developers
+
+### Implementing a New AI Model Provider
+
+**Template** (follow existing pattern from SuiProvider/BaseProvider):
+```typescript
+// convex/services/providers/NewModelProvider.ts
+import { Effect } from "effect";
+
+// 1. Define typed error
+export class NewModelError extends Data.TaggedError("NewModelError")<{
+  cause: unknown;
+}> {}
+
+// 2. Create Effect.ts service
+export class NewModelProvider extends Effect.Service<NewModelProvider>()(
+  "NewModelProvider",
+  {
+    effect: Effect.gen(function* () {
+      const config = yield* ConfigService;
+
+      return {
+        complete: (prompt: string, options?: CompletionOptions) =>
+          Effect.gen(function* () {
+            const response = yield* Effect.tryPromise({
+              try: () => /* API call */,
+              catch: (error) => new NewModelError({ cause: error }),
+            });
+            return response.text;
+          }).pipe(
+            Effect.retry({ times: 3 }),
+            Effect.timeout("30 seconds")
+          ),
+      };
+    }),
+    dependencies: [ConfigService.Default],
+  }
+) {}
+```
+
+### Adding Agent to 4-Table Ontology
+
+**Entity:**
+```typescript
+await ctx.db.insert("entities", {
+  entityType: "ai_agent",
+  name: "My Agent",
+  metadata: {
+    preferredModel: "claude",
+    systemPrompt: "...",
+    capabilities: ["code", "writing"],
+  },
+});
+```
+
+**Connection (collaboration):**
+```typescript
+await ctx.db.insert("connections", {
+  fromEntityId: agent1Id,
+  toEntityId: agent2Id,
+  relationshipType: "collaborates_with",
+  metadata: { taskTypes: ["code_review"] },
+});
+```
+
+**Event (task completion):**
+```typescript
+await ctx.db.insert("events", {
+  entityId: agentId,
+  eventType: "agent_task_completed",
+  timestamp: Date.now(),
+  metadata: { model: "claude", tokensUsed: 1500 },
+});
+```
+
+### Testing Agent Services
+
+**Unit Test Template:**
+```typescript
+import { Effect, Layer } from "effect";
+
+describe("AgentOrchestrator", () => {
+  it("should execute task with correct model", async () => {
+    // Mock providers
+    const MockClaude = Layer.succeed(ClaudeProvider, {
+      complete: () => Effect.succeed("response"),
+    });
+
+    const TestLayer = Layer.mergeAll(MockClaude, /* ... */);
+
+    // Run test
+    const result = await Effect.runPromise(
+      Effect.gen(function* () {
+        const orchestrator = yield* AgentOrchestrator;
+        return yield* orchestrator.executeTask(task);
+      }).pipe(Effect.provide(TestLayer))
+    );
+
+    expect(result).toBe("response");
+  });
+});
+```
+
+## Notes & Observations
+
+### Key Insights from ONE Architecture Review
+
+1. **Effect.ts is non-negotiable** - 100% coverage means ALL business logic, including agent orchestration
+2. **Multi-provider pattern is proven** - Same pattern used for multi-chain blockchain works perfectly for multi-model AI
+3. **4-table ontology is flexible** - Can model complex agent relationships without schema changes
+4. **Typed errors everywhere** - No try/catch, all errors explicit in type signatures
+5. **Composition over configuration** - Services compose naturally, no complex config files needed
+
+### What to Look for in Open-Agent Codebase
+
+**✅ Patterns to Adopt:**
+- Context management strategies
+- Multi-agent communication protocols
+- Task decomposition approaches
+- Model selection heuristics
+- Performance optimization techniques
+
+**⚠️ Patterns to Adapt (refactor to Effect.ts):**
+- Any raw async/await → Effect.gen
+- Any try/catch → typed errors with catchTags
+- Any global state → 4-table ontology
+- Any imperative loops → functional composition
+- Any hidden dependencies → explicit Effect services
+
+### Next Steps After Cloning
+
+1. **Map their architecture to ours:**
+   - Their agent system → Our AgentOrchestrator service
+   - Their model switching → Our multi-provider pattern
+   - Their state → Our 4-table ontology
+   - Their config → Our entities table metadata
+
+2. **Extract patterns, not code:**
+   - Don't copy their implementation verbatim
+   - Understand their approach, implement in Effect.ts
+   - Maintain ONE's architectural consistency
+   - All business logic must be pure functional
+
+3. **Document learnings:**
+   - Update this file with observations
+   - Create docs/Agents.md with implementation guide
+   - Add examples to docs/Patterns.md
+   - Update docs/Ontology.md with agent types
+
+---
+
+**Status**: Enhanced Plan Complete - Ready for Phase 1 Discovery
+**Last Updated**: 2025-10-10
+**Next Action**: Clone repository to `/import/open-agent` and begin Phase 1 analysis
+</file>
+
+<file path="things/plans/performace.md">
+# Lighthouse Snapshot — 10 Oct 2025
+
+Captured on Moto G Power (emulated), Slow 4G throttling, Lighthouse 12.8.2, Headless Chromium 137.0.7151.119 — single-page session, initial load.
+
+## Baseline Metrics
+- Performance 94
+- Accessibility 94
+- Best Practices 100
+- SEO 100
+- First Contentful Paint 1.8 s
+- Largest Contentful Paint 2.5 s
+- Total Blocking Time 60 ms
+- Cumulative Layout Shift 0
+- Speed Index 4.3 s
+
+## Guiding Principles (Astro First)
+- Serve HTML first: leverage Astro’s server-first rendering so the browser sees a static document immediately.
+- Lean on Astro islands: hydrate only the components that truly need interactivity, and delay hydration with `client:idle`, `client:visible`, or `client:media`.
+- Simplify over delete: keep functionality, but move logic to build time, server routes, or islands that hydrate later.
+- Build once, cache forever: ensure assets are hashed, compressed, and delivered via HTTP/2.
+- Measure every iteration using the same Lighthouse profile; confirm wins with real trace captures.
+
+## Root Causes (From Audit)
+- LCP held at 2.5 s by render-blocking CSS and a 1.58 s deep script cascade from Astro client bundles.
+- Forced synchronous layout in `/_astro/client.C-k3xUc3.js:10:1392`, `/_astro/use-mobile.CrtMAo8K.js:6:337`, and the `cdn.usal.dev/latest` script (total 148 ms of reflow work).
+- No preconnect or early hints, so every third-party handshake blocks on TCP+TLS.
+- ~22 KiB of unused JavaScript in Astro bundles; three main-thread tasks longer than 50 ms.
+- Accessibility score capped by unlabeled action buttons (hurts user experience and audit score).
+
+## Performance Plan — Simple & Astro-Aligned
+
+### 1. Above-the-Fold Simplicity
+- Deliver a minimal, static hero layout built with semantic HTML and existing global CSS. Avoid inline CSS; rely on the base stylesheet generated by Astro and tailwind utilities already compiled.
+- Use Astro’s layout components to pre-render navigation, headline, and primary CTA with zero hydration.
+- Defer complex UI (notifications, dropdowns, charts) to islands placed below the fold. Provide static placeholders that load instantly, then hydrate progressively when scrolled into view.
+
+### 2. Astro Islands & Hydration Strategy
+- Audit every component that currently ships as part of the main bundle; convert interactive sections to islands using `client:visible` or `client:idle`. For buttons that trigger modals, wrap just the modal logic in an island instead of hydrating the whole sidebar.
+- Bundle measurements and DOM mutations inside islands; keep islands small and focused so their JavaScript stays lean.
+- Use `client:only="react"` (or other frameworks) sparingly. Prefer native Astro components with minimal runtime.
+
+### 3. CSS & Styling Discipline
+- Consolidate styling into the shared CSS build produced by Astro. Remove redundant imports and ensure the main stylesheet is tree-shaken through Tailwind’s content scanning.
+- Adopt CSS layering or utility classes to prevent bloating the bundle. If additional styles are needed per island, scope them with CSS modules to avoid shipping large global additions.
+- Lean on the design tokens available at build time so styles compile once; no runtime theming above the fold.
+
+### 4. JavaScript Performance at Build Time
+- Move configuration, data fetching, and formatting logic into Astro’s `load` functions or server-side helpers so the HTML arrives complete.
+- Extract shared helper functions into `Astro.glob` or server collections so they do not duplicate across bundles.
+- Use `@astrojs/image` to pre-generate responsive images, ensuring the hero image is optimized, lazy loaded, and served in modern formats without client-side overhead.
+- Enable `astro-compress` (or Vite compression) to serve brotli/gzip out of the box.
+
+### 5. Manage Third-Party Dependencies
+- Replace the `cdn.usal.dev/latest` script with a locally hosted build or ship its minimal subset through an island that hydrates after user interaction.
+- Preconnect only to origins we cannot remove (e.g., API or auth). Configure them in `src/components/Head.astro` to guarantee consistent hints.
+- Use `rel="prefetch"` or `rel="preload"` for essential islands that must hydrate quickly after interaction.
+
+### 6. Prevent Layout Thrash
+- Review `client.C-k3xUc3.js` and `use-mobile.CrtMAo8K.js` to ensure layout reads and writes are separated. If these files belong to islands, gate DOM work until `requestAnimationFrame`.
+- For menu toggles and responsive adjustments, prefer CSS `:has()` or Tailwind responsive utilities so layout changes happen without scripting.
+- Establish a lint rule (ESLint custom rule) to flag direct layout reads inside synchronous component initialization.
+
+### 7. Accessibility & Semantics
+- Provide descriptive text for every button flagged by Lighthouse. Astro’s server render ensures labels are available without hydration.
+- Use native form controls and semantic tags to reduce custom script logic; accessible components often hydrate faster due to simpler DOM.
+- Run `@astrojs/seo` audit to enforce meta tags and accessible structure without extra code.
+
+### 8. Progressive Enhancement Workflow
+- First render: static HTML + CSS-only interactions (hover, focus, simple toggles).
+- Second phase: hydrate priority islands when they appear on screen (e.g., user menu, notifications).
+- Third phase: load non-critical islands after idle time (analytics, toasts).
+- Provide skeleton or shimmer states coded in CSS so the user sees immediate feedback while islands hydrate.
+
+## Execution Roadmap (Lean Sprints)
+- Sprint 1: Inventory components, convert above-the-fold layout to pure Astro HTML, configure islands with `client:visible`, fix accessible labels (goal: LCP ≤ 2.3 s).
+- Sprint 2: Optimize build pipeline (image component, compression, helper dedupe), refactor layout scripts, ensure no forced reflow > 16 ms (goal: TBT ≤ 40 ms).
+- Sprint 3: Fine-tune hydration triggers, add network hints, verify third-party scripts defer correctly (goal: Performance 100, Accessibility 100).
+- Continuous: Maintain budgets (JS < 80 KiB initial load, CSS < 30 KiB critical). Add Lighthouse CI with Moto G Power profile nightly.
+
+## Verification & Guardrails
+- Measure with Lighthouse and Chrome Performance traces on every PR touching layout, CSS, or scripts.
+- Store comparison snapshots in `/one/things/perf-historical` (create if missing) to verify regression-free trend.
+- Add automated `axe-core` run to catch regressions in accessible names.
+- Keep dashboard: LCP, TBT, JS payload size, CSS payload size — fail build when limits are exceeded.
+
+## Target Outcomes
+- Performance 100 with LCP ≤ 2.1 s, TBT ≤ 40 ms, CLS 0 maintained.
+- Accessibility 100 with labeled controls, relying on semantic HTML.
+- Simplified front-end stack: reduced Astro runtime footprint, predominantly static delivery.
+- Repeatable workflow grounded in deletion, simplification, and constant measurement.
+</file>
+
 <file path="things/plans/repos.md">
 Templates
 
@@ -44980,6 +52603,1302 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name=stack
 ```
+</file>
+
+<file path="things/plans/separate.md">
+# Frontend-Backend Separation Plan
+
+## Executive Summary
+
+**Goal:** Transform the current tightly-coupled architecture into a fully headless, API-first architecture where:
+- Frontend: Pure Astro/React UI (no Convex dependency)
+- Backend: Hono API + Convex (standalone service)
+- Connection: REST API with API key authentication
+
+**Current State:** Frontend directly imports Convex hooks (`useQuery`, `useMutation`) and calls Convex functions.
+
+**Target State:** Frontend only knows about REST API endpoints, authenticates with API keys, and has zero knowledge of Convex.
+
+---
+
+## Table of Contents
+
+1. [Architecture Comparison](#architecture-comparison)
+2. [Benefits of Separation](#benefits-of-separation)
+3. [Migration Strategy](#migration-strategy)
+4. [API Key Authentication](#api-key-authentication)
+5. [File Structure Changes](#file-structure-changes)
+6. [Implementation Steps](#implementation-steps)
+7. [Testing Strategy](#testing-strategy)
+8. [Deployment Changes](#deployment-changes)
+
+---
+
+## Architecture Comparison
+
+### Current Architecture (Coupled)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                 FRONTEND (Astro + React)                │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Pages & Components                              │  │
+│  │  ├─ import { useQuery } from 'convex/react'      │  │
+│  │  ├─ import { api } from 'convex/_generated/api'  │  │
+│  │  └─ const data = useQuery(api.entities.get)     │  │
+│  └──────────────────────────────────────────────────┘  │
+│                                                         │
+│  frontend/convex/* (schema, mutations, queries)        │
+│  ↓ Direct WebSocket Connection                         │
+└─────────────────────────────────────────────────────────┘
+                    │
+                    ▼
+        ┌───────────────────────┐
+        │   CONVEX BACKEND      │
+        │  (Real-time DB)       │
+        └───────────────────────┘
+```
+
+**Problems:**
+- ❌ Frontend tightly coupled to Convex
+- ❌ Can't swap backend without rewriting frontend
+- ❌ Hard to version API (breaking changes impact frontend immediately)
+- ❌ No clear API boundary
+- ❌ Can't reuse backend for mobile/desktop apps without Convex SDK
+- ❌ Multi-tenancy requires each frontend to have own Convex deployment
+
+---
+
+### Target Architecture (Separated)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                 FRONTEND (Headless)                     │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  Pages & Components                              │  │
+│  │  ├─ import { apiClient } from '@/lib/api'        │  │
+│  │  ├─ const data = await api.tokens.get(id)       │  │
+│  │  └─ No Convex imports!                           │  │
+│  └──────────────────────────────────────────────────┘  │
+│                                                         │
+│  HTTP Requests with API Key                            │
+│  Authorization: Bearer sk_live_xxx                     │
+└─────────────────────────────────────────────────────────┘
+                    │
+                    ↓ HTTPS/REST
+┌─────────────────────────────────────────────────────────┐
+│              BACKEND API (Hono + Convex)                │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  API Routes (Hono on Cloudflare Workers)         │  │
+│  │  /api/auth/*   - Authentication                  │  │
+│  │  /api/tokens/* - Token operations                │  │
+│  │  /api/agents/* - Agent management                │  │
+│  │  /api/content/*- Content CRUD                    │  │
+│  └────────────────┬─────────────────────────────────┘  │
+│                   │                                     │
+│  ┌────────────────┴─────────────────────────────────┐  │
+│  │  Middleware                                      │  │
+│  │  ├─ API Key Validation                           │  │
+│  │  ├─ Rate Limiting                                │  │
+│  │  ├─ CORS                                         │  │
+│  │  └─ Request Logging                              │  │
+│  └────────────────┬─────────────────────────────────┘  │
+│                   │                                     │
+│  ┌────────────────┴─────────────────────────────────┐  │
+│  │  Business Logic (Effect.ts Services)             │  │
+│  │  - TokenService, AgentService, etc.              │  │
+│  │  - Pure functional logic                         │  │
+│  │  - Type-safe error handling                      │  │
+│  └────────────────┬─────────────────────────────────┘  │
+│                   │                                     │
+│  ┌────────────────┴─────────────────────────────────┐  │
+│  │  Data Layer (ConvexHttpClient)                   │  │
+│  │  - Queries/mutations via HTTP                    │  │
+│  │  - 4-table ontology access                       │  │
+│  └────────────────┬─────────────────────────────────┘  │
+└───────────────────┼─────────────────────────────────────┘
+                    │
+                    ▼
+        ┌───────────────────────┐
+        │   CONVEX BACKEND      │
+        │  - entities           │
+        │  - connections        │
+        │  - events             │
+        │  - knowledge          │
+        │  - API keys (stored)  │
+        └───────────────────────┘
+```
+
+**Benefits:**
+- ✅ Frontend can be swapped/rebuilt independently
+- ✅ Backend API can serve web, mobile, desktop, CLI
+- ✅ Clear API versioning (/api/v1, /api/v2)
+- ✅ API keys enable multi-tenancy (one backend, many frontends)
+- ✅ Standard REST patterns (easy for any dev to understand)
+- ✅ Can rate limit, monitor, version API independently
+
+---
+
+## Benefits of Separation
+
+### 1. Multi-Tenancy Support
+
+**Before:**
+```
+Org A → Frontend A → Convex Deployment A
+Org B → Frontend B → Convex Deployment B
+Org C → Frontend C → Convex Deployment C
+
+❌ 3 orgs = 3 Convex deployments (expensive, hard to manage)
+```
+
+**After:**
+```
+Org A → Frontend A ──┐
+                     ├→ Single Backend API → Single Convex Deployment
+Org B → Frontend B ──┤   (with API key isolation)
+                     │
+Org C → Frontend C ──┘
+
+✅ 3 orgs = 1 Convex deployment (cheap, centralized)
+```
+
+### 2. Platform Independence
+
+**Before:**
+- Web: Must use Convex React hooks
+- Mobile: Must use Convex React Native SDK
+- Desktop: Must use Convex Electron SDK
+- CLI: Must use Convex Node SDK
+
+❌ Each platform needs Convex SDK
+
+**After:**
+- Web: HTTP fetch() or axios
+- Mobile: HTTP client (works with any framework)
+- Desktop: HTTP client (works with any framework)
+- CLI: curl or HTTP client
+
+✅ Any platform that speaks HTTP works
+
+### 3. Team Organization
+
+**Before:**
+```
+Full-stack developer needs to know:
+- Astro
+- React
+- Convex schema
+- Convex queries/mutations
+- Convex actions
+- Effect.ts
+- Business logic
+```
+
+**After:**
+```
+Frontend developer needs to know:
+- Astro
+- React
+- API endpoints (documented)
+
+Backend developer needs to know:
+- Hono routes
+- Effect.ts
+- Convex schema
+- Business logic
+```
+
+✅ Clear separation of concerns
+
+### 4. API Evolution
+
+**Before:**
+```
+Change Convex schema → Frontend breaks immediately
+❌ No versioning, no backwards compatibility
+```
+
+**After:**
+```
+/api/v1/tokens → Stable, never breaks
+/api/v2/tokens → New version with improvements
+
+Frontend chooses which version to use
+✅ Graceful deprecation, backwards compatible
+```
+
+---
+
+## Migration Strategy
+
+### Phase 1: Backend API Creation (No Frontend Changes)
+
+**Goal:** Build standalone Hono API that mirrors current Convex functions
+
+**Tasks:**
+1. Create `/backend/api/` directory
+2. Implement Hono routes for all Convex queries/mutations
+3. Add API key authentication middleware
+4. Deploy to Cloudflare Workers
+5. Test all endpoints with Postman/curl
+
+**Timeline:** 1-2 weeks
+
+**Risk:** Low (frontend still works with Convex)
+
+---
+
+### Phase 2: Frontend API Client Library
+
+**Goal:** Create abstraction layer in frontend that can switch between Convex and HTTP
+
+**Tasks:**
+1. Create `/frontend/src/lib/api/client.ts`
+2. Implement API client with same interface as Convex hooks
+3. Add environment variable toggle: `USE_API_BACKEND=true/false`
+4. Test dual mode (frontend works with both)
+
+**Timeline:** 1 week
+
+**Risk:** Low (can toggle back to Convex if issues)
+
+---
+
+### Phase 3: Gradual Migration
+
+**Goal:** Migrate frontend page by page from Convex hooks to API client
+
+**Tasks:**
+1. Migrate `/blog` pages first (low risk)
+2. Migrate `/tokens` pages
+3. Migrate `/agents` pages
+4. Migrate authentication pages last (highest risk)
+
+**Timeline:** 2-3 weeks
+
+**Risk:** Medium (careful testing needed per page)
+
+---
+
+### Phase 4: Remove Convex from Frontend
+
+**Goal:** Delete `frontend/convex/*` and all Convex dependencies
+
+**Tasks:**
+1. Verify all pages use API client
+2. Remove Convex imports from `package.json`
+3. Delete `frontend/convex/` directory
+4. Update build process
+
+**Timeline:** 1 week
+
+**Risk:** Low (if Phase 3 done correctly)
+
+---
+
+## API Key Authentication
+
+### Key Types
+
+**1. Secret Keys (Backend-to-Backend)**
+```
+sk_live_1234567890abcdef
+sk_test_1234567890abcdef
+```
+
+**2. Publishable Keys (Frontend-Safe)**
+```
+pk_live_1234567890abcdef
+pk_test_1234567890abcdef
+```
+
+### Database Schema
+
+**New Entity Type: `api_key`**
+
+```typescript
+{
+  type: "api_key",
+  name: "Production API Key for Org A",
+  properties: {
+    keyPrefix: "sk_live",      // or "sk_test", "pk_live", "pk_test"
+    keyHash: "sha256(...)",     // Hashed key (never store plaintext!)
+    keyHint: "...def",          // Last 3 chars for display
+    orgId: "org_123",           // Which org owns this key
+    scopes: [                   // What can this key do?
+      "tokens:read",
+      "tokens:write",
+      "agents:read",
+      "agents:write"
+    ],
+    rateLimit: {
+      requests: 1000,           // Max requests per minute
+      period: 60                // Period in seconds
+    },
+    expiresAt: 1735689600000,  // Optional expiration
+    lastUsedAt: null,
+    createdBy: "user_123",
+    environment: "production"   // or "development"
+  },
+  status: "active",             // or "revoked"
+  createdAt: 1704067200000,
+  updatedAt: 1704067200000
+}
+```
+
+### Middleware Implementation
+
+**Backend: API Key Validation Middleware**
+
+```typescript
+// backend/api/middleware/auth.ts
+import { Context, Next } from "hono";
+import { createHash } from "crypto";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "convex/_generated/api";
+
+export async function validateApiKey(c: Context, next: Next) {
+  // Extract API key from header
+  const authHeader = c.req.header("Authorization");
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return c.json({ error: "Missing API key" }, 401);
+  }
+
+  const apiKey = authHeader.replace("Bearer ", "");
+
+  // Validate key format
+  if (!apiKey.match(/^(sk|pk)_(live|test)_[a-zA-Z0-9]{24}$/)) {
+    return c.json({ error: "Invalid API key format" }, 401);
+  }
+
+  // Hash the key
+  const keyHash = createHash("sha256").update(apiKey).digest("hex");
+
+  // Query Convex for matching key
+  const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
+  const keyEntity = await convex.query(api.queries.apiKeys.validate, {
+    keyHash
+  });
+
+  if (!keyEntity) {
+    return c.json({ error: "Invalid API key" }, 401);
+  }
+
+  if (keyEntity.status !== "active") {
+    return c.json({ error: "API key revoked" }, 401);
+  }
+
+  // Check expiration
+  if (keyEntity.properties.expiresAt && Date.now() > keyEntity.properties.expiresAt) {
+    return c.json({ error: "API key expired" }, 401);
+  }
+
+  // Check scopes (if route requires specific scope)
+  const requiredScope = c.req.param("scope");
+  if (requiredScope && !keyEntity.properties.scopes.includes(requiredScope)) {
+    return c.json({ error: "Insufficient permissions" }, 403);
+  }
+
+  // Rate limiting check
+  const rateLimitKey = `rate_limit:${keyEntity._id}`;
+  const currentCount = await getRateLimitCount(rateLimitKey);
+
+  if (currentCount >= keyEntity.properties.rateLimit.requests) {
+    return c.json({ error: "Rate limit exceeded" }, 429);
+  }
+
+  // Increment rate limit counter
+  await incrementRateLimit(rateLimitKey, keyEntity.properties.rateLimit.period);
+
+  // Update last used timestamp (async, don't wait)
+  convex.mutation(api.mutations.apiKeys.updateLastUsed, {
+    keyId: keyEntity._id
+  }).catch(console.error);
+
+  // Attach org context to request
+  c.set("orgId", keyEntity.properties.orgId);
+  c.set("keyScopes", keyEntity.properties.scopes);
+  c.set("apiKeyId", keyEntity._id);
+
+  await next();
+}
+```
+
+**Frontend: API Client with Key**
+
+```typescript
+// frontend/src/lib/api/client.ts
+export class ApiClient {
+  private baseUrl: string;
+  private apiKey: string;
+
+  constructor(apiKey: string, baseUrl?: string) {
+    this.apiKey = apiKey;
+    this.baseUrl = baseUrl || import.meta.env.PUBLIC_API_URL;
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${this.apiKey}`,
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new ApiError(error.error, response.status);
+    }
+
+    return response.json();
+  }
+
+  // Tokens API
+  tokens = {
+    get: (id: string) =>
+      this.request<Token>(`/api/v1/tokens/${id}`),
+
+    list: (params?: { orgId?: string; limit?: number }) =>
+      this.request<Token[]>(`/api/v1/tokens?${new URLSearchParams(params)}`),
+
+    create: (data: CreateTokenInput) =>
+      this.request<Token>("/api/v1/tokens", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    purchase: (id: string, amount: number) =>
+      this.request<PurchaseResult>(`/api/v1/tokens/${id}/purchase`, {
+        method: "POST",
+        body: JSON.stringify({ amount }),
+      }),
+  };
+
+  // Agents API
+  agents = {
+    get: (id: string) =>
+      this.request<Agent>(`/api/v1/agents/${id}`),
+
+    list: () =>
+      this.request<Agent[]>("/api/v1/agents"),
+
+    create: (data: CreateAgentInput) =>
+      this.request<Agent>("/api/v1/agents", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+  };
+
+  // Add more resource methods...
+}
+
+// Export singleton with environment API key
+export const api = new ApiClient(
+  import.meta.env.PUBLIC_API_KEY || ""
+);
+```
+
+**Usage in Frontend:**
+
+```astro
+---
+// frontend/src/pages/tokens/[id].astro
+import { api } from "@/lib/api/client";
+import Layout from "@/layouts/Layout.astro";
+
+const { id } = Astro.params;
+const token = await api.tokens.get(id);
+---
+
+<Layout title={token.name}>
+  <h1>{token.name}</h1>
+  <p>Balance: {token.properties.balance}</p>
+</Layout>
+```
+
+---
+
+## File Structure Changes
+
+### Before (Coupled)
+
+```
+frontend/
+├── convex/                    # ❌ Remove entire directory
+│   ├── _generated/
+│   ├── mutations/
+│   ├── queries/
+│   ├── schema.ts
+│   └── http.ts
+├── src/
+│   ├── components/
+│   │   └── TokenCard.tsx      # Uses useQuery(api.tokens.get)
+│   └── pages/
+│       └── tokens/[id].astro  # Uses ConvexHttpClient
+└── package.json               # Includes "convex": "^1.x.x"
+
+backend/
+└── convex/                    # Only Convex deployment
+```
+
+### After (Separated)
+
+```
+frontend/
+├── src/
+│   ├── lib/
+│   │   └── api/
+│   │       ├── client.ts      # ✅ API client (no Convex)
+│   │       ├── types.ts       # ✅ Type definitions
+│   │       └── errors.ts      # ✅ Error handling
+│   ├── components/
+│   │   └── TokenCard.tsx      # ✅ Uses api.tokens.get()
+│   └── pages/
+│       └── tokens/[id].astro  # ✅ Uses api.tokens.get()
+├── .env                       # PUBLIC_API_KEY=pk_live_xxx
+└── package.json               # ❌ No Convex dependency
+
+backend/
+├── api/                       # ✅ New Hono API
+│   ├── routes/
+│   │   ├── tokens.ts          # /api/v1/tokens/*
+│   │   ├── agents.ts          # /api/v1/agents/*
+│   │   ├── auth.ts            # /api/v1/auth/*
+│   │   └── index.ts           # Route aggregation
+│   ├── middleware/
+│   │   ├── auth.ts            # API key validation
+│   │   ├── cors.ts            # CORS handling
+│   │   ├── rateLimit.ts       # Rate limiting
+│   │   └── logging.ts         # Request logging
+│   ├── services/              # Effect.ts business logic
+│   │   ├── tokens/
+│   │   ├── agents/
+│   │   └── auth/
+│   └── index.ts               # Hono app entry point
+├── convex/                    # Existing Convex backend
+│   ├── queries/
+│   │   └── apiKeys.ts         # ✅ New: API key queries
+│   ├── mutations/
+│   │   └── apiKeys.ts         # ✅ New: API key mutations
+│   └── schema.ts              # ✅ Add api_key entity type
+└── wrangler.toml              # Cloudflare Workers config
+```
+
+---
+
+## Implementation Steps
+
+### Step 1: Create API Key Entity Type
+
+**File: `backend/convex/schema.ts`**
+
+Add to existing schema:
+
+```typescript
+export default defineSchema({
+  // ... existing entities table
+
+  entities: defineTable({
+    type: v.string(),  // Add "api_key" as new type
+    name: v.string(),
+    properties: v.any(),
+    status: v.optional(v.union(
+      v.literal("active"),
+      v.literal("inactive"),
+      v.literal("draft"),
+      v.literal("published"),
+      v.literal("archived"),
+      v.literal("revoked"),  // ✅ Add for API keys
+    )),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    deletedAt: v.optional(v.number()),
+  })
+    .index("by_type", ["type"])
+    .index("by_status", ["status"])
+    .index("by_key_hash", ["properties.keyHash"]),  // ✅ Add for fast lookup
+
+  // ... rest of schema
+});
+```
+
+### Step 2: Create API Key Queries
+
+**File: `backend/convex/queries/apiKeys.ts`**
+
+```typescript
+import { query } from "../_generated/server";
+import { v } from "convex/values";
+
+export const validate = query({
+  args: { keyHash: v.string() },
+  handler: async (ctx, args) => {
+    const apiKey = await ctx.db
+      .query("entities")
+      .withIndex("by_key_hash", (q) =>
+        q.eq("properties.keyHash", args.keyHash)
+      )
+      .filter((q) => q.eq(q.field("type"), "api_key"))
+      .first();
+
+    return apiKey;
+  },
+});
+
+export const listByOrg = query({
+  args: { orgId: v.string() },
+  handler: async (ctx, args) => {
+    const keys = await ctx.db
+      .query("entities")
+      .withIndex("by_type", (q) => q.eq("type", "api_key"))
+      .filter((q) => q.eq(q.field("properties.orgId"), args.orgId))
+      .collect();
+
+    // Don't return keyHash (security)
+    return keys.map(key => ({
+      ...key,
+      properties: {
+        ...key.properties,
+        keyHash: undefined,  // Remove sensitive data
+      }
+    }));
+  },
+});
+```
+
+### Step 3: Create API Key Mutations
+
+**File: `backend/convex/mutations/apiKeys.ts`**
+
+```typescript
+import { mutation } from "../_generated/server";
+import { v } from "convex/values";
+import { createHash, randomBytes } from "crypto";
+
+export const create = mutation({
+  args: {
+    orgId: v.string(),
+    name: v.string(),
+    scopes: v.array(v.string()),
+    environment: v.union(v.literal("production"), v.literal("development")),
+  },
+  handler: async (ctx, args) => {
+    // Generate random API key
+    const prefix = args.environment === "production" ? "sk_live" : "sk_test";
+    const random = randomBytes(18).toString("base64url");
+    const apiKey = `${prefix}_${random}`;
+
+    // Hash the key for storage
+    const keyHash = createHash("sha256").update(apiKey).digest("hex");
+    const keyHint = apiKey.slice(-3);
+
+    // Create entity
+    const keyId = await ctx.db.insert("entities", {
+      type: "api_key",
+      name: args.name,
+      properties: {
+        keyPrefix: prefix,
+        keyHash,
+        keyHint,
+        orgId: args.orgId,
+        scopes: args.scopes,
+        rateLimit: {
+          requests: 1000,
+          period: 60,
+        },
+        environment: args.environment,
+        lastUsedAt: null,
+      },
+      status: "active",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // Return plaintext key ONLY this once
+    return {
+      id: keyId,
+      apiKey,  // ⚠️ Show user - never shown again!
+      keyHint,
+    };
+  },
+});
+
+export const revoke = mutation({
+  args: { keyId: v.id("entities") },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.keyId, {
+      status: "revoked",
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const updateLastUsed = mutation({
+  args: { keyId: v.id("entities") },
+  handler: async (ctx, args) => {
+    const key = await ctx.db.get(args.keyId);
+    if (!key) return;
+
+    await ctx.db.patch(args.keyId, {
+      properties: {
+        ...key.properties,
+        lastUsedAt: Date.now(),
+      },
+      updatedAt: Date.now(),
+    });
+  },
+});
+```
+
+### Step 4: Create Hono API Backend
+
+**File: `backend/api/index.ts`**
+
+```typescript
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { logger } from "hono/logger";
+import { validateApiKey } from "./middleware/auth";
+import tokensRoutes from "./routes/tokens";
+import agentsRoutes from "./routes/agents";
+import authRoutes from "./routes/auth";
+
+const app = new Hono();
+
+// Middleware
+app.use("*", logger());
+app.use("/api/*", cors({
+  origin: [
+    "http://localhost:4321",
+    "https://*.pages.dev",
+    process.env.FRONTEND_URL || "",
+  ].filter(Boolean),
+  credentials: true,
+}));
+
+// Health check (no auth required)
+app.get("/health", (c) => c.json({ status: "ok" }));
+
+// API routes (auth required)
+app.use("/api/*", validateApiKey);
+app.route("/api/v1/tokens", tokensRoutes);
+app.route("/api/v1/agents", agentsRoutes);
+app.route("/api/v1/auth", authRoutes);
+
+// 404 handler
+app.notFound((c) => c.json({ error: "Not found" }, 404));
+
+// Error handler
+app.onError((err, c) => {
+  console.error(err);
+  return c.json({ error: "Internal server error" }, 500);
+});
+
+export default app;
+```
+
+**File: `backend/api/routes/tokens.ts`**
+
+```typescript
+import { Hono } from "hono";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "../../convex/_generated/api";
+
+const app = new Hono();
+const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
+
+// GET /api/v1/tokens/:id
+app.get("/:id", async (c) => {
+  const tokenId = c.req.param("id");
+  const orgId = c.get("orgId");  // From API key middleware
+
+  const token = await convex.query(api.queries.entities.get, { id: tokenId });
+
+  if (!token || token.type !== "token") {
+    return c.json({ error: "Token not found" }, 404);
+  }
+
+  // Check ownership
+  if (token.properties.orgId !== orgId) {
+    return c.json({ error: "Unauthorized" }, 403);
+  }
+
+  return c.json(token);
+});
+
+// POST /api/v1/tokens/:id/purchase
+app.post("/:id/purchase", async (c) => {
+  const tokenId = c.req.param("id");
+  const { amount } = await c.req.json();
+  const orgId = c.get("orgId");
+
+  // Call Convex mutation
+  const result = await convex.mutation(api.mutations.tokens.purchase, {
+    tokenId,
+    amount,
+    orgId,
+  });
+
+  return c.json(result);
+});
+
+// Add more routes...
+
+export default app;
+```
+
+### Step 5: Create Frontend API Client
+
+**File: `frontend/src/lib/api/client.ts`**
+
+```typescript
+export class ApiError extends Error {
+  constructor(message: string, public status: number) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export class ApiClient {
+  private baseUrl: string;
+  private apiKey: string;
+
+  constructor(apiKey: string, baseUrl?: string) {
+    this.apiKey = apiKey;
+    this.baseUrl = baseUrl || import.meta.env.PUBLIC_API_URL;
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${this.apiKey}`,
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new ApiError(error.error, response.status);
+    }
+
+    return response.json();
+  }
+
+  tokens = {
+    get: (id: string) =>
+      this.request<Token>(`/api/v1/tokens/${id}`),
+
+    purchase: (id: string, amount: number) =>
+      this.request<PurchaseResult>(`/api/v1/tokens/${id}/purchase`, {
+        method: "POST",
+        body: JSON.stringify({ amount }),
+      }),
+  };
+
+  agents = {
+    get: (id: string) =>
+      this.request<Agent>(`/api/v1/agents/${id}`),
+
+    list: () =>
+      this.request<Agent[]>("/api/v1/agents"),
+  };
+}
+
+// Singleton instance
+export const api = new ApiClient(
+  import.meta.env.PUBLIC_API_KEY || ""
+);
+```
+
+### Step 6: Update Frontend Pages
+
+**Before:**
+
+```astro
+---
+// frontend/src/pages/tokens/[id].astro
+import { ConvexHttpClient } from "convex/browser";
+import { api as convexApi } from "@/convex/_generated/api";
+
+const convex = new ConvexHttpClient(import.meta.env.PUBLIC_CONVEX_URL);
+const token = await convex.query(convexApi.entities.get, { id: Astro.params.id });
+---
+```
+
+**After:**
+
+```astro
+---
+// frontend/src/pages/tokens/[id].astro
+import { api } from "@/lib/api/client";
+
+const token = await api.tokens.get(Astro.params.id);
+---
+```
+
+### Step 7: Remove Convex from Frontend
+
+**Delete:**
+```bash
+rm -rf frontend/convex/
+rm frontend/convex.config.ts
+```
+
+**Update `package.json`:**
+```diff
+{
+  "dependencies": {
+-   "convex": "^1.x.x",
+-   "@convex-dev/resend": "^x.x.x",
+    "astro": "^5.14.0"
+  }
+}
+```
+
+---
+
+## Testing Strategy
+
+### 1. Backend API Tests
+
+```typescript
+// backend/api/__tests__/tokens.test.ts
+import { describe, it, expect } from "vitest";
+import app from "../index";
+
+describe("Tokens API", () => {
+  it("should require API key", async () => {
+    const res = await app.request("/api/v1/tokens/123");
+    expect(res.status).toBe(401);
+  });
+
+  it("should fetch token with valid key", async () => {
+    const res = await app.request("/api/v1/tokens/123", {
+      headers: {
+        Authorization: `Bearer ${process.env.TEST_API_KEY}`,
+      },
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it("should enforce org isolation", async () => {
+    const res = await app.request("/api/v1/tokens/org-b-token", {
+      headers: {
+        Authorization: `Bearer ${process.env.ORG_A_API_KEY}`,
+      },
+    });
+    expect(res.status).toBe(403);
+  });
+});
+```
+
+### 2. Frontend Integration Tests
+
+```typescript
+// frontend/src/lib/api/__tests__/client.test.ts
+import { describe, it, expect, vi } from "vitest";
+import { ApiClient } from "../client";
+
+describe("ApiClient", () => {
+  it("should add Authorization header", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: "123" }),
+    });
+    global.fetch = fetchMock;
+
+    const client = new ApiClient("sk_test_123");
+    await client.tokens.get("123");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer sk_test_123",
+        }),
+      })
+    );
+  });
+
+  it("should throw ApiError on failure", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: "Not found" }),
+    });
+
+    const client = new ApiClient("sk_test_123");
+    await expect(client.tokens.get("999")).rejects.toThrow("Not found");
+  });
+});
+```
+
+---
+
+## Deployment Changes
+
+### Before (Coupled)
+
+```
+1. Deploy frontend to Cloudflare Pages
+   - Includes Convex SDK
+   - WebSocket connection to Convex
+
+2. Deploy Convex backend
+   - convex deploy
+```
+
+### After (Separated)
+
+```
+1. Deploy backend API to Cloudflare Workers
+   - cd backend/api
+   - wrangler deploy
+   - Output: https://api.yourdomain.com
+
+2. Deploy Convex backend
+   - cd backend/convex
+   - convex deploy
+   - Output: https://your-deployment.convex.cloud
+
+3. Deploy frontend to Cloudflare Pages
+   - cd frontend
+   - Set env: PUBLIC_API_URL=https://api.yourdomain.com
+   - Set env: PUBLIC_API_KEY=pk_live_xxx
+   - Build and deploy
+```
+
+### Environment Variables
+
+**Backend (`backend/api/.env`):**
+```bash
+CONVEX_URL=https://your-deployment.convex.cloud
+FRONTEND_URL=https://yourdomain.com
+```
+
+**Frontend (`frontend/.env`):**
+```bash
+PUBLIC_API_URL=https://api.yourdomain.com
+PUBLIC_API_KEY=pk_live_1234567890abcdef
+```
+
+---
+
+## Security Considerations
+
+### 1. API Key Storage
+
+**❌ Never:**
+- Store API keys in git
+- Use secret keys (`sk_*`) in frontend
+- Log API keys in console
+- Return key hash in API responses
+
+**✅ Always:**
+- Use publishable keys (`pk_*`) in frontend
+- Use secret keys (`sk_*`) only in backend
+- Hash keys before storing (SHA-256)
+- Show plaintext key only once at creation
+- Rotate keys regularly
+
+### 2. Rate Limiting
+
+**Implementation:**
+```typescript
+// backend/api/middleware/rateLimit.ts
+import { Context, Next } from "hono";
+
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+export async function rateLimit(c: Context, next: Next) {
+  const keyId = c.get("apiKeyId");
+  const limit = c.get("keyRateLimit");
+
+  const now = Date.now();
+  const key = `rate_limit:${keyId}`;
+  const current = rateLimitMap.get(key);
+
+  if (current && now < current.resetAt) {
+    if (current.count >= limit.requests) {
+      return c.json(
+        {
+          error: "Rate limit exceeded",
+          resetAt: new Date(current.resetAt).toISOString(),
+        },
+        429
+      );
+    }
+    current.count++;
+  } else {
+    rateLimitMap.set(key, {
+      count: 1,
+      resetAt: now + limit.period * 1000,
+    });
+  }
+
+  await next();
+}
+```
+
+### 3. CORS Configuration
+
+**Backend:**
+```typescript
+app.use("/api/*", cors({
+  origin: (origin) => {
+    // Allow specific domains
+    const allowed = [
+      "http://localhost:4321",
+      "https://yourdomain.com",
+      "https://*.pages.dev",
+    ];
+
+    return allowed.some(pattern =>
+      new RegExp(pattern.replace("*", ".*")).test(origin)
+    ) ? origin : null;
+  },
+  credentials: true,
+}));
+```
+
+---
+
+## Migration Checklist
+
+### Backend Setup
+- [ ] Add `api_key` entity type to schema
+- [ ] Create API key queries in `backend/convex/queries/apiKeys.ts`
+- [ ] Create API key mutations in `backend/convex/mutations/apiKeys.ts`
+- [ ] Deploy schema changes to Convex
+- [ ] Create test API key via mutation
+- [ ] Create `backend/api/` directory structure
+- [ ] Implement Hono routes for all resources
+- [ ] Add API key validation middleware
+- [ ] Add rate limiting middleware
+- [ ] Add CORS middleware
+- [ ] Deploy API to Cloudflare Workers
+- [ ] Test all endpoints with Postman/curl
+- [ ] Set up monitoring and logging
+
+### Frontend Setup
+- [ ] Create `frontend/src/lib/api/client.ts`
+- [ ] Create `frontend/src/lib/api/types.ts`
+- [ ] Create `frontend/src/lib/api/errors.ts`
+- [ ] Add `PUBLIC_API_URL` to `.env`
+- [ ] Add `PUBLIC_API_KEY` to `.env`
+- [ ] Update 1 page to test API client
+- [ ] Verify API client works in development
+- [ ] Migrate all pages to use API client
+- [ ] Remove all Convex imports from components
+- [ ] Delete `frontend/convex/` directory
+- [ ] Remove Convex from `package.json`
+- [ ] Update build process
+- [ ] Test full frontend in production
+
+### Documentation
+- [ ] Update `CLAUDE.md` with new architecture
+- [ ] Document API endpoints (OpenAPI/Swagger)
+- [ ] Create API key management guide
+- [ ] Update deployment instructions
+- [ ] Create troubleshooting guide
+
+---
+
+## Rollback Plan
+
+If separation fails, rollback is easy:
+
+1. Keep `frontend/convex/` in git (don't delete until verified)
+2. Use environment variable to toggle:
+   ```typescript
+   const USE_API_BACKEND = import.meta.env.PUBLIC_USE_API_BACKEND === "true";
+
+   const data = USE_API_BACKEND
+     ? await api.tokens.get(id)
+     : await convex.query(api.entities.get, { id });
+   ```
+3. If issues arise, set `PUBLIC_USE_API_BACKEND=false`
+
+---
+
+## Success Metrics
+
+**Technical:**
+- [ ] Frontend has zero Convex dependencies
+- [ ] All API endpoints return < 200ms
+- [ ] Rate limiting enforces limits correctly
+- [ ] API key validation works for all scopes
+- [ ] CORS configured correctly
+- [ ] 100% test coverage on API routes
+
+**Business:**
+- [ ] Multiple frontends can use same backend
+- [ ] API versioning supports breaking changes gracefully
+- [ ] Multi-tenancy works (org isolation)
+- [ ] Mobile/desktop can use same API
+- [ ] API documentation is complete
+
+---
+
+## Timeline
+
+**Total Duration:** 6-8 weeks
+
+**Week 1-2:** Backend API creation
+**Week 3:** Frontend API client library
+**Week 4-5:** Gradual frontend migration
+**Week 6:** Remove Convex from frontend
+**Week 7:** Testing and bug fixes
+**Week 8:** Documentation and deployment
+
+---
+
+## Next Steps
+
+1. **Review this plan** with team
+2. **Create GitHub project** with tasks
+3. **Set up test environment** for API backend
+4. **Begin Phase 1:** Backend API creation
+
+---
+
+## Questions to Resolve
+
+1. **API Versioning:** Start with `/api/v1` or wait until v2 needed?
+2. **Real-time Updates:** How to handle without Convex subscriptions? (WebSocket, SSE, polling?)
+3. **Batch Operations:** Should API support batching multiple operations?
+4. **GraphQL:** Consider GraphQL instead of REST?
+5. **API Gateway:** Use Cloudflare API Gateway for additional features?
+
+---
+
+## Conclusion
+
+This separation transforms ONE from a tightly-coupled monolith into a flexible, API-first platform that can:
+
+- ✅ Serve multiple frontends from one backend
+- ✅ Support web, mobile, desktop, CLI
+- ✅ Enable multi-tenancy with API key isolation
+- ✅ Version API independently
+- ✅ Scale frontend and backend separately
+
+The key is **gradual migration** with the ability to rollback at any point. By following this plan step-by-step, we minimize risk while achieving maximum architectural flexibility.
 </file>
 
 <file path="things/plans/sidebar.md">
@@ -45163,6 +54082,485 @@ If issues occur, the git history contains the working hover-based sidebar implem
 on mouseover of the account icon in the bottom of the sidebar it popups a menu which is transparent background background should be solid.
 
 when the sidebar is expanded the logo should remain above the icons. also make the icons 25% bigger.
+</file>
+
+<file path="things/plans/test-backend-connection.md">
+# Test: Switch Frontend to Backend Convex
+
+## Goal
+
+Simple test to verify frontend can connect to `backend/convex` instead of `frontend/convex` and auth still works.
+
+**No code changes required** - just environment variable swap.
+
+---
+
+## Current State
+
+```
+frontend/
+├── convex/           ← Frontend's own Convex deployment
+│   ├── schema.ts
+│   ├── auth.ts
+│   └── mutations/
+└── .env.local
+    └── PUBLIC_CONVEX_URL=https://frontend-deployment.convex.cloud
+
+backend/
+└── convex/           ← Backend's Convex deployment (copy of frontend)
+    ├── schema.ts
+    ├── auth.ts
+    └── mutations/
+```
+
+**Frontend connects to:** `frontend/convex` deployment
+
+---
+
+## Target State (Test)
+
+```
+frontend/
+├── convex/           ← Keep for now (don't delete)
+│   └── [unused]
+└── .env.local
+    └── PUBLIC_CONVEX_URL=https://backend-deployment.convex.cloud
+                          ^^^^^^^^ Changed to backend
+
+backend/
+└── convex/           ← Frontend now uses this
+    ├── schema.ts
+    ├── auth.ts
+    └── mutations/
+```
+
+**Frontend connects to:** `backend/convex` deployment
+
+---
+
+## Prerequisites
+
+### 1. Verify Backend Convex is Deployed
+
+```bash
+cd backend/
+convex deploy
+
+# Output should show:
+# ✓ Deployment successful
+# URL: https://your-backend-deployment.convex.cloud
+```
+
+### 2. Verify Schemas Match
+
+Both `frontend/convex/schema.ts` and `backend/convex/schema.ts` should be identical.
+
+```bash
+# Check if they're the same
+diff frontend/convex/schema.ts backend/convex/schema.ts
+
+# If different, copy frontend schema to backend
+cp frontend/convex/schema.ts backend/convex/schema.ts
+
+# Redeploy backend
+cd backend/ && convex deploy
+```
+
+### 3. Verify Auth Configuration Matches
+
+Check that `backend/convex/auth.ts` and `backend/convex/auth.config.ts` match frontend.
+
+```bash
+# Compare auth files
+diff frontend/convex/auth.ts backend/convex/auth.ts
+diff frontend/convex/auth.config.ts backend/convex/auth.config.ts
+
+# If different, copy
+cp frontend/convex/auth.ts backend/convex/auth.ts
+cp frontend/convex/auth.config.ts backend/convex/auth.config.ts
+
+# Redeploy
+cd backend/ && convex deploy
+```
+
+---
+
+## Test Steps
+
+### Step 1: Get Backend Convex URL
+
+```bash
+cd backend/
+
+# Get deployment URL
+convex dev --once
+
+# Output will show:
+# Convex URL: https://your-backend-deployment.convex.cloud
+#             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#             Copy this URL
+```
+
+Or find it in the Convex dashboard at https://dashboard.convex.dev
+
+### Step 2: Update Frontend Environment
+
+**File: `frontend/.env.local`**
+
+```bash
+# Before
+PUBLIC_CONVEX_URL=https://frontend-deployment.convex.cloud
+CONVEX_DEPLOYMENT=frontend-deployment-name
+CONVEX_URL=https://frontend-deployment.convex.cloud
+
+# After
+PUBLIC_CONVEX_URL=https://backend-deployment.convex.cloud
+CONVEX_DEPLOYMENT=backend-deployment-name
+CONVEX_URL=https://backend-deployment.convex.cloud
+```
+
+**Important:** Make sure to update ALL three variables if they exist.
+
+### Step 3: Restart Frontend Dev Server
+
+```bash
+cd frontend/
+
+# Stop current dev server (Ctrl+C)
+
+# Clear any cached environment
+rm -rf .astro/
+
+# Start fresh
+bun run dev
+```
+
+Frontend should now connect to `backend/convex` instead of `frontend/convex`.
+
+### Step 4: Verify Connection
+
+Open browser console (F12) and check:
+
+```javascript
+// Check which Convex deployment is being used
+console.log(import.meta.env.PUBLIC_CONVEX_URL);
+
+// Should output:
+// https://backend-deployment.convex.cloud
+```
+
+### Step 5: Test Auth Flow
+
+**Sign Up Test:**
+1. Go to `http://localhost:4321/account/signup`
+2. Create new account with email/password
+3. Check that user is created
+
+**Verify in Convex Dashboard:**
+1. Go to https://dashboard.convex.dev
+2. Open **backend** deployment (not frontend)
+3. Click "Data" tab
+4. Check `users` table - new user should be there
+
+**Sign In Test:**
+1. Go to `http://localhost:4321/account/signin`
+2. Sign in with credentials from step 5.2
+3. Should redirect to `/account` (dashboard)
+4. Check `sessions` table in backend Convex - session should exist
+
+**Sign Out Test:**
+1. Click sign out button
+2. Should redirect to home
+3. Session should be marked as expired
+
+### Step 6: Test Queries/Mutations
+
+If you have any existing pages that use Convex:
+
+```typescript
+// Example: Token listing page
+const tokens = useQuery(api.queries.entities.list, { type: "token" });
+```
+
+Verify that:
+- Queries return data from **backend** Convex
+- Mutations write to **backend** Convex
+- Real-time subscriptions work
+
+---
+
+## Verification Checklist
+
+- [ ] `PUBLIC_CONVEX_URL` points to backend deployment
+- [ ] Frontend dev server restarted with new env
+- [ ] Browser console shows correct Convex URL
+- [ ] Sign up creates user in **backend** `users` table
+- [ ] Sign in creates session in **backend** `sessions` table
+- [ ] Sign out works correctly
+- [ ] All existing queries return data from backend
+- [ ] All mutations write to backend
+- [ ] Real-time subscriptions still work
+- [ ] No console errors related to Convex
+
+---
+
+## Common Issues
+
+### Issue 1: "Schema mismatch" Error
+
+**Error:**
+```
+Error: Schema mismatch between client and server
+```
+
+**Fix:**
+```bash
+# Backend schema needs to match frontend schema exactly
+cp frontend/convex/schema.ts backend/convex/schema.ts
+cd backend/ && convex deploy
+```
+
+### Issue 2: "Auth configuration not found"
+
+**Error:**
+```
+Error: Better Auth not configured
+```
+
+**Fix:**
+```bash
+# Copy auth files from frontend to backend
+cp frontend/convex/auth.ts backend/convex/auth.ts
+cp frontend/convex/auth.config.ts backend/convex/auth.config.ts
+cd backend/ && convex deploy
+```
+
+### Issue 3: Old environment cached
+
+**Error:**
+```
+Still connecting to old deployment
+```
+
+**Fix:**
+```bash
+# Clear all caches
+cd frontend/
+rm -rf .astro/
+rm -rf node_modules/.vite/
+
+# Restart
+bun run dev
+```
+
+### Issue 4: Missing environment variables
+
+**Error:**
+```
+Error: CONVEX_URL is not defined
+```
+
+**Fix:**
+```bash
+# Make sure ALL Convex env vars are set
+cd frontend/
+cat .env.local
+
+# Should have:
+PUBLIC_CONVEX_URL=https://backend-deployment.convex.cloud
+CONVEX_DEPLOYMENT=backend-deployment-name
+CONVEX_URL=https://backend-deployment.convex.cloud
+```
+
+### Issue 5: CORS errors
+
+**Error:**
+```
+CORS policy blocked request to Convex
+```
+
+**Fix:**
+```bash
+# Make sure frontend URL is allowed in Convex dashboard
+# Go to dashboard.convex.dev → Settings → CORS
+# Add: http://localhost:4321
+```
+
+---
+
+## Success Criteria
+
+✅ **Test passes if:**
+1. Frontend connects to backend Convex deployment
+2. User can sign up (creates user in backend)
+3. User can sign in (creates session in backend)
+4. User can sign out
+5. All queries/mutations work with backend data
+6. No console errors
+
+❌ **Test fails if:**
+1. Frontend still connects to frontend Convex
+2. Auth doesn't work
+3. Queries return empty data
+4. Console shows Convex errors
+
+---
+
+## Rollback Plan
+
+If test fails, easily rollback:
+
+```bash
+# Revert frontend/.env.local
+PUBLIC_CONVEX_URL=https://frontend-deployment.convex.cloud
+CONVEX_DEPLOYMENT=frontend-deployment-name
+CONVEX_URL=https://frontend-deployment.convex.cloud
+
+# Restart frontend
+cd frontend/
+bun run dev
+```
+
+Everything goes back to using `frontend/convex`.
+
+---
+
+## Next Steps After Test Passes
+
+Once this basic connection test works:
+
+1. **Sync Data:** Copy any existing data from `frontend/convex` to `backend/convex`
+2. **Update Production:** Point production frontend to backend Convex
+3. **Deprecate Frontend Convex:** Stop using `frontend/convex` entirely
+4. **Then:** Move to full API separation (using `separate.md` plan)
+
+---
+
+## Quick Command Reference
+
+```bash
+# Deploy backend Convex
+cd backend/ && convex deploy
+
+# Copy schema from frontend to backend
+cp frontend/convex/schema.ts backend/convex/schema.ts
+
+# Copy all Convex files from frontend to backend
+cp -r frontend/convex/* backend/convex/
+
+# Restart frontend with new env
+cd frontend/ && rm -rf .astro/ && bun run dev
+
+# Check current Convex URL in browser console
+console.log(import.meta.env.PUBLIC_CONVEX_URL)
+```
+
+---
+
+## Testing Timeline
+
+**Total Time:** 15-30 minutes
+
+1. **5 min:** Verify backend Convex deployed
+2. **5 min:** Update environment variables
+3. **5 min:** Restart and verify connection
+4. **10 min:** Test auth flow (signup, signin, signout)
+5. **5 min:** Test queries/mutations
+
+---
+
+## What This Tests
+
+✅ **Tests:**
+- Frontend can connect to different Convex deployment
+- Auth works across different deployments
+- Queries/mutations work across deployments
+- Real-time subscriptions work
+
+❌ **Does NOT test:**
+- API key authentication (that's in `separate.md`)
+- REST API endpoints (that's in `separate.md`)
+- Multi-tenancy (that's in `separate.md`)
+
+This is purely a **connection test** - making sure the plumbing works before we change the architecture.
+
+---
+
+## File Changes Required
+
+### Only 1 file changes:
+
+**`frontend/.env.local`:**
+```diff
+- PUBLIC_CONVEX_URL=https://frontend-deployment.convex.cloud
+- CONVEX_DEPLOYMENT=frontend-deployment-name
+- CONVEX_URL=https://frontend-deployment.convex.cloud
+
++ PUBLIC_CONVEX_URL=https://backend-deployment.convex.cloud
++ CONVEX_DEPLOYMENT=backend-deployment-name
++ CONVEX_URL=https://backend-deployment.convex.cloud
+```
+
+No code changes. No schema changes. Just environment variables.
+
+---
+
+## Expected Console Output
+
+**Before (using frontend/convex):**
+```
+[vite] connecting to Convex...
+[convex] Connected to https://frontend-deployment.convex.cloud
+```
+
+**After (using backend/convex):**
+```
+[vite] connecting to Convex...
+[convex] Connected to https://backend-deployment.convex.cloud
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                       Should show backend deployment
+```
+
+---
+
+## Data Migration (Optional)
+
+If you have existing data in `frontend/convex` that you want in `backend/convex`:
+
+### Option 1: Manual Export/Import
+
+```bash
+# Export from frontend deployment
+cd frontend/
+convex export --path ./data-export/
+
+# Import to backend deployment
+cd ../backend/
+convex import --path ../frontend/data-export/
+```
+
+### Option 2: Copy Schema and Start Fresh
+
+```bash
+# Just copy schema, start with empty backend database
+cp frontend/convex/schema.ts backend/convex/schema.ts
+cd backend/ && convex deploy
+```
+
+**For this test:** Start fresh (Option 2) is easier.
+
+---
+
+## Conclusion
+
+This test answers one simple question:
+
+**Can the frontend successfully connect to and use backend/convex instead of frontend/convex?**
+
+If yes → proceed to full API separation plan
+If no → debug connection issues first
+
+**Expected result:** Everything works exactly the same, just pointing to a different Convex deployment.
 </file>
 
 <file path="things/workflows/delegation.md">
@@ -46963,7 +56361,7 @@ The strategic planning workflow provides:
 # Task Organization System
 
 **Version:** 1.0.0
-**Purpose:** Define how the director agent assigns, tracks, and completes tasks using the 4-table ontology
+**Purpose:** Define how the director agent assigns, tracks, and completes tasks using the 6-dimension ontology
 
 ---
 
@@ -46971,7 +56369,7 @@ The strategic planning workflow provides:
 
 The task organization system enables the director agent to break down strategic goals (OKRs) into actionable tasks, delegate them to business agents, track progress, and ensure completion. Every task is a **thing** with **delegated** connections and **task_event** logging.
 
-**Key Principle:** Tasks are entities in the ontology, not custom tables. This ensures consistency, auditability, and alignment with the 4-table universe.
+**Key Principle:** Tasks are entities in the ontology, not custom tables. This ensures consistency, auditability, and alignment with the 6-dimension universe.
 
 ---
 
@@ -47660,1026 +57058,6 @@ The task organization system provides:
 **This system enables the director to orchestrate complex workflows across business agents while maintaining complete transparency and traceability.**
 </file>
 
-<file path="things/agent-clean.md">
-# Agent Clean
-Sustainability Agent Specification
-**Role:** Keep the ONE ontology and codebase beautifully clean
-**Purpose:** Detect, remediate, and prevent entropy across documentation, schema, and implementation assets
-**Expertise:** Repository hygiene, ontology compliance, automation, quality assurance
-
----
-
-## Your Mission
-
-You are the **Agent Clean** steward. Your mandate is to maintain enduring cleanliness of the ONE platform by:
-- Enforcing naming and casing standards across all assets (files, links, identifiers)
-- Eliminating duplication, dead files, and stale references before they spread
-- Guarding the ontology’s four-table structure by catching drift early
-- Keeping developer tooling (formatters, linters, generators) aligned and noise-free
-- Surfacing actionable cleanliness reports for humans and agents to consume
-
-**Non-negotiable:** Beauty = stability. Every artifact must feel intentional.
-
----
-
-## Phase 1: Continuous Hygiene Monitoring
-
-### Step 1: Establish the Cleanliness Baseline
-
-- Crawl `one/**` and `src/**` daily to detect casing mismatches, stray spaces, or duplicate prefixes.
-- Normalize findings into `reports/cleanliness/baseline.md`:
-
-```markdown
-# Cleanliness Baseline — {{date}}
-
-## File Naming Issues
-- ./one/things/example-file.MD → rename to example-file.md (case mismatch)
-
-## Link Integrity
-- one/connections/protocols.md → [missing-file](./missing-file.md)
-
-## Pending Decisions
-- Should ./public/legacy-banner.svg remain? (unused 30 days)
-```
-
-### Step 2: Link & Reference Integrity
-
-- Run weekly link sweeps:
-  - Markdown: ensure `[label](./path/to/file.md)` references exist with exact casing.
-  - TypeScript/Astro imports: flag unresolved or aliased paths that no longer exist.
-  - Ontology cross-refs: verify 4-table references (`things`, `connections`, `events`, `knowledge`) stay synchronized.
-- Record actionable items in `reports/cleanliness/link-audit.md`.
-
-### Step 3: Repo Health Signals
-
-- Track these metrics and alert when thresholds breach:
-  - **Lint debt:** number of ESLint disables (`// eslint-disable`) exceeding 5 per file.
-  - **Formatting drift:** `prettier --check` failures.
-  - **Ontology churn:** Monitor `one/knowledge/score.md` values; open issue if score increases > 4 within a week.
-- Emit weekly status snapshots to `reports/cleanliness/health-score.json` with trend data.
-
----
-
-## Phase 2: Remediation & Automation
-
-### Step 1: Surgical Cleanups
-
-- Apply scoped patches for each finding; never batch unrelated fixes.
-- Ensure every cleanup maps to a 4-table primitive:
-
-```typescript
-await ctx.db.insert('events', {
-  type: 'content_event',
-  actorId: agentCleanId,
-  targetId: cleanupThingId,
-  timestamp: Date.now(),
-  metadata: { protocol: 'internal', action: 'references_updated' }
-});
-```
-
-### Step 2: Automate Guardrails
-
-- Maintain scripts in `scripts/cleanliness/`:
-  - `check-links.ts` → Verifies Markdown casing + existence.
-  - `normalize-filenames.ts` → Suggests lowercasing + kebab-case conversions (dry-run by default).
-  - `orphans-report.ts` → Lists unused assets (SVGs, screenshots, generated files).
-- Schedule via Convex cron (`ctx.scheduler.runAfter`) to keep reports fresh.
-
-### Step 3: Prevent Regressions
-
-- Update onboarding docs (`docs/conventions.md`) whenever new hygiene rules emerge.
-- Add automated PR comments for violations using GitHub Actions templates stored in `scripts/cleanliness/templates/`.
-- Coordinate with Agent Clone to ensure migrations preserve cleanliness guarantees.
-
----
-
-## Phase 3: Reporting & Governance
-
-### Step 1: Publish the Cleanliness Digest
-
-Every Friday generate `reports/cleanliness/digest.md` summarizing:
-- ✅ Resolved issues (with links to commits / events)
-- ⚠️ Pending decisions (awaiting human input)
-- 🚨 Escalations (blocking merges or releases)
-
-### Step 2: Maintain the Cleanliness Ledger
-
-- Append entries to `one/things/inference_score.md` when ontology hygiene improvements reduce noise.
-- Cross-reference `knowledge/score.md` to show correlation between cleanliness and stability.
-- Use knowledge labels (`knowledge/labels/cleanliness.json`) to tag relevant chunks for RAG retrieval.
-
-### Step 3: Coordinate With Humans & Agents
-
-- Dispatch `communication_event` entries for major cleanups:
-
-```typescript
-await ctx.db.insert('events', {
-  type: 'communication_event',
-  actorId: agentCleanId,
-  targetId: platformOwnerId,
-  timestamp: Date.now(),
-  metadata: {
-    protocol: 'internal_sops',
-    messageType: 'cleanliness_digest',
-    summary: 'All links normalized; 3 orphan assets pending approval.'
-  }
-});
-```
-- Keep a rolling agenda in `meetings/agent-sync.md` for weekly syncs with other agents (Clone, Sales, Strategy).
-
----
-
-## Quick Playbook
-
-| Situation | Action | Output |
-|-----------|--------|--------|
-| New mixed-case file added | Suggest rename via `normalize-filenames.ts --fix` | PR comment + rename patch |
-| Broken Markdown link detected | Raise `cleanup` task, fix path, add regression test | Commit + event log |
-| Duplicate spec discovered | Consolidate canonical doc, archive duplicate with notice | Updated doc + knowledge label |
-| Inference score spike | Investigate recent ontology edits, propose rollbacks | Incident report in digest |
-
----
-
-## Toolbox & References
-
-- **Primary Docs:** `one/things/strategy.md`, `one/connections/ontology.md`, `AGENTS.md`
-- **Automation Scripts:** `scripts/cleanliness/**`
-- **Dashboards:** `reports/cleanliness/health-score.json`, `knowledge/score.md`
-- **Event Templates:** `scripts/cleanliness/events/*.ts`
-
-Remember: the goal isn’t just to tidy code—it’s to preserve the elegance of ONE’s ontology so every agent and human feels confident building on it.
-</file>
-
-<file path="things/agent-clone.md">
-# Agent Clone
-Ingestor Agent Specification
-**Role:** Clone me and organise all my information
-**Purpose:** Migrate data and code from one.ie and later bullfm into the new ONE platform structure  
-**Expertise:** Data transformation, code refactoring, ontology mapping
-
----
-
-## Your Mission
-
-You are the **Ingestor Agent** - responsible for safely migrating existing ONE platform code and data from:
-- **Source 1:** https://one.ie (React 18, older structure)
-- **Source 2:** https://bullfm.vercel.app (React 18, different structure)
-
-Into:
-- **Target:** New astro-shadcn platform (React 19, Convex, 4-table ontology)
-
-**CRITICAL:** You must preserve ALL functionality while transforming to the new architecture.
-
----
-
-## Phase 1: Discovery & Analysis
-
-### Step 1: Inventory Existing Systems
-
-**Create comprehensive inventory:**
-
-```markdown
-# one.ie Inventory
-
-## Pages
-- / (homepage)
-- /dashboard
-- /profile
-- [list all pages]
-
-## Components
-- Auth components (location, props, state)
-- Dashboard components
-- [list all components]
-
-## Data Models
-- User model (fields, relationships)
-- Content model
-- [list all models]
-
-## API Endpoints
-- POST /api/auth/login
-- GET /api/content
-- [list all endpoints]
-
-## External Integrations
-- Better Auth (already compatible ✅)
-- Resend (already compatible ✅)
-- [list all integrations]
-
-## Business Logic
-- Authentication flow
-- Content creation flow
-- [list all flows]
-```
-
-**Output:** `scripts/migration/inventory-one-ie.md`  
-**Output:** `scripts/migration/inventory-bullfm.md`
-
-### Step 2: Map to New Ontology
-
-**For each old data model, map to 4-table ontology:**
-
-```markdown
-# Mapping: one.ie User → ONE Platform
-
-## Old Model (one.ie)
-```typescript
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  bio?: string;
-  followers: number;
-  following: string[];  // Array of user IDs
-  posts: string[];      // Array of post IDs
-}
-```
-
-## New Model (ONE Platform)
-
-### Entity
-```typescript
-{
-  type: "creator",
-  name: user.name,
-  properties: {
-    email: user.email,
-    username: deriveUsername(user.email),
-    displayName: user.name,
-    bio: user.bio,
-    totalFollowers: user.followers,
-    totalContent: user.posts.length,
-    totalRevenue: 0
-  },
-  status: "active"
-}
-```
-
-### Connections (from following array)
-```typescript
-// For each userId in user.following:
-{
-  fromEntityId: newUserId,
-  toEntityId: followedUserId,
-  relationshipType: "following",
-  createdAt: Date.now()
-}
-```
-
-### Connections (from posts array)
-```typescript
-// For each postId in user.posts:
-{
-  fromEntityId: newUserId,
-  toEntityId: newPostId,
-  relationshipType: "authored",
-  createdAt: Date.now()
-}
-```
-
-### Events (from activity log)
-```typescript
-// Create historical events if available
-{
-  entityId: newUserId,
-  eventType: "creator_created",
-  timestamp: user.createdAt,
-  actorType: "system"
-}
-```
-```
-
-**Output:** `scripts/migration/mappings.md`
-
-### Step 3: Dependency Graph
-
-**Create dependency graph showing migration order:**
-
-```
-Users (no dependencies)
-  ↓
-Tags (no dependencies)
-  ↓
-Content (depends on Users)
-  ↓
-Connections (depends on Users + Content)
-  ↓
-Events (depends on everything)
-```
-
-**Migration order:**
-1. Users → `creator` and `audience_member` entities
-2. Tags → `tags` table
-3. Content → content entities (`blog_post`, `video`, etc.)
-4. Relationships → `connections` table
-5. Activity → `events` table
-
----
-
-## Phase 2: Code Migration
-
-### Strategy: Feature Parity First
-
-**Principle:** Migrate features one at a time, ensuring each works before moving to next.
-
-### Migration Priority
-
-```
-Priority 1 (Critical - Week 1):
-  ✅ Auth system (Better Auth already compatible)
-  ✅ User profiles
-  ✅ Basic content display
-
-Priority 2 (Important - Week 2):
-  ⏳ Content creation
-  ⏳ Search/discovery
-  ⏳ User interactions
-
-Priority 3 (Enhanced - Week 3-4):
-  ⏳ AI features
-  ⏳ Token system
-  ⏳ Advanced features
-```
-
-### Code Transformation Patterns
-
-#### Pattern 1: React Component Migration
-
-**Old (one.ie):**
-```tsx
-// src/components/UserProfile.tsx (React 18)
-import { useState, useEffect } from 'react';
-
-export default function UserProfile({ userId }) {
-  const [user, setUser] = useState(null);
-  
-  useEffect(() => {
-    fetch(`/api/users/${userId}`)
-      .then(r => r.json())
-      .then(setUser);
-  }, [userId]);
-  
-  if (!user) return <div>Loading...</div>;
-  
-  return (
-    <div className="profile">
-      <h1>{user.name}</h1>
-      <p>{user.bio}</p>
-    </div>
-  );
-}
-```
-
-**New (ONE Platform):**
-```tsx
-// src/components/features/creators/CreatorProfile.tsx (React 19)
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-
-export function CreatorProfile({ creatorId }: { creatorId: Id<"entities"> }) {
-  const creator = useQuery(api.creators.get, { id: creatorId });
-  
-  if (creator === undefined) {
-    return <Skeleton className="h-32 w-full" />;
-  }
-  
-  if (creator === null) {
-    return <Card><CardContent>Creator not found</CardContent></Card>;
-  }
-  
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{creator.name}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p>{creator.properties.bio}</p>
-      </CardContent>
-    </Card>
-  );
-}
-```
-
-**Transformation checklist:**
-- ✅ Component name follows conventions (CreatorProfile not UserProfile)
-- ✅ Uses Convex hooks (useQuery) instead of fetch
-- ✅ Uses shadcn/ui components (Card, Skeleton)
-- ✅ Proper TypeScript types (Id<"entities">)
-- ✅ Proper loading states (undefined vs null)
-- ✅ File location follows structure (src/components/features/creators/)
-
-#### Pattern 2: API Endpoint → Convex Function
-
-**Old (one.ie):**
-```typescript
-// pages/api/users/[id].ts
-export default async function handler(req, res) {
-  const { id } = req.query;
-  const user = await db.users.findUnique({ where: { id } });
-  res.json(user);
-}
-```
-
-**New (ONE Platform):**
-```typescript
-// convex/queries/creators.ts
-export const get = query({
-  args: { id: v.id("entities") },
-  handler: async (ctx, args) => {
-    const creator = await ctx.db.get(args.id);
-    
-    if (!creator || creator.type !== "creator") {
-      return null;
-    }
-    
-    return creator;
-  }
-});
-```
-
-**Transformation checklist:**
-- ✅ API endpoint → Convex query
-- ✅ Validation with Convex validators (v.id)
-- ✅ Type checking (entity.type === "creator")
-- ✅ Returns null for not found (not 404 error)
-- ✅ File location (convex/queries/creators.ts)
-
-#### Pattern 3: Database Query → Ontology Query
-
-**Old (one.ie):**
-```typescript
-// Get user's posts
-const posts = await db.posts.findMany({
-  where: { authorId: userId }
-});
-```
-
-**New (ONE Platform):**
-```typescript
-// Get creator's content
-const connections = await ctx.db
-  .query("connections")
-  .withIndex("from_type", q =>
-    q.eq("fromEntityId", creatorId)
-     .eq("relationshipType", "authored")
-  )
-  .collect();
-
-const content = await Promise.all(
-  connections.map(conn => ctx.db.get(conn.toEntityId))
-);
-```
-
-**Transformation checklist:**
-- ✅ Foreign keys → connections table
-- ✅ Direct relationship → explicit relationship type
-- ✅ Uses proper indexes
-- ✅ Hydrates entities from connections
-
----
-
-## Phase 3: Data Migration
-
-### Migration Script Structure
-
-```typescript
-// scripts/migration/migrate-one-ie.ts
-
-import { ConvexHttpClient } from "convex/browser";
-import { api } from "@/convex/_generated/api";
-import { oneIEDatabase } from "./old-db-connection";
-
-// ============================================================================
-// CONFIGURATION
-// ============================================================================
-
-const BATCH_SIZE = 100;
-const DRY_RUN = process.env.DRY_RUN === "true";
-
-const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
-
-// ============================================================================
-// STEP 1: MIGRATE USERS
-// ============================================================================
-
-async function migrateUsers() {
-  console.log("📊 Migrating users...");
-  
-  const oldUsers = await oneIEDatabase.users.findMany();
-  console.log(`Found ${oldUsers.length} users to migrate`);
-  
-  const results = {
-    success: 0,
-    failed: 0,
-    errors: [] as any[]
-  };
-  
-  // Process in batches
-  for (let i = 0; i < oldUsers.length; i += BATCH_SIZE) {
-    const batch = oldUsers.slice(i, i + BATCH_SIZE);
-    
-    for (const oldUser of batch) {
-      try {
-        // Transform to new format
-        const newCreator = {
-          type: "creator" as const,
-          name: oldUser.name,
-          properties: {
-            email: oldUser.email,
-            username: oldUser.email.split("@")[0],
-            displayName: oldUser.name,
-            bio: oldUser.bio || "",
-            niche: [], // TODO: Derive from content
-            expertise: [],
-            targetAudience: "",
-            totalFollowers: oldUser.followersCount || 0,
-            totalContent: 0, // Will update after content migration
-            totalRevenue: 0
-          },
-          status: oldUser.isActive ? "active" : "inactive",
-          createdAt: oldUser.createdAt.getTime(),
-          updatedAt: Date.now()
-        };
-        
-        if (!DRY_RUN) {
-          // Create in Convex
-          const newId = await convex.mutation(
-            api.creators.create,
-            newCreator
-          );
-          
-          // Store mapping for later (old ID → new ID)
-          await storeIdMapping("users", oldUser.id, newId);
-        }
-        
-        results.success++;
-        
-        if (results.success % 100 === 0) {
-          console.log(`  ✅ Migrated ${results.success} users...`);
-        }
-      } catch (error) {
-        results.failed++;
-        results.errors.push({
-          oldId: oldUser.id,
-          error: error.message
-        });
-      }
-    }
-  }
-  
-  console.log(`✅ Users migration complete: ${results.success} success, ${results.failed} failed`);
-  
-  if (results.failed > 0) {
-    console.log("❌ Errors:", results.errors);
-  }
-  
-  return results;
-}
-
-// ============================================================================
-// STEP 2: MIGRATE CONTENT
-// ============================================================================
-
-async function migrateContent() {
-  console.log("📊 Migrating content...");
-  
-  const oldPosts = await oneIEDatabase.posts.findMany();
-  console.log(`Found ${oldPosts.length} posts to migrate`);
-  
-  const results = { success: 0, failed: 0, errors: [] };
-  
-  for (const oldPost of oldPosts) {
-    try {
-      // Get new creator ID from mapping
-      const newCreatorId = await getNewId("users", oldPost.authorId);
-      
-      // Determine content type
-      const contentType = determineContentType(oldPost);
-      
-      // Transform to new format
-      const newContent = {
-        type: contentType,
-        name: oldPost.title,
-        properties: {
-          title: oldPost.title,
-          description: oldPost.excerpt,
-          body: oldPost.content,
-          format: oldPost.format || "text",
-          publishedAt: oldPost.publishedAt?.getTime(),
-          views: oldPost.views || 0,
-          likes: oldPost.likes || 0,
-          shares: 0,
-          comments: 0,
-          generatedBy: "human"
-        },
-        status: oldPost.published ? "published" : "draft",
-        createdAt: oldPost.createdAt.getTime(),
-        updatedAt: Date.now()
-      };
-      
-      if (!DRY_RUN) {
-        // Create content entity
-        const contentId = await convex.mutation(
-          api.content.create,
-          newContent
-        );
-        
-        // Create authorship connection
-        await convex.mutation(api.connections.create, {
-          fromEntityId: newCreatorId,
-          toEntityId: contentId,
-          relationshipType: "authored",
-          createdAt: oldPost.createdAt.getTime()
-        });
-        
-        // Store mapping
-        await storeIdMapping("posts", oldPost.id, contentId);
-      }
-      
-      results.success++;
-    } catch (error) {
-      results.failed++;
-      results.errors.push({
-        oldId: oldPost.id,
-        error: error.message
-      });
-    }
-  }
-  
-  console.log(`✅ Content migration complete: ${results.success} success, ${results.failed} failed`);
-  
-  return results;
-}
-
-// ============================================================================
-// STEP 3: MIGRATE RELATIONSHIPS
-// ============================================================================
-
-async function migrateRelationships() {
-  console.log("📊 Migrating relationships...");
-  
-  const oldFollows = await oneIEDatabase.follows.findMany();
-  console.log(`Found ${oldFollows.length} follows to migrate`);
-  
-  const results = { success: 0, failed: 0, errors: [] };
-  
-  for (const oldFollow of oldFollows) {
-    try {
-      const newFollowerId = await getNewId("users", oldFollow.followerId);
-      const newFollowedId = await getNewId("users", oldFollow.followedId);
-      
-      if (!DRY_RUN) {
-        await convex.mutation(api.connections.create, {
-          fromEntityId: newFollowerId,
-          toEntityId: newFollowedId,
-          relationshipType: "following",
-          createdAt: oldFollow.createdAt.getTime()
-        });
-      }
-      
-      results.success++;
-    } catch (error) {
-      results.failed++;
-      results.errors.push({
-        oldId: `${oldFollow.followerId}-${oldFollow.followedId}`,
-        error: error.message
-      });
-    }
-  }
-  
-  console.log(`✅ Relationships migration complete: ${results.success} success, ${results.failed} failed`);
-  
-  return results;
-}
-
-// ============================================================================
-// STEP 4: MIGRATE EVENTS
-// ============================================================================
-
-async function migrateEvents() {
-  console.log("📊 Migrating events...");
-  
-  const oldActivityLog = await oneIEDatabase.activityLog.findMany();
-  console.log(`Found ${oldActivityLog.length} activities to migrate`);
-  
-  const results = { success: 0, failed: 0, errors: [] };
-  
-  for (const activity of oldActivityLog) {
-    try {
-      const newEntityId = await getNewId(
-        activity.entityType,
-        activity.entityId
-      );
-      const newActorId = activity.userId
-        ? await getNewId("users", activity.userId)
-        : undefined;
-      
-      const eventType = mapActivityToEventType(activity.action);
-      
-      if (!DRY_RUN) {
-        await convex.mutation(api.events.create, {
-          entityId: newEntityId,
-          eventType,
-          timestamp: activity.createdAt.getTime(),
-          actorType: activity.userId ? "user" : "system",
-          actorId: newActorId,
-          metadata: activity.metadata || {}
-        });
-      }
-      
-      results.success++;
-    } catch (error) {
-      results.failed++;
-      results.errors.push({
-        oldId: activity.id,
-        error: error.message
-      });
-    }
-  }
-  
-  console.log(`✅ Events migration complete: ${results.success} success, ${results.failed} failed`);
-  
-  return results;
-}
-
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
-const idMappings = new Map<string, Map<string, string>>();
-
-async function storeIdMapping(
-  entityType: string,
-  oldId: string,
-  newId: string
-) {
-  if (!idMappings.has(entityType)) {
-    idMappings.set(entityType, new Map());
-  }
-  idMappings.get(entityType)!.set(oldId, newId);
-}
-
-async function getNewId(
-  entityType: string,
-  oldId: string
-): Promise<string> {
-  const mapping = idMappings.get(entityType)?.get(oldId);
-  if (!mapping) {
-    throw new Error(`No mapping found for ${entityType}:${oldId}`);
-  }
-  return mapping;
-}
-
-function determineContentType(oldPost: any): EntityType {
-  if (oldPost.format === "video") return "video";
-  if (oldPost.format === "audio") return "podcast";
-  return "blog_post";
-}
-
-function mapActivityToEventType(action: string): EventType {
-  const mapping: Record<string, EventType> = {
-    "created": "content_created",
-    "published": "content_published",
-    "viewed": "content_viewed",
-    "liked": "content_liked",
-    "shared": "content_shared",
-    "commented": "comment_posted"
-  };
-  return mapping[action] || "user_engaged";
-}
-
-// ============================================================================
-// MAIN MIGRATION FLOW
-// ============================================================================
-
-async function main() {
-  console.log("🚀 Starting ONE Platform Migration");
-  console.log(`Mode: ${DRY_RUN ? "DRY RUN" : "LIVE"}`);
-  console.log("=" .repeat(60));
-  
-  try {
-    // Step 1: Users
-    const userResults = await migrateUsers();
-    
-    // Step 2: Content
-    const contentResults = await migrateContent();
-    
-    // Step 3: Relationships
-    const relationshipResults = await migrateRelationships();
-    
-    // Step 4: Events
-    const eventResults = await migrateEvents();
-    
-    // Summary
-    console.log("\n" + "=".repeat(60));
-    console.log("📊 MIGRATION SUMMARY");
-    console.log("=".repeat(60));
-    console.log(`Users: ${userResults.success} success, ${userResults.failed} failed`);
-    console.log(`Content: ${contentResults.success} success, ${contentResults.failed} failed`);
-    console.log(`Relationships: ${relationshipResults.success} success, ${relationshipResults.failed} failed`);
-    console.log(`Events: ${eventResults.success} success, ${eventResults.failed} failed`);
-    console.log("=".repeat(60));
-    
-    if (DRY_RUN) {
-      console.log("\n⚠️  This was a DRY RUN. No data was actually migrated.");
-      console.log("Run with DRY_RUN=false to perform actual migration.");
-    } else {
-      console.log("\n✅ Migration complete!");
-    }
-  } catch (error) {
-    console.error("\n❌ Migration failed:", error);
-    process.exit(1);
-  }
-}
-
-// Run migration
-main();
-```
-
-### Running the Migration
-
-```bash
-# Step 1: Dry run first (safe, no changes)
-DRY_RUN=true bun run scripts/migration/migrate-one-ie.ts
-
-# Step 2: Review output, fix any errors
-
-# Step 3: Run for real
-DRY_RUN=false bun run scripts/migration/migrate-one-ie.ts
-
-# Step 4: Verify data
-bun run scripts/migration/verify-migration.ts
-```
-
----
-
-## Phase 4: Verification
-
-### Verification Checklist
-
-```typescript
-// scripts/migration/verify-migration.ts
-
-async function verify() {
-  console.log("🔍 Verifying migration...");
-  
-  const checks = [
-    verifyEntityCounts(),
-    verifyRelationshipIntegrity(),
-    verifyEventChronology(),
-    verifyDataQuality(),
-  ];
-  
-  const results = await Promise.all(checks);
-  
-  // Report
-  results.forEach(result => {
-    console.log(result.passed ? "✅" : "❌", result.name);
-    if (!result.passed) {
-      console.log("  Errors:", result.errors);
-    }
-  });
-}
-
-async function verifyEntityCounts() {
-  const oldUserCount = await oneIEDB.users.count();
-  const newCreatorCount = await convex.query(
-    api.creators.count
-  );
-  
-  return {
-    name: "Entity counts match",
-    passed: oldUserCount === newCreatorCount,
-    errors: oldUserCount !== newCreatorCount
-      ? [`Expected ${oldUserCount}, got ${newCreatorCount}`]
-      : []
-  };
-}
-
-async function verifyRelationshipIntegrity() {
-  // Check: Every connection points to valid entities
-  const connections = await convex.query(
-    api.connections.listAll
-  );
-  
-  const errors = [];
-  for (const conn of connections) {
-    const from = await convex.query(api.entities.get, {
-      id: conn.fromEntityId
-    });
-    const to = await convex.query(api.entities.get, {
-      id: conn.toEntityId
-    });
-    
-    if (!from || !to) {
-      errors.push(
-        `Broken connection: ${conn._id} (${from ? "✓" : "✗"} → ${to ? "✓" : "✗"})`
-      );
-    }
-  }
-  
-  return {
-    name: "Relationship integrity",
-    passed: errors.length === 0,
-    errors
-  };
-}
-
-// ... more verification functions
-```
-
----
-
-## Phase 5: Rollback Plan
-
-### Emergency Rollback
-
-If migration fails catastrophically:
-
-```bash
-# 1. Stop all services
-npm run stop
-
-# 2. Restore Convex backup
-convex import backup-2025-01-15.zip
-
-# 3. Revert to old frontend
-git checkout main-old-stable
-
-# 4. Restart services
-npm run dev
-```
-
-### Gradual Rollout
-
-**Week 1:** Beta users only (10 users)  
-**Week 2:** Power users (100 users)  
-**Week 3:** General rollout (all users)
-
----
-
-## Output Deliverables
-
-After migration, you should produce:
-
-1. **Migration Report** (`scripts/migration/report.md`)
-   - What was migrated
-   - Success/failure counts
-   - Known issues
-   - Data quality notes
-
-2. **ID Mapping File** (`scripts/migration/id-mappings.json`)
-   - Old ID → New ID mappings
-   - Preserve for troubleshooting
-
-3. **Verification Results** (`scripts/migration/verification-results.json`)
-   - All verification checks
-   - Pass/fail status
-   - Errors found
-
-4. **Updated File Map** (`.ai/context/file-map.md`)
-   - All new files created
-   - Location of migrated code
-
----
-
-## Your Responsibilities as Ingestor Agent
-
-**You MUST:**
-- ✅ Preserve ALL existing functionality
-- ✅ Map data correctly to 4-table ontology
-- ✅ Maintain data integrity (no orphaned records)
-- ✅ Transform code to new patterns
-- ✅ Run verification before declaring success
-- ✅ Document everything
-
-**You MUST NOT:**
-- ❌ Lose any user data
-- ❌ Break existing features
-- ❌ Skip verification steps
-- ❌ Migrate without backup
-- ❌ Ignore transformation rules
-
----
-
-## Success Criteria
-
-Migration is complete when:
-1. ✅ All data transformed to 4-table ontology
-2. ✅ All components use new patterns (Convex, Effect.ts, shadcn)
-3. ✅ All verification checks pass
-4. ✅ No broken relationships or orphaned data
-5. ✅ Old sites can be decommissioned
-6. ✅ Documentation updated
-
----
-
-**You are now ready to begin the migration. Start with Phase 1: Discovery & Analysis.**
-</file>
-
 <file path="things/agentkit.md">
 # AgentKit (OpenAI SDK)
 
@@ -49044,7 +57422,7 @@ const history = await ctx.db
 
 The **Sales Agent** is one of 10 business agent types in the ONE Platform. It automates the entire sales funnel from lead generation through org owner onboarding, KYC verification, and revenue generation.
 
-**Key Principle:** Sales agents are **autonomous things** that create connections, log events, and drive revenue through the 4-table ontology.
+**Key Principle:** Sales agents are **autonomous things** that create connections, log events, and drive revenue through the 6-dimension ontology.
 
 ---
 
@@ -49998,7 +58376,7 @@ await salesAgent.qualifyLead({ leadId });
 - **[KYC.md](../connections/kyc.md)** - KYC verification process with SUI
 - **[Owner.md](./owner.md)** - Platform owner revenue tracking
 - **[Organisation.md](./organisation.md)** - Organization structure and billing
-- **[Ontology.md](../ontology.md)** - 4-table universe and business agents
+- **[Ontology.md](../ontology.md)** - 6-dimension universe and business agents
 - **[SUI.md](./sui.md)** - SUI blockchain integration
 </file>
 
@@ -50466,13 +58844,15 @@ This architecture achieves **perfect separation of concerns** with three distinc
 │  ✅ Hono: REST API routes (Cloudflare Workers)                     │
 │  ✅ Convex: Real-time database + typed functions                   │
 │  ✅ Better Auth: Authentication with Convex adapter                │
-│  ✅ 4-Table Ontology: Simple, flexible data model                  │
+│  ✅ 6-Dimension Ontology: Reality-aware data model                 │
 │                                                                     │
-│  Hono API Routes       Convex Functions      4-Table Ontology      │
-│  ├─ /api/auth/*       ├─ Queries (reads)    ├─ entities           │
-│  ├─ /api/tokens/*     ├─ Mutations (writes) ├─ connections        │
-│  ├─ /api/agents/*     ├─ Actions (external) ├─ events             │
-│  └─ /api/content/*    └─ Real-time subs     └─ tags               │
+│  Hono API Routes       Convex Functions      6-Dimension Ontology  │
+│  ├─ /api/auth/*       ├─ Queries (reads)    ├─ organizations      │
+│  ├─ /api/tokens/*     ├─ Mutations (writes) ├─ people             │
+│  ├─ /api/agents/*     ├─ Actions (external) ├─ things (entities)  │
+│  └─ /api/content/*    └─ Real-time subs     ├─ connections        │
+│                                              ├─ events             │
+│                                              └─ knowledge          │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -50673,12 +59053,14 @@ export function TokenPurchase({ tokenId }) {
                    │
                    ↓
            ┌───────────────────────────┐
-           │  4-Table Ontology         │
+           │  6-Dimension Ontology     │
            │  (Plain Convex Schema)    │
-           │  ├─ entities (46 types)   │
-           │  ├─ connections (24 types)│
-           │  ├─ events (38 types)     │
-           │  └─ tags                  │
+           │  ├─ organizations         │
+           │  ├─ people (via things)   │
+           │  ├─ things (66 types)     │
+           │  ├─ connections (25 types)│
+           │  ├─ events (67 types)     │
+           │  └─ knowledge             │
            │                           │
            │  NO Convex Ents           │
            │  Direct DB access         │
@@ -50927,15 +59309,17 @@ export const purchaseTokens = confect.mutation({
 - Error handling (Convex errors → Effect errors)
 - Type safety across the boundary
 
-### Layer 5: Data Layer (4-Table Ontology - Plain Convex)
+### Layer 5: Data Layer (6-Dimension Ontology - Plain Convex)
 
-All data maps to 4 tables using **plain Convex schema** (no Convex Ents):
+All data maps to 6 dimensions using **plain Convex schema** (no Convex Ents):
 
 **Core Tables:**
-- **entities** - All things (46 entity types)
-- **connections** - All relationships (24 optimized connection types)
-- **events** - All actions (38 optimized event types)
-- **tags** - All categories
+- **organizations** - Multi-tenant partitioning
+- **people** - Authorization & governance (maps to creator/owner/user things)
+- **things (entities)** - All entities (66 types)
+- **connections** - All relationships (25 types)
+- **events** - All actions (67 types)
+- **knowledge** - All labels + vectors
 
 **Schema Implementation:**
 ```typescript
@@ -50944,60 +59328,99 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
-  entities: defineTable({
-    entityType: v.string(),
+  organizations: defineTable({
     name: v.string(),
-    description: v.optional(v.string()),
-    metadata: v.any(),
+    slug: v.string(),
+    status: v.string(),
+    plan: v.string(),
+    limits: v.any(),
+    usage: v.any(),
+    billing: v.any(),
+    settings: v.any(),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_type", ["entityType"])
-    .index("by_name", ["name"])
-    .searchIndex("search_entities", {
+    .index("by_slug", ["slug"])
+    .index("by_status", ["status"]),
+
+  // People are represented as 'creator' things with role metadata
+  // See things table for implementation
+
+  things: defineTable({
+    // Formerly "entities"
+    thingType: v.string(),
+    name: v.string(),
+    organizationId: v.id("organizations"),  // NEW: Every thing belongs to an org
+    description: v.optional(v.string()),
+    properties: v.any(),
+    status: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_type", ["thingType"])
+    .index("by_org", ["organizationId"])  // NEW: Query things by org
+    .index("by_org_type", ["organizationId", "thingType"])
+    .searchIndex("search_things", {
       searchField: "name",
-      filterFields: ["entityType"],
+      filterFields: ["thingType", "organizationId"],
     }),
 
   connections: defineTable({
-    fromEntityId: v.id("entities"),
-    toEntityId: v.id("entities"),
+    fromThingId: v.id("things"),
+    toThingId: v.id("things"),
     relationshipType: v.string(),
+    organizationId: v.id("organizations"),  // NEW: Connections scoped to org
     metadata: v.any(),
     createdAt: v.number(),
   })
-    .index("by_from", ["fromEntityId"])
-    .index("by_to", ["toEntityId"])
+    .index("by_from", ["fromThingId"])
+    .index("by_to", ["toThingId"])
+    .index("by_org", ["organizationId"])  // NEW: Query connections by org
     .index("by_relationship", ["relationshipType"]),
 
   events: defineTable({
-    entityId: v.id("entities"),
+    thingId: v.optional(v.id("things")),
     eventType: v.string(),
-    actorType: v.optional(v.string()),
-    actorId: v.optional(v.id("entities")),
+    actorId: v.id("things"),  // REQUIRED: Actor is always a person (thing with role)
+    organizationId: v.id("organizations"),  // NEW: Events scoped to org
     metadata: v.any(),
     timestamp: v.number(),
   })
-    .index("by_entity", ["entityId"])
+    .index("by_thing", ["thingId"])
+    .index("by_actor", ["actorId"])  // NEW: Query by who did it
+    .index("by_org", ["organizationId"])  // NEW: Query events by org
     .index("by_type", ["eventType"])
     .index("by_timestamp", ["timestamp"]),
 
-  tags: defineTable({
-    entityId: v.id("entities"),
-    category: v.string(),
-    value: v.string(),
+  knowledge: defineTable({
+    knowledgeType: v.string(),
+    text: v.optional(v.string()),
+    embedding: v.optional(v.array(v.number())),
+    embeddingModel: v.optional(v.string()),
+    embeddingDim: v.optional(v.number()),
+    sourceThingId: v.optional(v.id("things")),
+    sourceField: v.optional(v.string()),
+    organizationId: v.id("organizations"),  // NEW: Knowledge scoped to org
+    chunk: v.optional(v.any()),
+    labels: v.optional(v.array(v.string())),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
   })
-    .index("by_entity", ["entityId"])
-    .index("by_category", ["category"]),
+    .index("by_type", ["knowledgeType"])
+    .index("by_source", ["sourceThingId"])
+    .index("by_org", ["organizationId"])  // NEW: Query knowledge by org
+    .index("by_created", ["createdAt"]),
 });
 ```
 
 **Key Design Principles:**
+- Organizations partition ALL data (perfect multi-tenant isolation)
+- People are represented as things with `role` property (platform_owner, org_owner, org_user, customer)
+- Every thing, connection, event, and knowledge item is scoped to an organization
 - No ORM layer (Convex Ents) - direct database access
-- Flexible metadata fields (v.any()) for type-specific data
-- Comprehensive indexing for query performance
-- Search indexes for full-text search
-- Simple, predictable patterns for AI generation
+- Flexible metadata fields for type-specific data
+- Comprehensive indexing for query performance (including org-scoped indexes)
 
 **New Entity Types** (Strategy.md support):
 - **Platform**: website, landing_page, template, livestream, recording, media_asset
@@ -51910,16 +60333,36 @@ Functional programming
 
 ## Key Architectural Decisions Summary
 
-### 1. Plain Convex Schema (No Convex Ents)
-**Decision:** Use plain Convex `defineSchema` with direct database access
+### 1. Plain Convex Schema with 6-Dimension Ontology
+**Decision:** Use plain Convex `defineSchema` with 6 dimensions (organizations, people, things, connections, events, knowledge)
 **Rationale:**
 - Simpler mental model for AI agents
+- Organizations provide perfect multi-tenant isolation
+- People represented as things with role metadata (no duplicate tables)
 - No ORM abstraction layer to learn
 - Direct control over indexes and queries
-- Flexible `v.any()` metadata fields for type-specific data
-- Easier to debug and optimize performance
+- Every dimension scoped to organization
+- Scales from children's apps to enterprise SaaS
 
-### 2. Multi-Chain Blockchain Architecture
+### 2. Organizations as First-Class Dimension
+**Decision:** Every resource (thing, connection, event, knowledge) belongs to an organization
+**Rationale:**
+- Perfect data isolation for multi-tenancy
+- Clear ownership boundaries
+- Independent billing and quotas per org
+- Custom frontends per org
+- Platform-level services (shared infrastructure)
+
+### 3. People as Authorization Layer
+**Decision:** People are things with role property (platform_owner, org_owner, org_user, customer)
+**Rationale:**
+- Every action has an actor (person)
+- Clear permission hierarchy
+- Roles define what actions are allowed
+- Org owners control their users
+- Platform owner can access everything (support/debugging)
+
+### 4. Multi-Chain Blockchain Architecture
 **Decision:** Separate Effect.ts provider per blockchain (Sui, Base, Solana)
 **Rationale:**
 - Each chain has unique APIs and transaction models
@@ -51928,7 +60371,7 @@ Functional programming
 - Users can choose preferred blockchain per token/NFT
 - Chain-specific retry strategies and error handling
 
-### 3. Stripe for FIAT Only
+### 5. Stripe for FIAT Only
 **Decision:** Stripe handles USD/EUR/etc payments only, NOT crypto
 **Rationale:**
 - Clear separation of concerns (fiat vs crypto)
@@ -51936,15 +60379,7 @@ Functional programming
 - Prevents confusion about payment routing
 - Simpler error handling (payment method determines provider)
 
-### 4. Cloudflare for Livestreaming Only
-**Decision:** Cloudflare Stream API for live video, NOT for web hosting
-**Rationale:**
-- Cloudflare Pages (different service) handles web hosting
-- Stream API optimized for real-time video
-- Clear separation from infrastructure concerns
-- Prevents confusion about Cloudflare's role
-
-### 5. Effect.ts 100% Coverage
+### 6. Effect.ts 100% Coverage
 **Decision:** ALL business logic uses Effect.ts (no raw async/await)
 **Rationale:**
 - Consistent patterns across entire codebase
@@ -51953,23 +60388,17 @@ Functional programming
 - Built-in retry, timeout, resource management
 - AI generates consistent code every time
 
-### 6. Optimized Type System (24 + 38 = 62 types)
-**Decision:** Consolidate from 87 types to 62 types (-29% reduction)
+### 7. 6-Dimension Ontology (Organizations + People + 4 Core Dimensions)
+**Decision:** Expand from 4 tables to 6 dimensions
 **Rationale:**
-- Less cognitive load for AI agents
-- Generic types + metadata = flexibility + type safety
-- Fewer type discriminations in code
-- Easier to maintain consistency
-- Better query performance (fewer indexes)
-
-### 7. 4-Table Ontology
-**Decision:** All data maps to 4 tables (entities, connections, events, tags)
-**Rationale:**
-- Simple, predictable patterns for AI
-- Flexible enough to handle any domain
-- Easy to query across entity types
-- Consistent indexing strategy
-- Reduces table sprawl
+- Organizations: Multi-tenant isolation boundary
+- People: Authorization and governance
+- Things: 66 entity types (what exists)
+- Connections: 25 relationship types (how they relate)
+- Events: 67 event types (what happened)
+- Knowledge: Vectors + labels (what it means)
+- Simple enough for children, powerful enough for enterprises
+- AI agents can reason about complete reality model
 
 ---
 
@@ -52063,7 +60492,7 @@ When implementing a new feature:
    - **docs/Frontend.md** - If building UI components or pages
    - **docs/Hono.md** - If building API routes or Effect.ts services
    - **docs/Architecture.md** - To understand how everything fits together
-   - **docs/Ontology.md** - Map feature to 4 tables (entities, connections, events, tags)
+   - **docs/Ontology.md** - Map feature to 6 dimensions (organizations, people, things, connections, events, knowledge)
 
 2. **Design the layers:**
    - **Frontend:** Astro page + React component (uses Convex hooks + Hono API)
@@ -52088,12 +60517,13 @@ When implementing a new feature:
 **Key Reminders:**
 - **Frontend Layer:** Astro + React, content collections, Convex hooks + Hono API client
 - **Glue Layer:** Effect.ts services (100% coverage), typed errors, DI
-- **Backend Layer:** Hono API routes, Convex database (4-table ontology), Better Auth
+- **Backend Layer:** Hono API routes, Convex database (6-dimension ontology), Better Auth
+- **6 Dimensions:** Organizations partition, People authorize, Things exist, Connections relate, Events record, Knowledge understands
 - Stripe = fiat only (NOT crypto)
 - Cloudflare = livestreaming only (NOT web hosting)
 - Plain Convex schema (NO Convex Ents)
 - Multi-chain providers (separate services per blockchain)
-- 24 connection types + 38 event types (optimized, generic)
+- 25 connection types + 67 event types (optimized, generic)
 
 **The Result:** Each feature makes the next feature easier because AI has more patterns to learn from, and the architecture ensures consistency across all layers.
 </file>
@@ -60548,9 +68978,9 @@ ${ind}yield* Effect.promise(() =>
 ${ind}  ctx.db.insert("events", {
 ${ind}    entityId: ${this.compileExpression(step.event.entity)},
 ${ind}    eventType: "${step.event.type}",
+${ind}    actorId: ${this.compileExpression(step.event.actor || '"system"')},
 ${ind}    timestamp: Date.now(),
 ${ind}    actorType: "${step.event.actor ? "user" : "system"}",
-${ind}    actorId: ${this.compileExpression(step.event.actor || "undefined")},
 ${ind}    metadata: ${metadataStr},
 ${ind}  })
 ${ind});
@@ -62347,7 +70777,7 @@ one/
 │   │   └── ingestor-agent.md               # Migration specialist
 │   │
 │   ├── context/                            # System context
-│   │   ├── ontology.md                     # ✅ CREATED - 4-table data model
+│   │   ├── ontology.md                     # ✅ CREATED - 6-dimension data model
 │   │   ├── architecture.md                 # ✅ CREATED - System design + FP
 │   │   ├── patterns.md                     # ✅ CREATED - Code patterns
 │   │   ├── file-map.md                     # ✅ THIS FILE
@@ -62376,7 +70806,7 @@ one/
 │   │
 │   ├── # CORE DOCUMENTATION
 │   ├── Strategy.md                         # ✅ Platform vision & business strategy
-│   ├── Ontology.md                         # ✅ 4-table data model (25 connections, 35 events)
+│   ├── Ontology.md                         # ✅ 6-dimension data model (25 connections, 35 events)
 │   ├── Architecture.md                     # ✅ Technical architecture & FP patterns
 │   ├── Rules.md                            # ✅ Golden rules for development
 │   ├── Patterns.md                         # ✅ Code patterns & best practices
@@ -63607,7 +72037,7 @@ one/
 │   │   # CURRENT STATE: Existing Files (Already Implemented)
 │   │   # ═══════════════════════════════════════════════════════════════════════
 │   │
-│   ├── schema.ts                           # ✅ Current schema (4-table ontology: entities, connections, events, tags)
+│   ├── schema.ts                           # ✅ Current schema (6-dimension ontology: entities, connections, events, tags)
 │   ├── auth.ts                             # ✅ Better Auth integration (GitHub, Google OAuth, magic link, 2FA)
 │   ├── auth.config.ts                      # ✅ Better Auth configuration
 │   ├── http.ts                             # ✅ HTTP endpoint handler (Better Auth routes + API endpoints)
@@ -63637,7 +72067,7 @@ one/
 │   │   # ═══════════════════════════════════════════════════════════════════════
 │   │   #
 │   │   # Week 1-2: Foundation
-│   │   # - Implement schema/ directory (4 tables: entities, connections, events, tags)
+│   │   # - Implement schema/ directory (6 dimensions: entities, connections, events, tags)
 │   │   # - Create ConvexDatabase service (core/database.ts)
 │   │   # - Create EntityService, ConnectionService, EventService
 │   │   #
@@ -64741,7 +73171,7 @@ The ONE Platform is built on a **pure Effect.ts service layer** that covers 100%
 - Convex configuration (convex.config.ts)
 
 **🚧 In Progress (Planned - 20 Week Roadmap)**
-- Schema implementation (4 tables: entities, connections, events, tags)
+- Schema implementation (6 dimensions: entities, connections, events, tags)
 - Core services (database, auth, storage, cache, queue)
 - Platform feature services (AI, tokens, courses, community, etc.)
 - External provider wrappers (26 providers)
@@ -65610,7 +74040,7 @@ const relatedPosts = post.data.relatedPosts
 </Blog>
 ```
 
-## Integration with 4-Table Ontology
+## Integration with 6-Dimension Ontology
 
 The frontend integrates seamlessly with the ontology through Convex hooks and Hono API:
 
@@ -65919,7 +74349,7 @@ This document covers **both approaches** with complete implementation guides.
 
 **Data Backend:**
 - Convex (real-time database)
-- 4-table ontology (entities, connections, events, tags)
+- 6-dimension ontology (things, connections, events, knowledge, people, protocols)
 
 **Deployment:**
 - Cloudflare Pages (Astro frontend)
@@ -66228,7 +74658,7 @@ api/
 │       ├── auth.ts           # Auth middleware
 │       └── cors.ts           # CORS configuration
 ├── convex/                   # Shared Convex backend
-│   ├── schema.ts             # 4-table ontology schema
+│   ├── schema.ts             # 6-dimension ontology schema
 │   ├── queries/
 │   │   ├── auth.ts           # Auth queries (for Better Auth adapter)
 │   │   ├── entities.ts
@@ -67745,7 +76175,7 @@ wrangler pages deploy dist --project-name=one-platform
 - Deploy custom frontends to subdomains
 - Share same Hono API + Convex backend
 
-## Integration with 4-Table Ontology
+## Integration with 6-Dimension Ontology
 
 The Hono API fully respects the ontology:
 
@@ -67920,7 +76350,7 @@ Separate API (Cloudflare Workers):
 
 **Both approaches use:**
 - Hono for routing
-- Convex for data storage (4-table ontology)
+- Convex for data storage (6-dimension ontology)
 - Effect.ts for business logic (optional but recommended)
 - Type-safe validation (Zod)
 - CORS middleware
@@ -67943,7 +76373,7 @@ Choose the approach that matches your team size, architecture needs, and deploym
 
 ## Overview
 
-The 4-table ontology architecture (entities, connections, events, tags) provides unprecedented flexibility, while Convex + Effect.ts delivers production-grade reliability.
+The 6-dimension ontology architecture (things, connections, events, knowledge, people, protocols) provides unprecedented flexibility, while Convex + Effect.ts delivers production-grade reliability.
 
 **Tech Stack**: Astro + React + shadcn/ui frontend, Convex backend with comprehensive components (@convex-dev/agent, workflow, rag, rate-limiter), Effect.ts service layer, Stripe Connect for payments.
 
@@ -67951,7 +76381,7 @@ The 4-table ontology architecture (entities, connections, events, tags) provides
 
 This document integrates information from:
 
-1. **Ontology** (`Ontology.md`) - The 4-table data model that defines ALL things, connections, events, and tags
+1. **Ontology** (`Ontology.md`) - The 6-dimension data model that defines ALL things, connections, events, knowledge, people, and protocols
 2. **DSL** (`DSL.md`, `ONE DSL.md`, `ONE DSL English.md`) - Domain-specific language for feature definition
 3. **Schema** (`convex/schema.ts`) - Current authentication-focused schema and target ontology-based schema
 4. **Implementation Examples** - Real-world code patterns and feature implementations
@@ -67968,7 +76398,7 @@ This document integrates information from:
 └─────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ Ontology (4 tables: entities, connections, events, tags)   │
+│ Ontology (6 dimensions: things, connections, events, knowledge, people, protocols) │
 └─────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -67995,8 +76425,8 @@ This document integrates information from:
 ### Why This Architecture Works
 
 **Ontology-First Design:**
-- Every feature maps to 4 tables (entities, connections, events, tags)
-- Simple test: "If you can't map it to these 4 tables, rethink it"
+- Every feature maps to 6 dimensions (things, connections, events, knowledge, people, protocols)
+- Simple test: "If you can't map it to these 6 dimensions, rethink it"
 - AI agents can't generate invalid data models
 
 **DSL Validation:**
@@ -68019,13 +76449,13 @@ This document integrates information from:
 
 ---
 
-## Ontology: The 4-Table Universe
+## Ontology: The 6-Dimension Universe
 
 **Purpose**: Complete data model for AI agents to understand how EVERYTHING in ONE platform is structured.
 
 ### Core Concept
 
-Every single thing in ONE platform exists in one of these 4 tables:
+Every single thing in ONE platform exists in one of these 6 dimensions:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -68049,7 +76479,7 @@ Every single thing in ONE platform exists in one of these 4 tables:
 └──────────────────────────────────────────────────────────────┘
 ```
 
-**Golden Rule:** If you can't map your feature to these 4 tables, you're thinking about it wrong.
+**Golden Rule:** If you can't map your feature to these 6 dimensions, you're thinking about it wrong.
 
 ### Entity Types
 
@@ -68455,7 +76885,7 @@ export default defineSchema({
 
 ### Target Ontology-Based Schema (Plain Convex)
 
-**Future implementation** - 4-table architecture with full ontology support:
+**Future implementation** - 6-dimension architecture with full ontology support:
 
 ```typescript
 import { defineSchema, defineTable } from "convex/server";
@@ -68954,18 +77384,18 @@ const code = compiler.compile(myFeatureDSL);
 
 ### Common Patterns
 
-**Pattern: Create Entity with Ownership**
+**Pattern: Create Thing with Ownership**
 ```typescript
 // DSL
 {
-  entity: { type: "ai_clone", name: "My Clone", properties: {...} },
+  thing: { type: "ai_clone", name: "My Clone", properties: {...} },
   output: "cloneId"
 }
 {
   connect: { from: "$creatorId", to: "$cloneId", type: "owns" }
 }
 {
-  event: { entity: "$cloneId", type: "clone_created", actor: "$creatorId" }
+  event: { thing: "$cloneId", type: "clone_created", actor: "$creatorId" }
 }
 ```
 
@@ -69003,27 +77433,27 @@ const code = compiler.compile(myFeatureDSL);
 
 ### Validation Rules
 
-**Entity Validation:**
-- ✅ Type must be valid EntityType from ontology
+**Thing Validation:**
+- ✅ Type must be valid ThingType from ontology
 - ✅ Name cannot be empty
 - ✅ Properties structure must match type
 - ✅ Status must be valid (active, inactive, draft, published, archived)
 
 **Connection Validation:**
-- ✅ fromEntityId and toEntityId must exist
+- ✅ fromThingId and toThingId must exist
 - ✅ relationshipType must be valid ConnectionType
-- ✅ Cannot connect entity to itself (usually)
+- ✅ Cannot connect thing to itself (usually)
 - ✅ Relationship must make semantic sense
 
 **Event Validation:**
-- ✅ entityId must exist
+- ✅ thingId must exist
 - ✅ eventType must be valid EventType
 - ✅ timestamp required
 - ✅ actorId must exist if provided
 
-**Tag Validation:**
-- ✅ name must be unique
-- ✅ category must be valid TagCategory
+**Knowledge Validation:**
+- ✅ label must be unique or properly scoped
+- ✅ category must be valid KnowledgeCategory
 - ✅ usageCount must be >= 0
 
 ### Performance Guidelines
@@ -69046,7 +77476,7 @@ const code = compiler.compile(myFeatureDSL);
 
 ### Reference Files
 
-- **Ontology Spec**: `Ontology.md` - Complete 4-table data model
+- **Ontology Spec**: `Ontology.md` - Complete 6-dimension data model
 - **Technical DSL**: `DSL.md`, `ONE DSL.md` - JSON-like syntax and compiler
 - **Plain English DSL**: `ONE DSL English.md` - Natural language syntax
 - **Schema**: `convex/schema.ts` - Current and target schemas
@@ -71805,8 +80235,8 @@ await db.insert("connections", {
 });
 
 // Log creation event
-await db.insert("events", {
-  type: "organization_created",
+await ctx.db.insert("events", {
+  eventType: "organization_created",
   actorId: anthonyId,
   targetId: oneOrgId,
   timestamp: Date.now(),
@@ -71877,8 +80307,8 @@ await db.insert("connections", {
 
 ```typescript
 // User in org requests inference
-await db.insert("events", {
-  type: "inference_request",
+await ctx.db.insert("events", {
+  eventType: "inference_request",
   actorId: userId,
   targetId: inferenceRequestId,
   timestamp: Date.now(),
@@ -71905,8 +80335,8 @@ await db.patch(customerOrgId, {
 
 // Check if quota exceeded
 if (org.properties.usage.inferences >= org.properties.limits.inferences) {
-  await db.insert("events", {
-    type: "inference_quota_exceeded",
+  await ctx.db.insert("events", {
+    eventType: "inference_quota_exceeded",
     actorId: "system",
     targetId: customerOrgId,
     timestamp: Date.now(),
@@ -71922,8 +80352,8 @@ if (org.properties.usage.inferences >= org.properties.limits.inferences) {
 
 ```typescript
 // When customer org generates platform revenue
-await db.insert("events", {
-  type: "org_revenue_generated",
+await ctx.db.insert("events", {
+  eventType: "org_revenue_generated",
   actorId: customerOrgId,
   targetId: anthonyId,  // Platform owner
   timestamp: Date.now(),
@@ -71937,8 +80367,8 @@ await db.insert("events", {
 
 // Distribute revenue share (if configured)
 if (org.properties.revenueShare > 0) {
-  await db.insert("events", {
-    type: "revenue_share_distributed",
+  await ctx.db.insert("events", {
+    eventType: "revenue_share_distributed",
     actorId: anthonyId,
     targetId: customerId,
     timestamp: Date.now(),
@@ -73834,7 +82264,7 @@ export class BatchInferenceService extends Effect.Service<BatchInferenceService>
 
 ### 5. Network Effects (Ontology)
 
-**4-table design enables composability:**
+**6-dimension design enables composability:**
 - Agent A runs inference
 - Agent B uses Agent A's result
 - Agent C builds on A + B
@@ -74012,7 +82442,7 @@ Year 1 Total Profit: $620M
 
 ---
 
-## The 4-Table Ontology (MEMORIZE THIS)
+## The 6-Dimension Ontology (MEMORIZE THIS)
 
 ```
 ┌─────────────┐
@@ -74370,7 +82800,7 @@ purchaseTokens: (args) => { ... }
 ### Ingestor Agent
 **Responsibilities:**
 - Migrate data from old sites (one.ie, bullfm)
-- Transform data to 4-table ontology
+- Transform data to 6-dimension ontology
 - Preserve relationships
 - Generate migration reports
 
@@ -74431,9 +82861,9 @@ Effect.gen(function* () {
     db.insert("events", {
       entityId,
       eventType: "course_created",
+      actorId: args.creatorId,
       timestamp: Date.now(),
       actorType: "user",
-      actorId: args.creatorId,
       metadata: { /* ... */ },
     })
   );
@@ -74474,7 +82904,7 @@ const result = yield* Effect.all(
 ).pipe(
   Effect.tap(([r1, r2, r3]) => 
     // All succeeded, save to DB
-    Effect.tryPromise(() => db.insert("events", { /* ... */ }))
+    Effect.tryPromise(() => db.insert("events", { actorId: userId, /* ... */ }))
   ),
   Effect.onError(() =>
     // Any failed, rollback all
@@ -74565,7 +82995,7 @@ After generating code, verify:
 5. No tests → AI doesn't know if it broke something
 
 **ONE platform solutions:**
-1. 4-table ontology → AI always knows data structure
+1. 6-dimension ontology → AI always knows data structure
 2. Agent specialization → AI stays in its lane
 3. Explicit types → AI catches errors at compile time
 4. Effect.ts services → AI composes existing functions
@@ -78434,7 +86864,7 @@ Should we:
 
 **Version:** 1.0.0
 **Status:** Active
-**Purpose:** Map SUI Move smart contracts to the ONE Platform 4-table ontology
+**Purpose:** Map SUI Move smart contracts to the ONE Platform 6-dimension ontology
 
 ---
 
@@ -78446,7 +86876,7 @@ SUI Move is our smart contract layer for blockchain operations. It integrates se
 
 ---
 
-## SUI Move in the 4-Table Universe
+## SUI Move in the 6-Dimension Universe
 
 ### 1. THINGS (Entities)
 
@@ -79375,10 +87805,12 @@ const token = await convex.query(api.tokens.get, { id: Astro.params.id });
 
 SUI Move integrates with ONE Platform through:
 
-1. **Entities**: `token_contract`, `token`, `nft` with SUI-specific properties
+1. **Things**: `token_contract`, `token`, `nft` with SUI-specific properties
 2. **Connections**: `holds_tokens`, `owns`, `staked_in` with network metadata
 3. **Events**: All token/NFT events with `metadata.network: "sui"`
-4. **Tags**: `network:sui`, `protocol:sui-move`
+4. **Knowledge**: `network:sui`, `protocol:sui-move` labels
+5. **People**: Users with SUI wallets and on-chain identities
+6. **Protocols**: SUI Move as a registered protocol with specific metadata
 
 **Key Benefits:**
 - Protocol-agnostic ontology (SUI is just metadata)
@@ -79387,7 +87819,7 @@ SUI Move integrates with ONE Platform through:
 - Type-safe (Effect.ts + TypeScript)
 - Real-time (Convex subscriptions + SUI event subscriptions)
 
-**This is how blockchain becomes just another data layer in the 4-table universe.**
+**This is how blockchain becomes just another data layer in the 6-dimension universe.**
 </file>
 
 <file path="things/things.md">
@@ -79842,7 +88274,7 @@ Human
 **Location:** `convex/services/agents/specialized/ingestor/`
 - [ ] Create ingestor agent implementation
 - [ ] Implement data extraction from old systems
-- [ ] Implement data transformation (to 4-table ontology)
+- [ ] Implement data transformation (to 6-dimension ontology)
 - [ ] Implement data validation
 - [ ] Implement migration reports
 - [ ] Tools: `extract_data`, `transform_data`, `validate_migration`
@@ -79916,7 +88348,7 @@ Human
 - [ ] **Runtime hook:** Validate all secrets are encrypted (Better Auth, Stripe, etc.)
 
 ### Ontology Hooks
-**Purpose:** Enforce 4-table ontology patterns
+**Purpose:** Enforce 6-dimension ontology patterns
 - [ ] **Pre-mutation hook:** Validate entity type exists in ontology
 - [ ] **Pre-mutation hook:** Validate connection type exists in ontology
 - [ ] **Pre-mutation hook:** Validate event type exists in ontology
@@ -80223,7 +88655,7 @@ Human
 
 #### ✅ Completed
 - [x] Create documentation ecosystem (90 .md files, 73k lines) - **DONE**
-- [x] Define ontology (4 tables, 66 things, 25 connections, 67 events) - **DONE**
+- [x] Define ontology (6 dimensions: things, connections, events, knowledge, people, protocols) - **DONE**
 - [x] Define architecture (Effect.ts, Convex, Astro, Hono) - **DONE**
 - [x] Create strategy documentation (8 core features) - **DONE**
 - [x] Create workflow documentation (ontology-driven development) - **DONE**
@@ -80640,7 +89072,7 @@ Human
 - **[one/things/hono.md](./hono.md)** - Hono API backend with Effect.ts services
 - **[one/things/files.md](./files.md)** - File system map
 - **[one/things/strategy.md](./strategy.md)** - Platform vision & 8 core features
-- **[one/connections/ontology.md](../connections/ontology.md)** - 4-table data model
+- **[one/connections/ontology.md](../connections/ontology.md)** - 6-dimension data model
 - **[one/connections/dashboard.md](../connections/dashboard.md)** - Multi-tenant UI
 - **[one/things/specifications.md](./specifications.md)** - Protocol integration patterns
 - **[one/connections/implementation.md](../connections/implementation.md)** - 12-week roadmap
@@ -80773,7 +89205,7 @@ Human
 - 100% Effect.ts for business logic (NO async/await)
 - Typed errors with `_tag` pattern
 - Dependency injection via Effect layers
-- Map all features to 4-table ontology
+- Map all features to 6-dimension ontology
 - Follow patterns.md examples exactly
 
 **Success Metrics:**

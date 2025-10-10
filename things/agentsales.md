@@ -10,7 +10,7 @@
 
 The **Sales Agent** is one of 10 business agent types in the ONE Platform. It automates the entire sales funnel from lead generation through org owner onboarding, KYC verification, and revenue generation.
 
-**Key Principle:** Sales agents are **autonomous things** that create connections, log events, and drive revenue through the 4-table ontology.
+**Key Principle:** Sales agents are **autonomous things** that create connections, log events, and drive revenue through the 6-dimension ontology.
 
 ---
 
@@ -964,5 +964,5 @@ await salesAgent.qualifyLead({ leadId });
 - **[KYC.md](../connections/kyc.md)** - KYC verification process with SUI
 - **[Owner.md](./owner.md)** - Platform owner revenue tracking
 - **[Organisation.md](./organisation.md)** - Organization structure and billing
-- **[Ontology.md](../ontology.md)** - 4-table universe and business agents
+- **[Ontology.md](../ontology.md)** - 6-dimension universe and business agents
 - **[SUI.md](./sui.md)** - SUI blockchain integration

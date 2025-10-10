@@ -826,7 +826,7 @@ const relatedPosts = post.data.relatedPosts
 </Blog>
 ```
 
-## Integration with 4-Table Ontology
+## Integration with 6-Dimension Ontology
 
 The frontend integrates seamlessly with the ontology through Convex hooks and Hono API:
 

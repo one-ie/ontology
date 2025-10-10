@@ -185,8 +185,8 @@ await db.insert("connections", {
 });
 
 // Log creation event
-await db.insert("events", {
-  type: "organization_created",
+await ctx.db.insert("events", {
+  eventType: "organization_created",
   actorId: anthonyId,
   targetId: oneOrgId,
   timestamp: Date.now(),
@@ -257,8 +257,8 @@ await db.insert("connections", {
 
 ```typescript
 // User in org requests inference
-await db.insert("events", {
-  type: "inference_request",
+await ctx.db.insert("events", {
+  eventType: "inference_request",
   actorId: userId,
   targetId: inferenceRequestId,
   timestamp: Date.now(),
@@ -285,8 +285,8 @@ await db.patch(customerOrgId, {
 
 // Check if quota exceeded
 if (org.properties.usage.inferences >= org.properties.limits.inferences) {
-  await db.insert("events", {
-    type: "inference_quota_exceeded",
+  await ctx.db.insert("events", {
+    eventType: "inference_quota_exceeded",
     actorId: "system",
     targetId: customerOrgId,
     timestamp: Date.now(),
@@ -302,8 +302,8 @@ if (org.properties.usage.inferences >= org.properties.limits.inferences) {
 
 ```typescript
 // When customer org generates platform revenue
-await db.insert("events", {
-  type: "org_revenue_generated",
+await ctx.db.insert("events", {
+  eventType: "org_revenue_generated",
   actorId: customerOrgId,
   targetId: anthonyId,  // Platform owner
   timestamp: Date.now(),
@@ -317,8 +317,8 @@ await db.insert("events", {
 
 // Distribute revenue share (if configured)
 if (org.properties.revenueShare > 0) {
-  await db.insert("events", {
-    type: "revenue_share_distributed",
+  await ctx.db.insert("events", {
+    eventType: "revenue_share_distributed",
     actorId: anthonyId,
     targetId: customerId,
     timestamp: Date.now(),
