@@ -2,33 +2,67 @@
 
 ## Executive Summary
 
-**Goal:** Transform the current tightly-coupled architecture into a fully headless, API-first architecture where:
-- Frontend: Pure Astro/React UI (no Convex dependency)
-- Backend: Hono API + Convex (standalone service)
-- Connection: REST API with API key authentication
+**Goal:** Transform the current tightly-coupled architecture into a fully headless, **backend-agnostic** architecture where:
+- **Frontend:** Pure Astro/React UI with DataProvider interface (no backend dependency)
+- **Backend:** ANY backend that implements the 6-dimension ontology (Convex, WordPress, Notion, Supabase, etc.)
+- **Connection:** DataProvider interface - swap backends by changing ONE line
 
-**Current State:** Frontend directly imports Convex hooks (`useQuery`, `useMutation`) and calls Convex functions.
+**Current State:**
+- ✅ Frontend is **working** and connected to Convex backend
+- ✅ Auth is functional with tests in `frontend/tests/auth/*`
+- ✅ Direct Convex integration (using `useQuery`, `useMutation`, Convex hooks)
+- ⚠️ Tightly coupled to Convex - can't swap to WordPress/Notion/Supabase
 
-**Target State:** Frontend only knows about REST API endpoints, authenticates with API keys, and has zero knowledge of Convex.
+**Target State:**
+- Frontend uses DataProvider interface
+- Backend is pluggable - organizations can use Convex, their existing WordPress site, Notion databases, or any other backend
+- Existing auth tests continue to pass
+- All current functionality preserved while adding flexibility
+
+---
+
+## Important Context
+
+**This is NOT a bug fix - this is a strategic enhancement.**
+
+✅ **Current System Works:**
+- Frontend successfully talks to Convex backend
+- Auth is functional with passing tests
+- All features operational
+- No critical issues requiring immediate changes
+
+⚠️ **Why Separate Now:**
+- Add backend flexibility (support WordPress, Notion, Shopify, etc.)
+- Enable multi-backend federation (auth in Convex, blog in WordPress, products in Shopify)
+- Allow organizations to use existing infrastructure
+- Remove Convex lock-in
+
+**Migration Approach:**
+- Zero downtime - wrap existing working functionality
+- Preserve all existing tests (especially auth tests)
+- Gradual page-by-page migration
+- Can rollback at any phase
+- No data migration required
+
+**Priority:** Medium (strategic, not urgent)
 
 ---
 
 ## Table of Contents
 
 1. [Architecture Comparison](#architecture-comparison)
-2. [Benefits of Separation](#benefits-of-separation)
-3. [Migration Strategy](#migration-strategy)
-4. [API Key Authentication](#api-key-authentication)
-5. [File Structure Changes](#file-structure-changes)
-6. [Implementation Steps](#implementation-steps)
-7. [Testing Strategy](#testing-strategy)
-8. [Deployment Changes](#deployment-changes)
+2. [Backend Options](#backend-options)
+3. [Benefits of Separation](#benefits-of-separation)
+4. [Migration Strategy](#migration-strategy)
+5. [Backend Implementations](#backend-implementations)
+6. [Testing Strategy](#testing-strategy)
+7. [Deployment](#deployment)
 
 ---
 
 ## Architecture Comparison
 
-### Current Architecture (Coupled)
+### Current Architecture (Working, but Coupled)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -37,97 +71,707 @@
 │  │  Pages & Components                              │  │
 │  │  ├─ import { useQuery } from 'convex/react'      │  │
 │  │  ├─ import { api } from 'convex/_generated/api'  │  │
-│  │  └─ const data = useQuery(api.entities.get)     │  │
+│  │  └─ const data = useQuery(api.things.get)       │  │
 │  └──────────────────────────────────────────────────┘  │
 │                                                         │
 │  frontend/convex/* (schema, mutations, queries)        │
-│  ↓ Direct WebSocket Connection                         │
+│  ↓ Direct WebSocket Connection (WORKING)               │
+│                                                         │
+│  frontend/tests/auth/* (Auth tests passing)            │
 └─────────────────────────────────────────────────────────┘
                     │
                     ▼
         ┌───────────────────────┐
         │   CONVEX BACKEND      │
         │  (Real-time DB)       │
+        │  6-Dimension Ontology │
         └───────────────────────┘
 ```
 
-**Problems:**
-- ❌ Frontend tightly coupled to Convex
-- ❌ Can't swap backend without rewriting frontend
-- ❌ Hard to version API (breaking changes impact frontend immediately)
-- ❌ No clear API boundary
-- ❌ Can't reuse backend for mobile/desktop apps without Convex SDK
-- ❌ Multi-tenancy requires each frontend to have own Convex deployment
+**Status:** ✅ Working - Auth functional, tests passing
+
+**Limitations (Not Bugs):**
+- ⚠️ Frontend tightly coupled to Convex (works, but inflexible)
+- ⚠️ Can't swap backend without rewriting frontend
+- ⚠️ Organizations must use Convex (can't use existing WordPress/Notion)
+- ⚠️ Hard to add mobile/desktop apps without Convex SDK
+- ⚠️ No multi-backend support (can't federate data from Shopify/WordPress)
 
 ---
 
-### Target Architecture (Separated)
+### Target Architecture (Backend-Agnostic with 6-Dimension Ontology)
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                 FRONTEND (Headless)                     │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │  Pages & Components                              │  │
-│  │  ├─ import { apiClient } from '@/lib/api'        │  │
-│  │  ├─ const data = await api.tokens.get(id)       │  │
-│  │  └─ No Convex imports!                           │  │
-│  └──────────────────────────────────────────────────┘  │
-│                                                         │
-│  HTTP Requests with API Key                            │
-│  Authorization: Bearer sk_live_xxx                     │
-└─────────────────────────────────────────────────────────┘
-                    │
-                    ↓ HTTPS/REST
-┌─────────────────────────────────────────────────────────┐
-│              BACKEND API (Hono + Convex)                │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │  API Routes (Hono on Cloudflare Workers)         │  │
-│  │  /api/auth/*   - Authentication                  │  │
-│  │  /api/tokens/* - Token operations                │  │
-│  │  /api/agents/* - Agent management                │  │
-│  │  /api/content/*- Content CRUD                    │  │
-│  └────────────────┬─────────────────────────────────┘  │
-│                   │                                     │
-│  ┌────────────────┴─────────────────────────────────┐  │
-│  │  Middleware                                      │  │
-│  │  ├─ API Key Validation                           │  │
-│  │  ├─ Rate Limiting                                │  │
-│  │  ├─ CORS                                         │  │
-│  │  └─ Request Logging                              │  │
-│  └────────────────┬─────────────────────────────────┘  │
-│                   │                                     │
-│  ┌────────────────┴─────────────────────────────────┐  │
-│  │  Business Logic (Effect.ts Services)             │  │
-│  │  - TokenService, AgentService, etc.              │  │
-│  │  - Pure functional logic                         │  │
-│  │  - Type-safe error handling                      │  │
-│  └────────────────┬─────────────────────────────────┘  │
-│                   │                                     │
-│  ┌────────────────┴─────────────────────────────────┐  │
-│  │  Data Layer (ConvexHttpClient)                   │  │
-│  │  - Queries/mutations via HTTP                    │  │
-│  │  - 4-table ontology access                       │  │
-│  └────────────────┬─────────────────────────────────┘  │
-└───────────────────┼─────────────────────────────────────┘
-                    │
-                    ▼
-        ┌───────────────────────┐
-        │   CONVEX BACKEND      │
-        │  - entities           │
-        │  - connections        │
-        │  - events             │
-        │  - knowledge          │
-        │  - API keys (stored)  │
-        └───────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                 FRONTEND (Backend-Agnostic)              │
+│  ┌────────────────────────────────────────────────────┐ │
+│  │  Astro Pages + React Components                    │ │
+│  │  - Renders UI from data                            │ │
+│  │  - Calls DataProvider methods                      │ │
+│  │  - NO backend-specific code                        │ │
+│  └────────────────────────────────────────────────────┘ │
+│                                                          │
+│  ┌────────────────────────────────────────────────────┐ │
+│  │  Effect.ts Services (Backend-Agnostic)             │ │
+│  │  - ThingService                                    │ │
+│  │  - ConnectionService                               │ │
+│  │  - Uses DataProvider interface                     │ │
+│  └────────────────────────────────────────────────────┘ │
+│                                                          │
+│  ┌────────────────────────────────────────────────────┐ │
+│  │  DataProvider Interface (Universal API)            │ │
+│  │  organizations: { get, list, update }              │ │
+│  │  people: { get, list, create, update }             │ │
+│  │  things: { get, list, create, update, delete }     │ │
+│  │  connections: { create, getRelated, getCount }     │ │
+│  │  events: { log, query }                            │ │
+│  │  knowledge: { embed, search }                      │ │
+│  └────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────┘
+                            │
+                            ↓ Provider Implementation
+┌──────────────────────────────────────────────────────────┐
+│        BACKEND PROVIDERS (Choose One - ONE Line!)        │
+│                                                          │
+│  ┌─────────────────────────────────────────────┐       │
+│  │  Option 1: ConvexProvider                   │       │
+│  │  → Convex backend (real-time, serverless)   │       │
+│  └─────────────────────────────────────────────┘       │
+│                                                          │
+│  ┌─────────────────────────────────────────────┐       │
+│  │  Option 2: WordPressProvider                │       │
+│  │  → WordPress + WooCommerce (existing CMS)    │       │
+│  └─────────────────────────────────────────────┘       │
+│                                                          │
+│  ┌─────────────────────────────────────────────┐       │
+│  │  Option 3: NotionProvider                   │       │
+│  │  → Notion databases as backend              │       │
+│  └─────────────────────────────────────────────┘       │
+│                                                          │
+│  ┌─────────────────────────────────────────────┐       │
+│  │  Option 4: SupabaseProvider                 │       │
+│  │  → PostgreSQL + real-time (pgvector)        │       │
+│  └─────────────────────────────────────────────┘       │
+│                                                          │
+│  ┌─────────────────────────────────────────────┐       │
+│  │  Option 5: CustomProvider                   │       │
+│  │  → Your own API/database                    │       │
+│  └─────────────────────────────────────────────┘       │
+│                                                          │
+│  All implement the same DataProvider interface          │
+└──────────────────────────────────────────────────────────┘
+                            │
+                            ↓ Backend-Specific Implementation
+┌──────────────────────────────────────────────────────────┐
+│        ACTUAL BACKENDS (Examples)                        │
+│                                                          │
+│  Convex:                                                 │
+│    6 tables → organizations, people, things,             │
+│               connections, events, knowledge             │
+│                                                          │
+│  WordPress:                                              │
+│    wp_posts, wp_users, wp_postmeta, wp_terms, etc.      │
+│                                                          │
+│  Notion:                                                 │
+│    Databases, Pages, Relations                           │
+│                                                          │
+│  Supabase:                                               │
+│    PostgreSQL tables with pgvector for knowledge         │
+│                                                          │
+│  Custom:                                                 │
+│    Your own database schema                              │
+└──────────────────────────────────────────────────────────┘
 ```
 
 **Benefits:**
-- ✅ Frontend can be swapped/rebuilt independently
-- ✅ Backend API can serve web, mobile, desktop, CLI
-- ✅ Clear API versioning (/api/v1, /api/v2)
-- ✅ API keys enable multi-tenancy (one backend, many frontends)
-- ✅ Standard REST patterns (easy for any dev to understand)
-- ✅ Can rate limit, monitor, version API independently
+- ✅ **Backend-Agnostic:** Change backend by editing ONE line in config
+- ✅ **Multi-Backend Support:** Organizations can use existing infrastructure (WordPress, Notion, etc.)
+- ✅ **No Lock-In:** Not tied to Convex, any backend works
+- ✅ **Progressive Migration:** Keep existing WordPress site, add ONE frontend gradually
+- ✅ **Frontend Independence:** Rebuild UI without touching backend
+- ✅ **6-Dimension Ontology:** Universal data model works with any backend
+- ✅ **Effect.ts Services:** Type-safe, composable, testable operations
+- ✅ **Multi-Platform:** Same backend serves web, mobile, desktop, CLI
+- ✅ **Developer Choice:** Use the best backend for your organization's needs
+
+---
+
+## Understanding the 6-Dimension Ontology
+
+**The ONE ontology models reality in six core dimensions:**
+
+```
+┌──────────────────────────────────────────────────────┐
+│  1. ORGANIZATIONS → Who owns this space?             │
+│     Multi-tenant isolation, perfect data boundaries  │
+└──────────────────────────────────────────────────────┘
+                        ↓
+┌──────────────────────────────────────────────────────┐
+│  2. PEOPLE → Who can do what?                        │
+│     Authorization, governance, human intent          │
+└──────────────────────────────────────────────────────┘
+                        ↓
+┌──────────────────────────────────────────────────────┐
+│  3. THINGS → What exists?                            │
+│     Domain entities (66 types)                       │
+└──────────────────────────────────────────────────────┘
+                        ↓
+┌──────────────────────────────────────────────────────┐
+│  4. CONNECTIONS → How do things relate?              │
+│     Relationships (25 types)                         │
+└──────────────────────────────────────────────────────┘
+                        ↓
+┌──────────────────────────────────────────────────────┐
+│  5. EVENTS → What happened?                          │
+│     Audit trail, complete history (67 types)         │
+└──────────────────────────────────────────────────────┘
+                        ↓
+┌──────────────────────────────────────────────────────┐
+│  6. KNOWLEDGE → What does it mean?                   │
+│     AI intelligence, embeddings, RAG                 │
+└──────────────────────────────────────────────────────┘
+```
+
+**Key Principle:** Every feature maps to these 6 dimensions. If you can't map it, you're thinking about it wrong.
+
+### Example: User Creates a Course
+
+**Organizations (Dimension 1):**
+```typescript
+organizationId: "fitnesspro_123"  // All operations scoped here
+```
+
+**People (Dimension 2):**
+```typescript
+// Separate people table (NOT things!)
+{
+  _id: Id<'people'>,
+  email: "sarah@fitnesspro.com",
+  role: "org_owner",              // Authorization level
+  organizationId: "fitnesspro_123"
+}
+```
+
+**Things (Dimension 3):**
+```typescript
+// Course is a thing
+{
+  _id: Id<'things'>,
+  thingType: "course",
+  name: "Fitness Fundamentals",
+  organizationId: "fitnesspro_123",
+  properties: {
+    description: "...",
+    price: 99,
+    duration: "8 weeks"
+  }
+}
+```
+
+**Connections (Dimension 4):**
+```typescript
+// Sarah owns the course
+{
+  _id: Id<'connections'>,
+  fromPersonId: sarah_person_id,  // Person ID (Dimension 2)!
+  toThingId: course_thing_id,     // Thing ID (Dimension 3)
+  relationshipType: "owns",
+  organizationId: "fitnesspro_123"
+}
+```
+
+**Events (Dimension 5):**
+```typescript
+// Log the creation
+{
+  _id: Id<'events'>,
+  eventType: "course_created",
+  actorId: sarah_person_id,       // Person who did it (REQUIRED)
+  targetId: course_thing_id,      // What was created
+  organizationId: "fitnesspro_123",
+  timestamp: Date.now()
+}
+```
+
+**Knowledge (Dimension 6):**
+```typescript
+// Embed course content for AI
+{
+  _id: Id<'knowledge'>,
+  knowledgeType: "document",
+  text: "Fitness Fundamentals...",
+  embedding: [...],               // 768-dim vector
+  sourceThingId: course_thing_id,
+  organizationId: "fitnesspro_123",
+  labels: ["course", "fitness", "beginner"]
+}
+```
+
+**Result:** One operation touches all 6 dimensions → complete context for AI agents.
+
+---
+
+## Effect.ts + DataProvider Pattern
+
+**The separation uses Effect.ts for type-safety and DataProvider for backend-agnosticism.**
+
+### DataProvider Interface (Backend-Agnostic)
+
+```typescript
+// frontend/src/providers/DataProvider.ts
+import { Effect, Context } from 'effect'
+
+// Universal interface ALL backends implement
+export interface DataProvider {
+  // Dimension 1: Organizations
+  organizations: {
+    get: (id: string) => Effect.Effect<Organization, OrganizationNotFoundError>
+    list: (params?: { status?: string }) => Effect.Effect<Organization[], Error>
+  }
+
+  // Dimension 2: People (separate from things!)
+  people: {
+    get: (id: string) => Effect.Effect<Person, PersonNotFoundError>
+    list: (params: {
+      organizationId?: string
+      role?: string
+    }) => Effect.Effect<Person[], Error>
+    create: (input: {
+      email: string
+      displayName: string
+      role: string
+      organizationId: string
+    }) => Effect.Effect<string, Error>
+  }
+
+  // Dimension 3: Things
+  things: {
+    get: (id: string) => Effect.Effect<Thing, ThingNotFoundError>
+    list: (params: {
+      type: ThingType
+      organizationId?: string
+    }) => Effect.Effect<Thing[], Error>
+    create: (input: {
+      type: ThingType
+      name: string
+      organizationId: string
+      properties: any
+    }) => Effect.Effect<string, Error>
+  }
+
+  // Dimension 4: Connections
+  connections: {
+    create: (input: {
+      fromPersonId?: string        // Can connect people
+      fromThingId?: string          // OR things
+      toThingId: string
+      relationshipType: ConnectionType
+      organizationId: string
+      metadata?: any
+    }) => Effect.Effect<string, Error>
+  }
+
+  // Dimension 5: Events
+  events: {
+    log: (event: {
+      type: EventType
+      actorId: string              // Always a Person ID!
+      targetId?: string
+      organizationId: string
+      metadata?: any
+    }) => Effect.Effect<void, Error>
+  }
+
+  // Dimension 6: Knowledge
+  knowledge: {
+    search: (params: {
+      query: string
+      organizationId: string
+      k?: number
+    }) => Effect.Effect<KnowledgeChunk[], Error>
+  }
+}
+
+export const DataProvider = Context.GenericTag<DataProvider>('DataProvider')
+```
+
+### Effect.ts Service Example
+
+```typescript
+// backend/services/CourseService.ts
+import { Effect } from 'effect'
+import { DataProvider } from '@/providers/DataProvider'
+
+export class CourseService extends Effect.Service<CourseService>()(
+  'CourseService',
+  {
+    effect: Effect.gen(function* () {
+      const provider = yield* DataProvider
+
+      return {
+        // Create course → touches all 6 dimensions
+        create: (params: {
+          name: string
+          creatorId: string
+          organizationId: string
+          properties: any
+        }) =>
+          Effect.gen(function* () {
+            // 3. Create thing (course)
+            const courseId = yield* provider.things.create({
+              type: 'course',
+              name: params.name,
+              organizationId: params.organizationId,
+              properties: params.properties
+            })
+
+            // 4. Create connection (person owns course)
+            yield* provider.connections.create({
+              fromPersonId: params.creatorId,  // Person ID!
+              toThingId: courseId,
+              relationshipType: 'owns',
+              organizationId: params.organizationId
+            })
+
+            // 5. Log event (course created)
+            yield* provider.events.log({
+              type: 'course_created',
+              actorId: params.creatorId,       // Person who did it
+              targetId: courseId,
+              organizationId: params.organizationId,
+              metadata: {
+                courseName: params.name,
+                creatorEmail: 'sarah@fitnesspro.com'
+              }
+            })
+
+            // 6. Embed for knowledge (AI can find it)
+            // (handled by background job)
+
+            return courseId
+          })
+      }
+    }),
+    dependencies: [DataProvider]
+  }
+) {}
+```
+
+### Frontend Usage (Backend-Agnostic)
+
+```tsx
+// frontend/src/components/CreateCourse.tsx
+import { useEffectRunner } from '@/hooks/useEffectRunner'
+import { CourseService } from '@/services/CourseService'
+import { Effect } from 'effect'
+
+export function CreateCourseForm() {
+  const { run, loading } = useEffectRunner()
+
+  const handleSubmit = async (formData: CourseFormData) => {
+    // Define Effect program using CourseService
+    const program = Effect.gen(function* () {
+      const courseService = yield* CourseService
+
+      // Create course → touches all 6 dimensions automatically
+      const courseId = yield* courseService.create({
+        name: formData.name,
+        creatorId: currentUser.id,
+        organizationId: currentOrg.id,
+        properties: {
+          description: formData.description,
+          price: formData.price
+        }
+      })
+
+      return courseId
+    })
+
+    // Run program (frontend uses DataProvider)
+    const courseId = await run(program)
+
+    // Redirect to course page
+    navigate(`/courses/${courseId}`)
+  }
+
+  return <form onSubmit={handleSubmit}>...</form>
+}
+```
+
+### Backend Provider Implementations
+
+**Convex Provider:**
+```typescript
+// frontend/src/providers/convex/ConvexProvider.ts
+import { Effect, Layer } from 'effect'
+import { ConvexHttpClient } from 'convex/browser'
+import { DataProvider } from '../DataProvider'
+
+export class ConvexProvider implements DataProvider {
+  constructor(private client: ConvexHttpClient) {}
+
+  things = {
+    create: (input) =>
+      Effect.tryPromise({
+        try: () => this.client.mutation(api.things.create, input),
+        catch: (error) => new Error(String(error))
+      })
+  }
+
+  people = {
+    create: (input) =>
+      Effect.tryPromise({
+        try: () => this.client.mutation(api.people.create, input),
+        catch: (error) => new Error(String(error))
+      })
+  }
+
+  // ... other dimensions
+}
+
+export const convexProvider = (config: { url: string }) =>
+  Layer.succeed(
+    DataProvider,
+    new ConvexProvider(new ConvexHttpClient(config.url))
+  )
+```
+
+**Composite Provider (Multi-Backend):**
+
+```typescript
+// frontend/src/providers/composite/CompositeProvider.ts
+import { Effect, Layer } from 'effect'
+import { DataProvider } from '../DataProvider'
+
+export class CompositeProvider implements DataProvider {
+  constructor(
+    private defaultProvider: DataProvider,
+    private routes: Map<ThingType, DataProvider>
+  ) {}
+
+  // Route to appropriate provider based on thing type
+  private getProvider(type?: ThingType): DataProvider {
+    if (type && this.routes.has(type)) {
+      return this.routes.get(type)!
+    }
+    return this.defaultProvider
+  }
+
+  things = {
+    get: (id: string) =>
+      Effect.gen(function* () {
+        // Fetch thing to determine type
+        const thing = yield* this.defaultProvider.things.get(id)
+
+        // Route to appropriate provider
+        const provider = this.getProvider(thing.type)
+        if (provider !== this.defaultProvider) {
+          return yield* provider.things.get(id)
+        }
+        return thing
+      }),
+
+    list: (params: { type: ThingType; organizationId?: string }) =>
+      Effect.gen(function* () {
+        // Route based on thing type
+        const provider = this.getProvider(params.type)
+        return yield* provider.things.list(params)
+      }),
+
+    create: (input: { type: ThingType; name: string; organizationId: string; properties: any }) =>
+      Effect.gen(function* () {
+        // Route based on thing type
+        const provider = this.getProvider(input.type)
+        return yield* provider.things.create(input)
+      })
+  }
+
+  // Organizations, People, Events, Knowledge → always use default provider
+  organizations = this.defaultProvider.organizations
+  people = this.defaultProvider.people
+  connections = this.defaultProvider.connections
+  events = this.defaultProvider.events
+  knowledge = this.defaultProvider.knowledge
+}
+
+export function compositeProvider(config: {
+  default: Layer<DataProvider>
+  routes: Record<string, Layer<DataProvider> | 'default'>
+}) {
+  return Effect.gen(function* () {
+    // Resolve default provider
+    const defaultProvider = yield* Effect.provide(
+      DataProvider,
+      config.default
+    )
+
+    // Resolve route providers
+    const routes = new Map<ThingType, DataProvider>()
+    for (const [type, providerConfig] of Object.entries(config.routes)) {
+      if (providerConfig === 'default') {
+        routes.set(type as ThingType, defaultProvider)
+      } else {
+        const provider = yield* Effect.provide(
+          DataProvider,
+          providerConfig
+        )
+        routes.set(type as ThingType, provider)
+      }
+    }
+
+    return new CompositeProvider(defaultProvider, routes)
+  }).pipe(
+    Effect.map(provider => Layer.succeed(DataProvider, provider))
+  )
+}
+```
+
+**Real-World Example:**
+```typescript
+// Auth & courses in Convex, blog in WordPress, products in Shopify
+export default defineConfig({
+  integrations: [
+    one({
+      provider: compositeProvider({
+        default: convexProvider({ url: env.PUBLIC_CONVEX_URL }),
+        routes: {
+          blog_post: wordpressProvider({
+            url: 'https://blog.yoursite.com',
+            apiKey: env.WP_API_KEY
+          }),
+          product: shopifyProvider({
+            store: 'yourstore.myshopify.com',
+            accessToken: env.SHOPIFY_ACCESS_TOKEN
+          })
+        }
+      })
+    })
+  ]
+})
+```
+
+**Benefits:**
+- ✅ **Type-safe**: Compiler enforces all dimensions
+- ✅ **Composable**: Services build on each other
+- ✅ **Testable**: Mock layers, not databases
+- ✅ **Backend-agnostic**: Change provider, not code
+- ✅ **Multi-backend**: Use best backend for each data type
+- ✅ **6-dimension aware**: Every operation properly scoped
+
+---
+
+## Backend Options
+
+Once your frontend is backend-agnostic (using the DataProvider interface), you have **two paths**:
+
+### Option 1: Self-Hosted Backend
+
+**You own and operate the backend.**
+
+```
+Your Frontend → DataProvider → Your Backend Choice
+                                 ├─ Convex (current)
+                                 ├─ Supabase
+                                 ├─ WordPress
+                                 ├─ Notion
+                                 ├─ Custom API
+                                 └─ Any backend
+```
+
+**When to choose:**
+- ✅ Full control over data
+- ✅ Custom backend logic
+- ✅ Existing infrastructure (WordPress, Supabase, etc.)
+- ✅ Enterprise security requirements
+- ✅ No external dependencies
+
+**What you maintain:**
+- Backend infrastructure
+- Database management
+- Auth system setup
+- API deployment
+- Monitoring & scaling
+
+### Option 2: Use ONE Backend (BaaS)
+
+**ONE hosts and operates the backend for you.**
+
+```
+Your Frontend → DataProvider → ONE Backend (BaaS)
+                                └─ https://api.one.ie
+                                   ├─ Auth (6 methods)
+                                   ├─ Database (6 dimensions)
+                                   ├─ Real-time sync
+                                   ├─ Multi-tenancy
+                                   └─ Free tier
+```
+
+**When to choose:**
+- ✅ **Zero backend work** - focus on frontend only
+- ✅ **Instant auth** - 6 methods (email, Google, GitHub, etc.)
+- ✅ **Instant database** - 6-dimension ontology ready
+- ✅ **Free tier** - Start with 10K API calls/month
+- ✅ **Real-time included** - Convex-powered subscriptions
+- ✅ **Fast MVP** - Ship in hours, not weeks
+
+**Setup (3 steps):**
+
+```bash
+# 1. Sign up at one.ie → Get API key
+# 2. Install SDK
+npm install @oneie/sdk
+
+# 3. Configure
+USE_ONE_BACKEND=true
+PUBLIC_ONE_API_KEY=ok_live_abc123
+PUBLIC_ONE_ORG_ID=org_abc123
+```
+
+**Pricing:**
+- **Starter:** Free (10K API calls/month, 100 users, 1K things)
+- **Pro:** $29/month (100K calls, 1K users, 10K things)
+- **Enterprise:** Custom (unlimited everything)
+
+**No lock-in:** Switch between self-hosted and ONE Backend by changing ONE environment variable.
+
+### Comparison
+
+| Feature | Self-Hosted | ONE Backend (BaaS) |
+|---------|-------------|-------------------|
+| **Setup time** | Days-Weeks | Minutes |
+| **Auth** | You build | Included (6 methods) |
+| **Database** | You design | Included (6 dimensions) |
+| **Real-time** | You configure | Included (Convex) |
+| **Multi-tenancy** | You implement | Included |
+| **Cost** | Infrastructure | Free tier / $29/mo |
+| **Control** | Full | Managed service |
+| **Data ownership** | You own | You own |
+| **Migration** | N/A | Export anytime |
+
+### Hybrid Approach
+
+**Use both!** Self-host some backends, use ONE Backend for others:
+
+```typescript
+// astro.config.ts
+provider: compositeProvider({
+  default: oneBackendProvider({
+    apiKey: env.PUBLIC_ONE_API_KEY  // ONE Backend for core data
+  }),
+  routes: {
+    // Blog from your WordPress
+    blog_post: wordpressProvider({ url: env.WP_URL }),
+
+    // Products from Shopify
+    product: shopifyProvider({ store: env.SHOPIFY_STORE })
+  }
+})
+```
+
+**Best of both worlds:**
+- ✅ ONE Backend for auth, users, core features (managed)
+- ✅ Self-hosted backends for specific data sources (control)
+- ✅ Mix and match based on needs
 
 ---
 
@@ -155,819 +799,622 @@ Org C → Frontend C ──┘
 ✅ 3 orgs = 1 Convex deployment (cheap, centralized)
 ```
 
-### 2. Platform Independence
+### 2. Backend Independence
 
 **Before:**
-- Web: Must use Convex React hooks
-- Mobile: Must use Convex React Native SDK
-- Desktop: Must use Convex Electron SDK
-- CLI: Must use Convex Node SDK
+- Frontend tightly coupled to Convex
+- Can't switch to WordPress, Notion, Supabase, etc.
+- Organizations must use Convex even if they have existing systems
+- Must learn Convex SDK for every platform
 
-❌ Each platform needs Convex SDK
+❌ Locked into Convex
 
-**After:**
-- Web: HTTP fetch() or axios
-- Mobile: HTTP client (works with any framework)
-- Desktop: HTTP client (works with any framework)
-- CLI: curl or HTTP client
+**After (Backend-Agnostic):**
+- Frontend uses DataProvider interface
+- Organizations can use:
+  - **Convex** (real-time, serverless)
+  - **WordPress** (existing CMS)
+  - **Notion** (databases as backend)
+  - **Supabase** (PostgreSQL + real-time)
+  - **Custom backend** (your own API)
+- Change backend by editing ONE line in `astro.config.ts`
 
-✅ Any platform that speaks HTTP works
+```typescript
+// Swap backends - frontend code unchanged!
+provider: convexProvider({ url: "..." })
+// OR
+provider: wordpressProvider({ url: "...", apiKey: "..." })
+// OR
+provider: notionProvider({ apiKey: "...", databaseId: "..." })
+```
+
+✅ Organizations use their existing infrastructure
 
 ### 3. Team Organization
 
 **Before:**
 ```
 Full-stack developer needs to know:
-- Astro
-- React
-- Convex schema
-- Convex queries/mutations
-- Convex actions
+- Astro + React
+- Convex-specific hooks and patterns
+- Convex schema + queries/mutations/actions
 - Effect.ts
 - Business logic
 ```
 
-**After:**
+**After (Backend-Agnostic):**
 ```
 Frontend developer needs to know:
-- Astro
-- React
-- API endpoints (documented)
+- Astro + React
+- DataProvider interface (universal)
+- Effect.ts services
 
 Backend developer needs to know:
-- Hono routes
-- Effect.ts
-- Convex schema
-- Business logic
+- Their chosen backend (WordPress, Convex, Notion, etc.)
+- How to implement DataProvider for that backend
+- 6-dimension ontology mapping
 ```
 
+✅ Frontend devs don't learn backend-specific details
+✅ Organizations can hire developers with their existing tech stack
 ✅ Clear separation of concerns
 
-### 4. API Evolution
+### 4. Progressive Migration & Flexibility
 
 **Before:**
 ```
-Change Convex schema → Frontend breaks immediately
-❌ No versioning, no backwards compatibility
+Organization has WordPress site with 10,000 posts
+Want to use ONE frontend
+Must migrate ALL data to Convex first
+
+❌ Big-bang migration required
+❌ Can't test gradually
+❌ Risk losing SEO, existing integrations
 ```
 
-**After:**
+**After (Backend-Agnostic):**
 ```
-/api/v1/tokens → Stable, never breaks
-/api/v2/tokens → New version with improvements
+Organization keeps WordPress backend
+Implements WordPressProvider (maps WP → 6-dimension ontology)
+Deploys ONE frontend
+Frontend talks to WordPress via DataProvider
 
-Frontend chooses which version to use
-✅ Graceful deprecation, backwards compatible
+✅ Zero data migration needed
+✅ Keep existing WordPress admin, plugins, integrations
+✅ Progressive: Start with one page, migrate gradually
+✅ Test ONE frontend without touching backend
 ```
+
+**Real-World Example:**
+```typescript
+// Week 1: Deploy ONE frontend with WordPress backend
+provider: wordpressProvider({
+  url: 'https://existing-site.com',
+  apiKey: env.WP_API_KEY
+})
+
+// Week 50: Migrate to Convex when ready (ONE line change)
+provider: convexProvider({
+  url: env.CONVEX_URL
+})
+
+// Frontend code? UNCHANGED. No rewrite needed.
+```
+
+✅ Organizations control their migration timeline
+✅ No forced backend choice
+✅ Test frontend without backend risk
 
 ---
 
 ## Migration Strategy
 
-### Phase 1: Backend API Creation (No Frontend Changes)
+### Phase 1: Create DataProvider Interface (Universal API)
 
-**Goal:** Build standalone Hono API that mirrors current Convex functions
-
-**Tasks:**
-1. Create `/backend/api/` directory
-2. Implement Hono routes for all Convex queries/mutations
-3. Add API key authentication middleware
-4. Deploy to Cloudflare Workers
-5. Test all endpoints with Postman/curl
-
-**Timeline:** 1-2 weeks
-
-**Risk:** Low (frontend still works with Convex)
-
----
-
-### Phase 2: Frontend API Client Library
-
-**Goal:** Create abstraction layer in frontend that can switch between Convex and HTTP
+**Goal:** Define the backend-agnostic interface that ALL providers must implement
 
 **Tasks:**
-1. Create `/frontend/src/lib/api/client.ts`
-2. Implement API client with same interface as Convex hooks
-3. Add environment variable toggle: `USE_API_BACKEND=true/false`
-4. Test dual mode (frontend works with both)
+1. Create `/frontend/src/providers/DataProvider.ts`
+2. Define interfaces for 6 dimensions:
+   - `organizations: { get, list, update }`
+   - `people: { get, list, create, update, delete }`
+   - `things: { get, list, create, update, delete }`
+   - `connections: { create, getRelated, getCount, delete }`
+   - `events: { log, query }`
+   - `knowledge: { embed, search }`
+3. Define error types (ThingNotFoundError, ConnectionCreateError, etc.)
+4. Document interface with TypeScript types
 
-**Timeline:** 1 week
+**Timeline:** 2-3 days
 
-**Risk:** Low (can toggle back to Convex if issues)
+**Risk:** None (just interface definition)
+
+**Reference:** See `one/connections/ontology-frontend.md` for complete DataProvider interface
 
 ---
 
-### Phase 3: Gradual Migration
+### Phase 2: Implement ConvexProvider (Wrap Existing Working Backend)
 
-**Goal:** Migrate frontend page by page from Convex hooks to API client
+**Goal:** Wrap existing **working** Convex backend with DataProvider interface (NO functionality changes)
 
 **Tasks:**
-1. Migrate `/blog` pages first (low risk)
-2. Migrate `/tokens` pages
-3. Migrate `/agents` pages
-4. Migrate authentication pages last (highest risk)
+1. Create `/frontend/src/providers/convex/ConvexProvider.ts`
+2. Implement DataProvider interface using Convex client:
+   ```typescript
+   things.get(id) => client.query(api.queries.things.get, { id })
+   things.create(input) => client.mutation(api.mutations.things.create, input)
+   // etc. for all methods
+   ```
+3. Wrap Convex calls in Effect.ts for error handling
+4. Create factory function: `convexProvider(config)`
+5. Test provider in isolation
+6. **Critical:** Run `frontend/tests/auth/*` - all tests must pass
 
-**Timeline:** 2-3 weeks
+**Timeline:** 3-5 days
 
-**Risk:** Medium (careful testing needed per page)
+**Risk:** Very Low (just wraps existing working Convex calls, no logic changes)
+
+**Success Criteria:**
+- ✅ ConvexProvider implements DataProvider interface fully
+- ✅ All existing auth tests pass
+- ✅ No functionality changes - just adds abstraction layer
 
 ---
 
-### Phase 4: Remove Convex from Frontend
+### Phase 3: Create Effect.ts Service Layer
 
-**Goal:** Delete `frontend/convex/*` and all Convex dependencies
+**Goal:** Build generic services that use DataProvider (backend-agnostic)
 
 **Tasks:**
-1. Verify all pages use API client
-2. Remove Convex imports from `package.json`
-3. Delete `frontend/convex/` directory
-4. Update build process
+1. Create `/frontend/src/services/ThingService.ts` (generic, handles all 66 types)
+2. Create `/frontend/src/services/ConnectionService.ts`
+3. Create `/frontend/src/services/ClientLayer.ts` (dependency injection)
+4. Services delegate to DataProvider:
+   ```typescript
+   export class ThingService extends Effect.Service<ThingService>()({
+     effect: Effect.gen(function* () {
+       const provider = yield* DataProvider  // Backend-agnostic!
+       return {
+         get: (id: string) => provider.things.get(id),
+         list: (type, orgId) => provider.things.list({ type, organizationId: orgId })
+       }
+     })
+   })
+   ```
+5. Create `useEffectRunner` hook for React integration
 
-**Timeline:** 1 week
+**Timeline:** 3-5 days
 
-**Risk:** Low (if Phase 3 done correctly)
-
----
-
-## API Key Authentication
-
-### Key Types
-
-**1. Secret Keys (Backend-to-Backend)**
-```
-sk_live_1234567890abcdef
-sk_test_1234567890abcdef
-```
-
-**2. Publishable Keys (Frontend-Safe)**
-```
-pk_live_1234567890abcdef
-pk_test_1234567890abcdef
-```
-
-### Database Schema
-
-**New Entity Type: `api_key`**
-
-```typescript
-{
-  type: "api_key",
-  name: "Production API Key for Org A",
-  properties: {
-    keyPrefix: "sk_live",      // or "sk_test", "pk_live", "pk_test"
-    keyHash: "sha256(...)",     // Hashed key (never store plaintext!)
-    keyHint: "...def",          // Last 3 chars for display
-    orgId: "org_123",           // Which org owns this key
-    scopes: [                   // What can this key do?
-      "tokens:read",
-      "tokens:write",
-      "agents:read",
-      "agents:write"
-    ],
-    rateLimit: {
-      requests: 1000,           // Max requests per minute
-      period: 60                // Period in seconds
-    },
-    expiresAt: 1735689600000,  // Optional expiration
-    lastUsedAt: null,
-    createdBy: "user_123",
-    environment: "production"   // or "development"
-  },
-  status: "active",             // or "revoked"
-  createdAt: 1704067200000,
-  updatedAt: 1704067200000
-}
-```
-
-### Middleware Implementation
-
-**Backend: API Key Validation Middleware**
-
-```typescript
-// backend/api/middleware/auth.ts
-import { Context, Next } from "hono";
-import { createHash } from "crypto";
-import { ConvexHttpClient } from "convex/browser";
-import { api } from "convex/_generated/api";
-
-export async function validateApiKey(c: Context, next: Next) {
-  // Extract API key from header
-  const authHeader = c.req.header("Authorization");
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return c.json({ error: "Missing API key" }, 401);
-  }
-
-  const apiKey = authHeader.replace("Bearer ", "");
-
-  // Validate key format
-  if (!apiKey.match(/^(sk|pk)_(live|test)_[a-zA-Z0-9]{24}$/)) {
-    return c.json({ error: "Invalid API key format" }, 401);
-  }
-
-  // Hash the key
-  const keyHash = createHash("sha256").update(apiKey).digest("hex");
-
-  // Query Convex for matching key
-  const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
-  const keyEntity = await convex.query(api.queries.apiKeys.validate, {
-    keyHash
-  });
-
-  if (!keyEntity) {
-    return c.json({ error: "Invalid API key" }, 401);
-  }
-
-  if (keyEntity.status !== "active") {
-    return c.json({ error: "API key revoked" }, 401);
-  }
-
-  // Check expiration
-  if (keyEntity.properties.expiresAt && Date.now() > keyEntity.properties.expiresAt) {
-    return c.json({ error: "API key expired" }, 401);
-  }
-
-  // Check scopes (if route requires specific scope)
-  const requiredScope = c.req.param("scope");
-  if (requiredScope && !keyEntity.properties.scopes.includes(requiredScope)) {
-    return c.json({ error: "Insufficient permissions" }, 403);
-  }
-
-  // Rate limiting check
-  const rateLimitKey = `rate_limit:${keyEntity._id}`;
-  const currentCount = await getRateLimitCount(rateLimitKey);
-
-  if (currentCount >= keyEntity.properties.rateLimit.requests) {
-    return c.json({ error: "Rate limit exceeded" }, 429);
-  }
-
-  // Increment rate limit counter
-  await incrementRateLimit(rateLimitKey, keyEntity.properties.rateLimit.period);
-
-  // Update last used timestamp (async, don't wait)
-  convex.mutation(api.mutations.apiKeys.updateLastUsed, {
-    keyId: keyEntity._id
-  }).catch(console.error);
-
-  // Attach org context to request
-  c.set("orgId", keyEntity.properties.orgId);
-  c.set("keyScopes", keyEntity.properties.scopes);
-  c.set("apiKeyId", keyEntity._id);
-
-  await next();
-}
-```
-
-**Frontend: API Client with Key**
-
-```typescript
-// frontend/src/lib/api/client.ts
-export class ApiClient {
-  private baseUrl: string;
-  private apiKey: string;
-
-  constructor(apiKey: string, baseUrl?: string) {
-    this.apiKey = apiKey;
-    this.baseUrl = baseUrl || import.meta.env.PUBLIC_API_URL;
-  }
-
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
-
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${this.apiKey}`,
-        ...options.headers,
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new ApiError(error.error, response.status);
-    }
-
-    return response.json();
-  }
-
-  // Tokens API
-  tokens = {
-    get: (id: string) =>
-      this.request<Token>(`/api/v1/tokens/${id}`),
-
-    list: (params?: { orgId?: string; limit?: number }) =>
-      this.request<Token[]>(`/api/v1/tokens?${new URLSearchParams(params)}`),
-
-    create: (data: CreateTokenInput) =>
-      this.request<Token>("/api/v1/tokens", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
-
-    purchase: (id: string, amount: number) =>
-      this.request<PurchaseResult>(`/api/v1/tokens/${id}/purchase`, {
-        method: "POST",
-        body: JSON.stringify({ amount }),
-      }),
-  };
-
-  // Agents API
-  agents = {
-    get: (id: string) =>
-      this.request<Agent>(`/api/v1/agents/${id}`),
-
-    list: () =>
-      this.request<Agent[]>("/api/v1/agents"),
-
-    create: (data: CreateAgentInput) =>
-      this.request<Agent>("/api/v1/agents", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
-  };
-
-  // Add more resource methods...
-}
-
-// Export singleton with environment API key
-export const api = new ApiClient(
-  import.meta.env.PUBLIC_API_KEY || ""
-);
-```
-
-**Usage in Frontend:**
-
-```astro
----
-// frontend/src/pages/tokens/[id].astro
-import { api } from "@/lib/api/client";
-import Layout from "@/layouts/Layout.astro";
-
-const { id } = Astro.params;
-const token = await api.tokens.get(id);
----
-
-<Layout title={token.name}>
-  <h1>{token.name}</h1>
-  <p>Balance: {token.properties.balance}</p>
-</Layout>
-```
+**Risk:** Low (services just delegate to provider)
 
 ---
 
-## File Structure Changes
+### Phase 4: Configure Provider in astro.config.ts
 
-### Before (Coupled)
+**Goal:** Wire up ConvexProvider as the active backend
 
-```
-frontend/
-├── convex/                    # ❌ Remove entire directory
-│   ├── _generated/
-│   ├── mutations/
-│   ├── queries/
-│   ├── schema.ts
-│   └── http.ts
-├── src/
-│   ├── components/
-│   │   └── TokenCard.tsx      # Uses useQuery(api.tokens.get)
-│   └── pages/
-│       └── tokens/[id].astro  # Uses ConvexHttpClient
-└── package.json               # Includes "convex": "^1.x.x"
+**Tasks:**
+1. Update `astro.config.ts`:
+   ```typescript
+   import { convexProvider } from './src/providers/convex'
 
-backend/
-└── convex/                    # Only Convex deployment
-```
+   export default defineConfig({
+     integrations: [
+       react(),
+       one({
+         provider: convexProvider({
+           url: import.meta.env.PUBLIC_CONVEX_URL
+         })
+       })
+     ]
+   })
+   ```
+2. Test that services can access provider via Effect.ts layers
 
-### After (Separated)
+**Timeline:** 1 day
 
-```
-frontend/
-├── src/
-│   ├── lib/
-│   │   └── api/
-│   │       ├── client.ts      # ✅ API client (no Convex)
-│   │       ├── types.ts       # ✅ Type definitions
-│   │       └── errors.ts      # ✅ Error handling
-│   ├── components/
-│   │   └── TokenCard.tsx      # ✅ Uses api.tokens.get()
-│   └── pages/
-│       └── tokens/[id].astro  # ✅ Uses api.tokens.get()
-├── .env                       # PUBLIC_API_KEY=pk_live_xxx
-└── package.json               # ❌ No Convex dependency
-
-backend/
-├── api/                       # ✅ New Hono API
-│   ├── routes/
-│   │   ├── tokens.ts          # /api/v1/tokens/*
-│   │   ├── agents.ts          # /api/v1/agents/*
-│   │   ├── auth.ts            # /api/v1/auth/*
-│   │   └── index.ts           # Route aggregation
-│   ├── middleware/
-│   │   ├── auth.ts            # API key validation
-│   │   ├── cors.ts            # CORS handling
-│   │   ├── rateLimit.ts       # Rate limiting
-│   │   └── logging.ts         # Request logging
-│   ├── services/              # Effect.ts business logic
-│   │   ├── tokens/
-│   │   ├── agents/
-│   │   └── auth/
-│   └── index.ts               # Hono app entry point
-├── convex/                    # Existing Convex backend
-│   ├── queries/
-│   │   └── apiKeys.ts         # ✅ New: API key queries
-│   ├── mutations/
-│   │   └── apiKeys.ts         # ✅ New: API key mutations
-│   └── schema.ts              # ✅ Add api_key entity type
-└── wrangler.toml              # Cloudflare Workers config
-```
+**Risk:** Low (configuration only)
 
 ---
 
-## Implementation Steps
+### Phase 5: Migrate Frontend Components Gradually
 
-### Step 1: Create API Key Entity Type
-
-**File: `backend/convex/schema.ts`**
-
-Add to existing schema:
-
-```typescript
-export default defineSchema({
-  // ... existing entities table
-
-  entities: defineTable({
-    type: v.string(),  // Add "api_key" as new type
-    name: v.string(),
-    properties: v.any(),
-    status: v.optional(v.union(
-      v.literal("active"),
-      v.literal("inactive"),
-      v.literal("draft"),
-      v.literal("published"),
-      v.literal("archived"),
-      v.literal("revoked"),  // ✅ Add for API keys
-    )),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-    deletedAt: v.optional(v.number()),
-  })
-    .index("by_type", ["type"])
-    .index("by_status", ["status"])
-    .index("by_key_hash", ["properties.keyHash"]),  // ✅ Add for fast lookup
-
-  // ... rest of schema
-});
-```
-
-### Step 2: Create API Key Queries
-
-**File: `backend/convex/queries/apiKeys.ts`**
-
-```typescript
-import { query } from "../_generated/server";
-import { v } from "convex/values";
-
-export const validate = query({
-  args: { keyHash: v.string() },
-  handler: async (ctx, args) => {
-    const apiKey = await ctx.db
-      .query("entities")
-      .withIndex("by_key_hash", (q) =>
-        q.eq("properties.keyHash", args.keyHash)
-      )
-      .filter((q) => q.eq(q.field("type"), "api_key"))
-      .first();
-
-    return apiKey;
-  },
-});
-
-export const listByOrg = query({
-  args: { orgId: v.string() },
-  handler: async (ctx, args) => {
-    const keys = await ctx.db
-      .query("entities")
-      .withIndex("by_type", (q) => q.eq("type", "api_key"))
-      .filter((q) => q.eq(q.field("properties.orgId"), args.orgId))
-      .collect();
-
-    // Don't return keyHash (security)
-    return keys.map(key => ({
-      ...key,
-      properties: {
-        ...key.properties,
-        keyHash: undefined,  // Remove sensitive data
-      }
-    }));
-  },
-});
-```
-
-### Step 3: Create API Key Mutations
-
-**File: `backend/convex/mutations/apiKeys.ts`**
-
-```typescript
-import { mutation } from "../_generated/server";
-import { v } from "convex/values";
-import { createHash, randomBytes } from "crypto";
-
-export const create = mutation({
-  args: {
-    orgId: v.string(),
-    name: v.string(),
-    scopes: v.array(v.string()),
-    environment: v.union(v.literal("production"), v.literal("development")),
-  },
-  handler: async (ctx, args) => {
-    // Generate random API key
-    const prefix = args.environment === "production" ? "sk_live" : "sk_test";
-    const random = randomBytes(18).toString("base64url");
-    const apiKey = `${prefix}_${random}`;
-
-    // Hash the key for storage
-    const keyHash = createHash("sha256").update(apiKey).digest("hex");
-    const keyHint = apiKey.slice(-3);
-
-    // Create entity
-    const keyId = await ctx.db.insert("entities", {
-      type: "api_key",
-      name: args.name,
-      properties: {
-        keyPrefix: prefix,
-        keyHash,
-        keyHint,
-        orgId: args.orgId,
-        scopes: args.scopes,
-        rateLimit: {
-          requests: 1000,
-          period: 60,
-        },
-        environment: args.environment,
-        lastUsedAt: null,
-      },
-      status: "active",
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    // Return plaintext key ONLY this once
-    return {
-      id: keyId,
-      apiKey,  // ⚠️ Show user - never shown again!
-      keyHint,
-    };
-  },
-});
-
-export const revoke = mutation({
-  args: { keyId: v.id("entities") },
-  handler: async (ctx, args) => {
-    await ctx.db.patch(args.keyId, {
-      status: "revoked",
-      updatedAt: Date.now(),
-    });
-  },
-});
-
-export const updateLastUsed = mutation({
-  args: { keyId: v.id("entities") },
-  handler: async (ctx, args) => {
-    const key = await ctx.db.get(args.keyId);
-    if (!key) return;
-
-    await ctx.db.patch(args.keyId, {
-      properties: {
-        ...key.properties,
-        lastUsedAt: Date.now(),
-      },
-      updatedAt: Date.now(),
-    });
-  },
-});
-```
-
-### Step 4: Create Hono API Backend
-
-**File: `backend/api/index.ts`**
-
-```typescript
-import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { logger } from "hono/logger";
-import { validateApiKey } from "./middleware/auth";
-import tokensRoutes from "./routes/tokens";
-import agentsRoutes from "./routes/agents";
-import authRoutes from "./routes/auth";
-
-const app = new Hono();
-
-// Middleware
-app.use("*", logger());
-app.use("/api/*", cors({
-  origin: [
-    "http://localhost:4321",
-    "https://*.pages.dev",
-    process.env.FRONTEND_URL || "",
-  ].filter(Boolean),
-  credentials: true,
-}));
-
-// Health check (no auth required)
-app.get("/health", (c) => c.json({ status: "ok" }));
-
-// API routes (auth required)
-app.use("/api/*", validateApiKey);
-app.route("/api/v1/tokens", tokensRoutes);
-app.route("/api/v1/agents", agentsRoutes);
-app.route("/api/v1/auth", authRoutes);
-
-// 404 handler
-app.notFound((c) => c.json({ error: "Not found" }, 404));
-
-// Error handler
-app.onError((err, c) => {
-  console.error(err);
-  return c.json({ error: "Internal server error" }, 500);
-});
-
-export default app;
-```
-
-**File: `backend/api/routes/tokens.ts`**
-
-```typescript
-import { Hono } from "hono";
-import { ConvexHttpClient } from "convex/browser";
-import { api } from "../../convex/_generated/api";
-
-const app = new Hono();
-const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
-
-// GET /api/v1/tokens/:id
-app.get("/:id", async (c) => {
-  const tokenId = c.req.param("id");
-  const orgId = c.get("orgId");  // From API key middleware
-
-  const token = await convex.query(api.queries.entities.get, { id: tokenId });
-
-  if (!token || token.type !== "token") {
-    return c.json({ error: "Token not found" }, 404);
-  }
-
-  // Check ownership
-  if (token.properties.orgId !== orgId) {
-    return c.json({ error: "Unauthorized" }, 403);
-  }
-
-  return c.json(token);
-});
-
-// POST /api/v1/tokens/:id/purchase
-app.post("/:id/purchase", async (c) => {
-  const tokenId = c.req.param("id");
-  const { amount } = await c.req.json();
-  const orgId = c.get("orgId");
-
-  // Call Convex mutation
-  const result = await convex.mutation(api.mutations.tokens.purchase, {
-    tokenId,
-    amount,
-    orgId,
-  });
-
-  return c.json(result);
-});
-
-// Add more routes...
-
-export default app;
-```
-
-### Step 5: Create Frontend API Client
-
-**File: `frontend/src/lib/api/client.ts`**
-
-```typescript
-export class ApiError extends Error {
-  constructor(message: string, public status: number) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
-
-export class ApiClient {
-  private baseUrl: string;
-  private apiKey: string;
-
-  constructor(apiKey: string, baseUrl?: string) {
-    this.apiKey = apiKey;
-    this.baseUrl = baseUrl || import.meta.env.PUBLIC_API_URL;
-  }
-
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
-
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${this.apiKey}`,
-        ...options.headers,
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new ApiError(error.error, response.status);
-    }
-
-    return response.json();
-  }
-
-  tokens = {
-    get: (id: string) =>
-      this.request<Token>(`/api/v1/tokens/${id}`),
-
-    purchase: (id: string, amount: number) =>
-      this.request<PurchaseResult>(`/api/v1/tokens/${id}/purchase`, {
-        method: "POST",
-        body: JSON.stringify({ amount }),
-      }),
-  };
-
-  agents = {
-    get: (id: string) =>
-      this.request<Agent>(`/api/v1/agents/${id}`),
-
-    list: () =>
-      this.request<Agent[]>("/api/v1/agents"),
-  };
-}
-
-// Singleton instance
-export const api = new ApiClient(
-  import.meta.env.PUBLIC_API_KEY || ""
-);
-```
-
-### Step 6: Update Frontend Pages
+**Goal:** Replace Convex hooks with Effect.ts services (page by page)
 
 **Before:**
+```tsx
+import { useQuery } from 'convex/react'
+import { api } from '@/convex/_generated/api'
 
-```astro
----
-// frontend/src/pages/tokens/[id].astro
-import { ConvexHttpClient } from "convex/browser";
-import { api as convexApi } from "@/convex/_generated/api";
-
-const convex = new ConvexHttpClient(import.meta.env.PUBLIC_CONVEX_URL);
-const token = await convex.query(convexApi.entities.get, { id: Astro.params.id });
----
+const courses = useQuery(api.queries.things.list, { type: 'course' })
 ```
 
 **After:**
+```tsx
+import { useEffectRunner } from '@/hooks/useEffectRunner'
+import { ThingService } from '@/services/ThingService'
 
-```astro
----
-// frontend/src/pages/tokens/[id].astro
-import { api } from "@/lib/api/client";
+const { run, loading } = useEffectRunner()
+const [courses, setCourses] = useState([])
 
-const token = await api.tokens.get(Astro.params.id);
----
+useEffect(() => {
+  const program = Effect.gen(function* () {
+    const thingService = yield* ThingService
+    return yield* thingService.list('course', orgId)
+  })
+  run(program, { onSuccess: setCourses })
+}, [])
 ```
 
-### Step 7: Remove Convex from Frontend
+**Migration Order:**
+1. Low-traffic pages first (`/about`, `/blog`)
+2. Medium-traffic pages (`/courses`, `/products`)
+3. High-traffic pages (`/`, `/dashboard`)
+4. Authentication pages last (highest risk)
 
-**Delete:**
+**Critical - Auth Test Validation:**
 ```bash
-rm -rf frontend/convex/
-rm frontend/convex.config.ts
+# After migrating ANY page that touches auth
+npm test frontend/tests/auth/
+
+# If tests fail:
+# 1. STOP migration
+# 2. Debug the issue
+# 3. Fix before continuing
+# 4. Re-run tests until all pass
 ```
 
-**Update `package.json`:**
-```diff
-{
-  "dependencies": {
--   "convex": "^1.x.x",
--   "@convex-dev/resend": "^x.x.x",
-    "astro": "^5.14.0"
+**Timeline:** 2-4 weeks (gradual, page by page)
+
+**Risk:** Medium (test each page thoroughly before deploying)
+
+**Safety Net:** Existing auth tests catch regressions immediately
+
+---
+
+### Phase 6: Remove Convex Dependencies from Frontend
+
+**Goal:** Clean up frontend - no more direct Convex imports
+
+**Tasks:**
+1. Verify all pages use Effect.ts services (no direct Convex hooks)
+2. Remove `convex` from `frontend/package.json`
+3. Delete `frontend/convex/` directory (no longer needed)
+4. Update build process (no Convex codegen)
+5. Frontend is now backend-agnostic!
+
+**Timeline:** 1-2 days
+
+**Risk:** Low (if Phase 5 complete)
+
+---
+
+### Phase 7 (Optional): Add Alternative Backend Providers
+
+**Goal:** Demonstrate backend flexibility - add WordPress, Notion, Supabase providers
+
+**Example - WordPress Provider:**
+```typescript
+// /frontend/src/providers/wordpress/WordPressProvider.ts
+export class WordPressProvider implements DataProvider {
+  things = {
+    get: (id) =>
+      Effect.gen(function* () {
+        const response = yield* Effect.tryPromise({
+          try: () => fetch(`${this.baseUrl}/wp-json/wp/v2/posts/${id}`),
+          catch: (error) => new Error(String(error))
+        })
+        const post = yield* Effect.tryPromise({
+          try: () => response.json(),
+          catch: (error) => new Error(String(error))
+        })
+        // Transform WordPress post → ONE thing
+        return {
+          _id: post.id.toString(),
+          type: 'post',
+          name: post.title.rendered,
+          properties: {
+            content: post.content.rendered,
+            publishedAt: post.date
+          },
+          status: post.status,
+          createdAt: new Date(post.date).getTime(),
+          updatedAt: new Date(post.modified).getTime()
+        }
+      })
   }
+  // ... implement other methods
 }
 ```
+
+**Swap backends in config:**
+```typescript
+// Change from Convex to WordPress - ONE line!
+export default defineConfig({
+  integrations: [
+    one({
+      // provider: convexProvider({ url: "..." })  // OLD
+      provider: wordpressProvider({              // NEW
+        url: 'https://existing-site.com',
+        apiKey: env.WP_API_KEY
+      })
+    })
+  ]
+})
+```
+
+**Timeline:** 1-2 weeks per provider
+
+**Risk:** Low (doesn't affect existing Convex setup)
+
+**Value:** Demonstrates TRUE backend-agnosticism
+
+---
+
+## Backend Implementations
+
+Once you have the DataProvider interface, implementing it for ANY backend follows similar patterns.
+
+### Implementation Patterns
+
+**Pattern 1: REST API**
+- Fetch-based requests
+- Transform responses to ONE types
+- Handle auth headers
+
+**Pattern 2: GraphQL**
+- Query/mutation-based
+- Parse GraphQL responses
+- Map to ONE ontology
+
+**Pattern 3: Direct Database**
+- SQL/NoSQL queries
+- Row/document mapping
+- Connection pooling
+
+**Pattern 4: CMS API**
+- Platform-specific SDKs
+- Content type mapping
+- Read-only or full CRUD
+
+### Supported Backends
+
+**Databases:**
+- ✅ Convex (current - real-time, serverless)
+- ✅ Supabase (PostgreSQL + real-time)
+- ✅ Neon (serverless Postgres)
+- ✅ PlanetScale (MySQL)
+- ✅ MongoDB
+- ✅ PostgreSQL
+- ✅ MySQL
+
+**CMS Platforms:**
+- ✅ WordPress + WooCommerce
+- ✅ Strapi
+- ✅ Contentful
+- ✅ Sanity
+- ✅ Ghost
+- ✅ Prismic
+
+**SaaS/Headless:**
+- ✅ Notion (databases as backend)
+- ✅ Airtable
+- ✅ Google Sheets
+- ✅ Salesforce
+- ✅ HubSpot
+- ✅ Shopify
+
+**Custom:**
+- ✅ Your own REST/GraphQL API
+- ✅ Legacy systems
+- ✅ Enterprise backends
+
+### Quick Example: Supabase Provider
+
+```typescript
+// frontend/src/providers/supabase/SupabaseProvider.ts
+import { createClient } from '@supabase/supabase-js'
+import { Effect } from 'effect'
+import { DataProvider } from '../DataProvider'
+
+export class SupabaseProvider implements DataProvider {
+  private supabase
+
+  constructor(url: string, anonKey: string) {
+    this.supabase = createClient(url, anonKey)
+  }
+
+  things = {
+    get: (id: string) =>
+      Effect.gen(this, function* () {
+        const { data, error } = yield* Effect.tryPromise({
+          try: () => this.supabase
+            .from('things')
+            .select('*')
+            .eq('id', id)
+            .single(),
+          catch: (err) => new Error(String(err))
+        })
+
+        if (error) {
+          return yield* Effect.fail(new ThingNotFoundError(id))
+        }
+
+        // Transform Supabase row → ONE Thing
+        return {
+          _id: data.id,
+          type: data.type,
+          name: data.name,
+          properties: data.properties,
+          status: data.status,
+          createdAt: new Date(data.created_at).getTime(),
+          updatedAt: new Date(data.updated_at).getTime(),
+          organizationId: data.organization_id
+        }
+      }),
+
+    list: (params) =>
+      Effect.gen(this, function* () {
+        let query = this.supabase
+          .from('things')
+          .select('*')
+          .eq('type', params.type)
+
+        if (params.organizationId) {
+          query = query.eq('organization_id', params.organizationId)
+        }
+
+        const { data, error } = yield* Effect.tryPromise({
+          try: () => query.limit(params.limit || 10),
+          catch: (err) => new Error(String(err))
+        })
+
+        if (error) {
+          return yield* Effect.fail(new Error(error.message))
+        }
+
+        return data.map(row => ({
+          _id: row.id,
+          type: row.type,
+          name: row.name,
+          properties: row.properties,
+          status: row.status,
+          createdAt: new Date(row.created_at).getTime(),
+          updatedAt: new Date(row.updated_at).getTime(),
+          organizationId: row.organization_id
+        }))
+      }),
+
+    create: (input) =>
+      Effect.gen(this, function* () {
+        const { data, error } = yield* Effect.tryPromise({
+          try: () => this.supabase
+            .from('things')
+            .insert({
+              type: input.type,
+              name: input.name,
+              properties: input.properties,
+              organization_id: input.organizationId,
+              status: 'active',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .select()
+            .single(),
+          catch: (err) => new Error(String(err))
+        })
+
+        if (error) {
+          return yield* Effect.fail(new Error(error.message))
+        }
+
+        return data.id
+      }),
+
+    update: (id, updates) => { /* ... */ },
+    delete: (id) => { /* ... */ }
+  }
+
+  connections = { /* ... */ }
+  events = { /* ... */ }
+  knowledge = { /* ... */ }
+
+  // ✅ Supabase supports real-time!
+  subscriptions = {
+    watchThing: (id: string) =>
+      Effect.gen(this, function* () {
+        const channel = this.supabase
+          .channel(`thing:${id}`)
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'things',
+            filter: `id=eq.${id}`
+          }, (payload) => {
+            // Emit updates via Observable
+          })
+
+        yield* Effect.tryPromise({
+          try: () => channel.subscribe(),
+          catch: (err) => new Error(String(err))
+        })
+
+        // Return observable
+      })
+  }
+}
+
+export function supabaseProvider(config: { url: string; anonKey: string }) {
+  return Layer.succeed(
+    DataProvider,
+    new SupabaseProvider(config.url, config.anonKey)
+  )
+}
+```
+
+**Key Points:**
+1. Implement `DataProvider` interface
+2. Transform backend data → ONE types (Thing, Connection, Event, Knowledge)
+3. Handle errors with Effect.ts
+4. Map backend fields → ONE ontology fields
+5. Done! Frontend works unchanged.
+
+### Complete Implementation Guide
+
+For detailed implementation examples of all supported backends:
+- **Databases**: See `one/connections/any-backend.md` (sections: Supabase, Neon, PlanetScale, MongoDB)
+- **CMS**: See `one/connections/any-backend.md` (sections: WordPress, Strapi, Contentful)
+- **SaaS**: See `one/connections/any-backend.md` (sections: Notion, Airtable, Shopify)
+- **Custom**: See `one/connections/any-backend.md` (section: Custom Backends)
+
+### Authentication by Backend
+
+**Each backend handles auth differently:**
+
+| Backend | Auth Method |
+|---------|-------------|
+| **Convex** | Better Auth sessions + JWT validation |
+| **Supabase** | Row Level Security (RLS) + Supabase Auth |
+| **WordPress** | Application Passwords or OAuth |
+| **Notion** | Integration tokens (server-side only) |
+| **ONE Backend (BaaS)** | API keys + Better Auth (6 methods) |
+| **Custom API** | Your auth system |
+
+**Frontend:** Uses provider's auth configuration, not backend-specific code.
 
 ---
 
 ## Testing Strategy
 
-### 1. Backend API Tests
+### 0. Preserve Existing Auth Tests (Critical)
+
+**REQUIREMENT:** All tests in `frontend/tests/auth/*` must continue to pass throughout migration.
+
+**Strategy:**
+```typescript
+// Run existing auth tests after each phase
+npm test frontend/tests/auth/
+
+// Tests must pass:
+// ✅ Signup flow
+// ✅ Signin flow
+// ✅ Session management
+// ✅ Password reset
+// ✅ Email verification
+// ✅ Role-based authorization
+```
+
+**Migration Safety:**
+1. **Phase 2 (ConvexProvider):** Run auth tests - should pass unchanged
+2. **Phase 3 (Service Layer):** Run auth tests - should pass with new services
+3. **Phase 5 (Component Migration):** Run auth tests after each page migration
+4. **Phase 6 (Remove Convex):** Run auth tests - final verification
+
+**If auth tests fail at any phase:** STOP, investigate, fix before continuing.
+
+---
+
+### Mock Provider for Testing
 
 ```typescript
 // backend/api/__tests__/tokens.test.ts
@@ -1041,253 +1488,398 @@ describe("ApiClient", () => {
 });
 ```
 
+
 ---
 
-## Deployment Changes
+## Deployment
 
-### Before (Coupled)
+### Option 1: Self-Hosted Backend
 
-```
-1. Deploy frontend to Cloudflare Pages
-   - Includes Convex SDK
-   - WebSocket connection to Convex
+**Example: Deploy with Convex Provider**
 
-2. Deploy Convex backend
-   - convex deploy
-```
-
-### After (Separated)
-
-```
-1. Deploy backend API to Cloudflare Workers
-   - cd backend/api
-   - wrangler deploy
-   - Output: https://api.yourdomain.com
-
-2. Deploy Convex backend
-   - cd backend/convex
-   - convex deploy
-   - Output: https://your-deployment.convex.cloud
-
-3. Deploy frontend to Cloudflare Pages
-   - cd frontend
-   - Set env: PUBLIC_API_URL=https://api.yourdomain.com
-   - Set env: PUBLIC_API_KEY=pk_live_xxx
-   - Build and deploy
-```
-
-### Environment Variables
-
-**Backend (`backend/api/.env`):**
 ```bash
-CONVEX_URL=https://your-deployment.convex.cloud
-FRONTEND_URL=https://yourdomain.com
+# 1. Deploy backend (Convex)
+cd backend
+convex deploy
+# Output: https://your-deployment.convex.cloud
+
+# 2. Deploy frontend
+cd frontend
+# Set environment variables:
+# PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
+npm run build
+# Deploy to Vercel/Netlify/Cloudflare Pages
 ```
 
-**Frontend (`frontend/.env`):**
+**Example: Deploy with Supabase Provider**
+
 ```bash
-PUBLIC_API_URL=https://api.yourdomain.com
-PUBLIC_API_KEY=pk_live_1234567890abcdef
+# 1. Setup Supabase (already deployed)
+# Get URL and anon key from Supabase dashboard
+
+# 2. Deploy frontend
+cd frontend
+# Set environment variables:
+# PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+# PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+npm run build
+# Deploy to Vercel/Netlify/Cloudflare Pages
+```
+
+### Option 2: Use ONE Backend (BaaS)
+
+```bash
+# 1. Sign up at one.ie → Get API key
+
+# 2. Deploy frontend
+cd frontend
+# Set environment variables:
+# USE_ONE_BACKEND=true
+# PUBLIC_ONE_API_KEY=ok_live_abc123
+# PUBLIC_ONE_ORG_ID=org_abc123
+npm run build
+# Deploy to Vercel/Netlify/Cloudflare Pages
+```
+
+**Done!** Backend is managed by ONE, you only deploy frontend.
+
+### Environment Variables by Provider
+
+**Convex Provider:**
+```env
+PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
+CONVEX_DEPLOYMENT=prod:your-deployment
+```
+
+**Supabase Provider:**
+```env
+PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+**WordPress Provider:**
+```env
+WORDPRESS_URL=https://yoursite.com
+WORDPRESS_API_KEY=your-app-password
+```
+
+**ONE Backend (BaaS):**
+```env
+USE_ONE_BACKEND=true
+PUBLIC_ONE_API_KEY=ok_live_abc123
+PUBLIC_ONE_ORG_ID=org_abc123
 ```
 
 ---
 
-## Security Considerations
+## Summary
 
-### 1. API Key Storage
+### What This Migration Achieves
 
-**❌ Never:**
-- Store API keys in git
-- Use secret keys (`sk_*`) in frontend
-- Log API keys in console
-- Return key hash in API responses
+**Before:**
+- ❌ Frontend tightly coupled to Convex
+- ❌ Can't swap backends without rewriting code
+- ❌ Organizations must use Convex (no alternatives)
+- ❌ No multi-backend support
 
-**✅ Always:**
-- Use publishable keys (`pk_*`) in frontend
-- Use secret keys (`sk_*`) only in backend
-- Hash keys before storing (SHA-256)
-- Show plaintext key only once at creation
-- Rotate keys regularly
+**After:**
+- ✅ Frontend backend-agnostic (uses DataProvider)
+- ✅ Swap backends by changing ONE line
+- ✅ Support ANY backend (Convex, WordPress, Supabase, Notion, etc.)
+- ✅ Use multiple backends simultaneously
+- ✅ Option to use ONE Backend (BaaS) - zero backend work
+- ✅ All existing auth tests pass
+- ✅ Zero downtime migration
+- ✅ Can rollback at any phase
 
-### 2. Rate Limiting
+### Three Paths Forward
 
-**Implementation:**
-```typescript
-// backend/api/middleware/rateLimit.ts
-import { Context, Next } from "hono";
+**Path 1: Keep Current Convex (No Migration)**
+- Current system works
+- No changes needed
+- Wait for business justification
 
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+**Path 2: Migrate to Backend-Agnostic (Self-Hosted)**
+- 4-6 weeks migration
+- Wrap Convex in DataProvider
+- Enable future backend swaps
+- Keep full control
 
-export async function rateLimit(c: Context, next: Next) {
-  const keyId = c.get("apiKeyId");
-  const limit = c.get("keyRateLimit");
+**Path 3: Use ONE Backend (BaaS)**
+- 1 hour setup
+- No backend to maintain
+- Free tier available
+- Focus on frontend only
 
-  const now = Date.now();
-  const key = `rate_limit:${keyId}`;
-  const current = rateLimitMap.get(key);
+### References
 
-  if (current && now < current.resetAt) {
-    if (current.count >= limit.requests) {
-      return c.json(
-        {
-          error: "Rate limit exceeded",
-          resetAt: new Date(current.resetAt).toISOString(),
-        },
-        429
-      );
-    }
-    current.count++;
-  } else {
-    rateLimitMap.set(key, {
-      count: 1,
-      resetAt: now + limit.period * 1000,
-    });
-  }
+**Detailed Implementation Guides:**
+- **Any Backend**: See `one/connections/any-backend.md`
+  - Databases: Convex, Supabase, Neon, PlanetScale, MongoDB, PostgreSQL
+  - CMS: WordPress, Strapi, Contentful, Sanity, Ghost
+  - SaaS: Notion, Airtable, Shopify, Salesforce
+  - Custom: Your own REST/GraphQL API
 
-  await next();
-}
-```
+- **ONE Backend (BaaS)**: See `one/features/use-one-backend.md`
+  - Setup & onboarding
+  - API key management
+  - Pricing tiers
+  - Migration guide
 
-### 3. CORS Configuration
-
-**Backend:**
-```typescript
-app.use("/api/*", cors({
-  origin: (origin) => {
-    // Allow specific domains
-    const allowed = [
-      "http://localhost:4321",
-      "https://yourdomain.com",
-      "https://*.pages.dev",
-    ];
-
-    return allowed.some(pattern =>
-      new RegExp(pattern.replace("*", ".*")).test(origin)
-    ) ? origin : null;
-  },
-  credentials: true,
-}));
-```
-
----
-
-## Migration Checklist
-
-### Backend Setup
-- [ ] Add `api_key` entity type to schema
-- [ ] Create API key queries in `backend/convex/queries/apiKeys.ts`
-- [ ] Create API key mutations in `backend/convex/mutations/apiKeys.ts`
-- [ ] Deploy schema changes to Convex
-- [ ] Create test API key via mutation
-- [ ] Create `backend/api/` directory structure
-- [ ] Implement Hono routes for all resources
-- [ ] Add API key validation middleware
-- [ ] Add rate limiting middleware
-- [ ] Add CORS middleware
-- [ ] Deploy API to Cloudflare Workers
-- [ ] Test all endpoints with Postman/curl
-- [ ] Set up monitoring and logging
-
-### Frontend Setup
-- [ ] Create `frontend/src/lib/api/client.ts`
-- [ ] Create `frontend/src/lib/api/types.ts`
-- [ ] Create `frontend/src/lib/api/errors.ts`
-- [ ] Add `PUBLIC_API_URL` to `.env`
-- [ ] Add `PUBLIC_API_KEY` to `.env`
-- [ ] Update 1 page to test API client
-- [ ] Verify API client works in development
-- [ ] Migrate all pages to use API client
-- [ ] Remove all Convex imports from components
-- [ ] Delete `frontend/convex/` directory
-- [ ] Remove Convex from `package.json`
-- [ ] Update build process
-- [ ] Test full frontend in production
-
-### Documentation
-- [ ] Update `CLAUDE.md` with new architecture
-- [ ] Document API endpoints (OpenAPI/Swagger)
-- [ ] Create API key management guide
-- [ ] Update deployment instructions
-- [ ] Create troubleshooting guide
+- **6-Dimension Ontology**: See `one/connections/ontology.md`
+  - Complete data model
+  - All 66 thing types
+  - All 25 connection types
+  - All 67 event types
 
 ---
 
 ## Rollback Plan
 
-If separation fails, rollback is easy:
+**Key Safety:** We're wrapping a working system, so rollback just means removing the wrapper.
 
-1. Keep `frontend/convex/` in git (don't delete until verified)
-2. Use environment variable to toggle:
-   ```typescript
-   const USE_API_BACKEND = import.meta.env.PUBLIC_USE_API_BACKEND === "true";
+If migration encounters issues, rollback is straightforward:
 
-   const data = USE_API_BACKEND
-     ? await api.tokens.get(id)
-     : await convex.query(api.entities.get, { id });
-   ```
-3. If issues arise, set `PUBLIC_USE_API_BACKEND=false`
+**Option 1: Gradual Rollback (Keep Both)**
+```typescript
+// Keep both Convex hooks and Effect.ts services temporarily
+// Migrate page by page, test thoroughly
+
+// Old page (still works)
+const courses = useQuery(api.queries.things.list, { type: 'course' })
+
+// New page (backend-agnostic)
+const program = Effect.gen(function* () {
+  const thingService = yield* ThingService
+  return yield* thingService.list('course', orgId)
+})
+```
+
+**Option 2: Quick Rollback (Revert Provider)**
+```typescript
+// Change provider back to direct Convex hooks if needed
+// In astro.config.ts:
+provider: convexProvider({ url: env.PUBLIC_CONVEX_URL })  // Keep this working
+
+// Frontend components still work with ConvexProvider
+// Just wraps the same Convex queries/mutations
+```
+
+**Key Safety:**
+- ConvexProvider just wraps existing Convex backend
+- No data migration needed
+- No backend changes required
+- Worst case: remove DataProvider layer, use Convex directly again
 
 ---
 
 ## Success Metrics
 
-**Technical:**
-- [ ] Frontend has zero Convex dependencies
-- [ ] All API endpoints return < 200ms
-- [ ] Rate limiting enforces limits correctly
-- [ ] API key validation works for all scopes
-- [ ] CORS configured correctly
-- [ ] 100% test coverage on API routes
+**Critical Requirements (Must Pass):**
+- [ ] All existing auth tests in `frontend/tests/auth/*` pass
+- [ ] Auth functionality unchanged (signup, signin, sessions, password reset, etc.)
+- [ ] No regressions in user-facing features
+- [ ] Zero downtime during migration
 
-**Business:**
-- [ ] Multiple frontends can use same backend
-- [ ] API versioning supports breaking changes gracefully
-- [ ] Multi-tenancy works (org isolation)
-- [ ] Mobile/desktop can use same API
-- [ ] API documentation is complete
+**Technical Goals:**
+- [ ] Frontend uses DataProvider interface (backend-agnostic)
+- [ ] Can swap from Convex → WordPress by changing ONE line
+- [ ] Can swap from WordPress → Notion by changing ONE line
+- [ ] Effect.ts services handle all 66 thing types generically
+- [ ] No direct backend imports in frontend components
+- [ ] Full type safety maintained with Effect.ts
+
+**Backend Flexibility:**
+- [ ] ConvexProvider fully implements DataProvider interface
+- [ ] Organizations can choose their preferred backend
+- [ ] At least 2 provider implementations working (e.g., Convex + WordPress)
+- [ ] Multi-tenancy works across all providers
+- [ ] Authorization enforced by backend (not frontend)
+
+**Developer Experience:**
+- [ ] Frontend developers don't need backend-specific knowledge
+- [ ] Adding new provider takes 1-2 weeks (not months)
+- [ ] Frontend components work unchanged when backend swaps
+- [ ] Clear documentation for implementing new providers
+- [ ] Effect.ts patterns are consistent and learnable
 
 ---
 
 ## Timeline
 
-**Total Duration:** 6-8 weeks
+**Total Duration:** 4-6 weeks (Backend-Agnostic Approach)
 
-**Week 1-2:** Backend API creation
-**Week 3:** Frontend API client library
-**Week 4-5:** Gradual frontend migration
-**Week 6:** Remove Convex from frontend
-**Week 7:** Testing and bug fixes
-**Week 8:** Documentation and deployment
+**Week 1:** Define DataProvider interface + Implement ConvexProvider wrapper
+**Week 2:** Create Effect.ts service layer + useEffectRunner hook
+**Week 3-4:** Migrate frontend components to use services (page by page)
+**Week 5:** Remove direct Convex imports + Test thoroughly
+**Week 6 (Optional):** Add alternative provider (WordPress, Notion, etc.) to prove flexibility
+
+**Comparison to Old Plan:**
+- ✅ Faster (4-6 weeks vs 6-8 weeks)
+- ✅ Less risky (no REST API to build)
+- ✅ More value (true backend flexibility, not just REST)
+- ✅ Organizations can use existing infrastructure immediately
 
 ---
 
 ## Next Steps
 
-1. **Review this plan** with team
-2. **Create GitHub project** with tasks
-3. **Set up test environment** for API backend
-4. **Begin Phase 1:** Backend API creation
+1. **Review this plan** with team - focus on DataProvider pattern benefits
+2. **Study references:**
+   - Read `one/connections/ontology-frontend.md` (DataProvider architecture)
+   - Review Astro's content layer pattern (inspiration for DataProvider)
+   - Understand Effect.ts basics (type-safe composable services)
+3. **Begin Phase 1:** Create DataProvider interface
+   - Define the 6-dimension interface
+   - Document expected behavior for each method
+   - Define error types (ThingNotFoundError, etc.)
+4. **Begin Phase 2:** Implement ConvexProvider
+   - Wrap existing Convex queries/mutations
+   - Test provider in isolation
+   - Verify no functionality lost
+
+---
+
+## When to Implement This Plan
+
+**DO migrate when:**
+- ✅ You need to support organizations with existing WordPress/Notion/Supabase infrastructure
+- ✅ You want to enable multi-backend federation (e.g., auth in Convex + blog in WordPress)
+- ✅ You're building mobile/desktop apps and want backend flexibility
+- ✅ You want to reduce Convex lock-in for customer acquisition
+- ✅ You have 4-6 weeks for strategic enhancement work
+
+**DON'T migrate yet if:**
+- ❌ You need to ship urgent features (migration is strategic, not urgent)
+- ❌ Current Convex integration is causing actual problems (it's not - it works)
+- ❌ You have less than 4 weeks available (rushed migration = bugs)
+- ❌ Auth tests aren't stable yet (fix tests first, then migrate)
+
+**Current Recommendation:** Keep existing Convex integration until you have:
+1. A concrete customer requesting WordPress/Notion/Supabase support
+2. 4-6 weeks of uninterrupted development time
+3. All existing auth tests passing reliably
+4. Clear business value from backend flexibility
+
+**The current system works. Don't fix what isn't broken unless the strategic value justifies the effort.**
 
 ---
 
 ## Questions to Resolve
 
-1. **API Versioning:** Start with `/api/v1` or wait until v2 needed?
-2. **Real-time Updates:** How to handle without Convex subscriptions? (WebSocket, SSE, polling?)
-3. **Batch Operations:** Should API support batching multiple operations?
-4. **GraphQL:** Consider GraphQL instead of REST?
-5. **API Gateway:** Use Cloudflare API Gateway for additional features?
+1. **Real-Time Support:** Should DataProvider interface include `subscriptions` methods? (Optional - not all backends support it)
+2. **Provider Discovery:** Should providers register themselves, or explicit imports?
+3. **Error Handling:** Standardize error types across all providers, or allow provider-specific errors?
+4. **Provider Versioning:** How to handle breaking changes in provider implementations?
+5. **Performance:** Should DataProvider support caching/batching at interface level?
 
 ---
 
 ## Conclusion
 
-This separation transforms ONE from a tightly-coupled monolith into a flexible, API-first platform that can:
+### Starting Point: Working System
 
-- ✅ Serve multiple frontends from one backend
-- ✅ Support web, mobile, desktop, CLI
-- ✅ Enable multi-tenancy with API key isolation
-- ✅ Version API independently
-- ✅ Scale frontend and backend separately
+**What we have today:**
+- ✅ Frontend connected to Convex backend (working)
+- ✅ Auth fully functional with passing tests
+- ✅ Real-time updates via Convex WebSockets
+- ✅ 6-dimension ontology implemented
+- ✅ All features operational
 
-The key is **gradual migration** with the ability to rollback at any point. By following this plan step-by-step, we minimize risk while achieving maximum architectural flexibility.
+**This is a solid foundation.** We're not fixing broken code - we're adding strategic capabilities.
+
+### The Transformation
+
+This **backend-agnostic separation** transforms ONE from a tightly-coupled (but working) monolith into a truly flexible platform where:
+
+### Key Wins
+
+**🎯 For Organizations:**
+- ✅ Use your existing infrastructure (WordPress, Notion, Supabase, etc.)
+- ✅ No forced migration to Convex
+- ✅ Keep your existing admin tools, plugins, workflows
+- ✅ Test ONE frontend without backend risk
+- ✅ Migrate backend later if/when you want
+
+**🎯 For Developers:**
+- ✅ Frontend devs learn DataProvider interface once, work with any backend
+- ✅ Backend devs can use their preferred stack
+- ✅ No vendor lock-in
+- ✅ Effect.ts provides type-safe, composable operations
+- ✅ Clear separation: frontend renders, backend manages data
+
+**🎯 For ONE Platform:**
+- ✅ Serve organizations with diverse infrastructure needs
+- ✅ Prove the 6-dimension ontology is universal (works with ANY backend)
+- ✅ Attract organizations who would never adopt Convex
+- ✅ Position as frontend layer, not full-stack lock-in
+
+### The Breakthrough
+
+**Universal data interface** that works with ANY backend:
+
+```
+Your Frontend → DataProvider → Your Choice:
+                                 ├─ Self-Hosted (Convex, Supabase, WordPress, etc.)
+                                 ├─ ONE Backend (BaaS - managed service)
+                                 └─ Hybrid (mix multiple backends)
+
+✅ Change backends with ONE line
+✅ No rewrite needed
+✅ Organizations choose their infrastructure
+```
+
+### Three Options
+
+**Option 1: Keep Current Setup (Convex)**
+- Works today
+- No changes needed
+- Revisit when business needs backend flexibility
+
+**Option 2: Backend-Agnostic (Self-Hosted)**
+- 4-6 weeks migration
+- Support ANY backend (Convex, WordPress, Supabase, Notion, etc.)
+- Full control, full flexibility
+
+**Option 3: ONE Backend (BaaS)**
+- 1 hour setup
+- Zero backend maintenance
+- Free tier available
+- Focus on frontend only
+
+### Implementation Strategy
+
+The key is **gradual migration** with **zero risk**:
+
+1. **Week 1-2:** Create abstraction layer (DataProvider + ConvexProvider)
+2. **Week 3-4:** Migrate frontend page by page to use services
+3. **Week 5:** Remove direct backend imports
+4. **Week 6+:** Add alternative providers to prove flexibility
+
+At every step, frontend still works. At every step, we can rollback. At every step, we add value.
+
+### Resources
+
+**Within This Document:**
+- [Backend Options](#backend-options) - Self-hosted vs ONE Backend (BaaS) vs Hybrid
+- [Backend Implementations](#backend-implementations) - How to implement providers for ANY backend
+- [Migration Strategy](#migration-strategy) - 7-phase gradual migration plan
+- [Testing Strategy](#testing-strategy) - Preserve auth tests throughout migration
+
+**External References:**
+- **Any Backend Guide:** `one/connections/any-backend.md`
+  - Complete implementation examples for 20+ backends
+  - REST, GraphQL, SQL, CMS, SaaS patterns
+- **ONE Backend (BaaS):** `one/features/use-one-backend.md`
+  - Managed backend service details
+  - API key management, pricing, setup
+- **6-Dimension Ontology:** `one/connections/ontology.md`
+  - Complete data model (66 thing types, 25 connection types, 67 event types)
+- **Frontend Architecture:** `one/connections/ontology-frontend.md`
+  - DataProvider interface specification
+  - Effect.ts patterns and examples
+
+---
+
+**ONE platform: Backend-agnostic by design. Your infrastructure, your choice.**

@@ -2,7 +2,7 @@
 
 ## Overview
 
-ONE transforms ideas into living, AI-powered businesses through plain English commands. Built with love by humans and AI working together, ONE empowers founders, creators, developers, and even AI agents themselves to build autonomous agents, production applications, and thriving audiences.
+ONE transforms ideas into living, AI-powered businesses through plain English commands. Built with love by humans and AI working together, ONE was made for founders, engineers, creators and educators.
 
 **Tagline:** Make Your Ideas Reality With AI
 
@@ -463,7 +463,7 @@ The future is agents transacting with agents:
 
 ### Available Today
 
-- Complete creator OS (content, community, commerce, insights)
+- Enterprise ready Edge App
 - AI teammates with shared ontology
 - Instant edge deployment
 - Plain English DSL with 15 commands

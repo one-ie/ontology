@@ -31,7 +31,7 @@ Layer 3: Backend (Hono API + Convex Database)
 **Key Principles:**
 - **100% Effect.ts coverage** - All business logic uses Effect.ts (no raw async/await)
 - **Functional programming** - Pure functions, typed errors, composition, immutability
-- **4-table ontology** - entities, connections, events, tags (plain Convex schema)
+- **6-dimension ontology (organizations, people, things, connections, events, knowledge)** - entities, connections, events, tags (plain Convex schema)
 - **Service-based architecture** - Effect.ts services with automatic dependency injection
 - **Multi-provider pattern** - Separate Effect.ts providers per external service
 
@@ -41,7 +41,7 @@ Layer 3: Backend (Hono API + Convex Database)
 
 1. **Multi-model integration** → Effect.ts providers (like multi-chain blockchain)
 2. **Agent collaboration** → Effect.ts services orchestrating multiple AI providers
-3. **Context engineering** → Service metadata in 4-table ontology
+3. **Context engineering** → Service metadata in 6-dimension ontology (organizations, people, things, connections, events, knowledge)
 4. **Plugin architecture** → Effect.ts layers for modular services
 5. **Task decomposition** → Pure functional composition with Effect.gen
 
@@ -50,7 +50,7 @@ Layer 3: Backend (Hono API + Convex Database)
 ### 1. Architecture & Design Patterns
 
 - [ ] Multi-agent collaboration framework → **Map to Effect.ts orchestration services**
-- [ ] Spec & context engineering approach → **Store in 4-table ontology (metadata)**
+- [ ] Spec & context engineering approach → **Store in 6-dimension ontology (organizations, people, things, connections, events, knowledge) (metadata)**
 - [ ] Model integration patterns → **Effect.ts providers per AI model (OpenAI, Claude, Gemini)**
 - [ ] Modular component structure → **Effect.ts layers and dependency injection**
 - [ ] Inter-agent communication protocols → **Effect.ts service composition**
@@ -209,7 +209,7 @@ export class AgentOrchestrator extends Effect.Service<AgentOrchestrator>()(
               .with("gemini", () => gemini.complete(task.prompt, task.options))
               .otherwise(() => Effect.fail(new UnsupportedModelError()));
 
-            // Record event in 4-table ontology
+            // Record event in 6-dimension ontology (organizations, people, things, connections, events, knowledge)
             yield* db.insert("events", {
               entityId: task.agentId,
               eventType: "agent_task_completed",
@@ -398,7 +398,7 @@ export class AgentOrchestrator extends Effect.Service<AgentOrchestrator>()(
 **Scalability:**
 1. Add new models without changing existing code
 2. Agent collaboration via service composition
-3. Context engineering via 4-table ontology
+3. Context engineering via 6-dimension ontology (organizations, people, things, connections, events, knowledge)
 4. Performance tracking via events table
 5. Multi-tenant agent configurations
 
@@ -436,7 +436,7 @@ export class AgentOrchestrator extends Effect.Service<AgentOrchestrator>()(
 3. How are tasks decomposed and distributed?
    - **ONE approach**: Pure functional composition with Effect.gen, parallel execution with Effect.all
 4. What context management strategies are used?
-   - **ONE approach**: Store in 4-table ontology metadata, immutable state
+   - **ONE approach**: Store in 6-dimension ontology (organizations, people, things, connections, events, knowledge) metadata, immutable state
 5. How is state maintained across agent interactions?
    - **ONE approach**: Events table for audit trail, connections table for relationships
 6. What security measures are implemented?
@@ -470,7 +470,7 @@ When reviewing open-agent code, assess against ONE's principles:
 |--------|----------------------|------------------|----------------------|
 | Async handling | async/await | Effect.ts | Wrap in Effect.tryPromise |
 | Error handling | try/catch | Typed errors | Define error classes with `_tag` |
-| State management | Variables/objects | 4-table ontology | Map to entities/connections/events |
+| State management | Variables/objects | 6-dimension ontology (organizations, people, things, connections, events, knowledge) | Map to entities/connections/events |
 | Model switching | if/switch | Effect.catchTags | Use typed error fallbacks |
 | Task composition | Promises | Effect.gen | Convert to Effect pipelines |
 | Dependencies | Imports | Effect DI | Define as Effect services |
@@ -603,7 +603,7 @@ docs/Plugins.md (plugin development guide)
 - [ ] Plugin system allowing community extensions
 
 **Integration Metrics:**
-- [ ] All agent types mapped to 4-table ontology
+- [ ] All agent types mapped to 6-dimension ontology (organizations, people, things, connections, events, knowledge)
 - [ ] All agent operations tracked in events table
 - [ ] Agent configuration stored in entities table
 - [ ] Agent collaboration tracked in connections table
@@ -619,7 +619,7 @@ docs/Plugins.md (plugin development guide)
 
 **ONE Architecture Docs:**
 - `docs/Architecture.md` - Three-layer architecture, Effect.ts patterns
-- `docs/Ontology.md` - 4-table ontology (entities, connections, events, tags)
+- `docs/Ontology.md` - 6-dimension ontology (organizations, people, things, connections, events, knowledge) (entities, connections, events, tags)
 - `docs/Hono.md` - Effect.ts services, Hono API routes
 - `docs/Frontend.md` - Astro + React patterns
 - `docs/Service Providers.md` - External service integration patterns
@@ -738,7 +738,7 @@ describe("AgentOrchestrator", () => {
 
 1. **Effect.ts is non-negotiable** - 100% coverage means ALL business logic, including agent orchestration
 2. **Multi-provider pattern is proven** - Same pattern used for multi-chain blockchain works perfectly for multi-model AI
-3. **4-table ontology is flexible** - Can model complex agent relationships without schema changes
+3. **6-dimension ontology (organizations, people, things, connections, events, knowledge) is flexible** - Can model complex agent relationships without schema changes
 4. **Typed errors everywhere** - No try/catch, all errors explicit in type signatures
 5. **Composition over configuration** - Services compose naturally, no complex config files needed
 
@@ -754,7 +754,7 @@ describe("AgentOrchestrator", () => {
 **⚠️ Patterns to Adapt (refactor to Effect.ts):**
 - Any raw async/await → Effect.gen
 - Any try/catch → typed errors with catchTags
-- Any global state → 4-table ontology
+- Any global state → 6-dimension ontology (organizations, people, things, connections, events, knowledge)
 - Any imperative loops → functional composition
 - Any hidden dependencies → explicit Effect services
 
@@ -763,7 +763,7 @@ describe("AgentOrchestrator", () => {
 1. **Map their architecture to ours:**
    - Their agent system → Our AgentOrchestrator service
    - Their model switching → Our multi-provider pattern
-   - Their state → Our 4-table ontology
+   - Their state → Our 6-dimension ontology (organizations, people, things, connections, events, knowledge)
    - Their config → Our entities table metadata
 
 2. **Extract patterns, not code:**
