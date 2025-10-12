@@ -1,10 +1,10 @@
 # ONE Ontology Documentation
 
-**Version 2.0 - 6-Dimension Architecture** 
+**Version 1.0 - 6-Dimension Architecture**
 
 ---
 
-## The  Flow
+## The Flow
 
 ```
 Organisations → People → Things → Connections → Events → Knowledge
@@ -20,29 +20,34 @@ Organisations → People → Things → Connections → Events → Knowledge
 ### Core Concepts (Start Here)
 
 1. **[organisation.md](./organisation.md)** - Multi-tenant containers
+
    - Organisations own things
    - Delegate ownership to people
    - Track usage & quotas
    - Manage billing & revenue sharing
 
 2. **[people.md](./people.md)** - Creators, owners & users
+
    - Platform owner (Anthony - 100% ownership)
    - Org owners (manage organizations)
    - Org users (work within organizations)
    - Customers (consume content)
 
 3. **[things.md](./things.md)** - 66 entity types
+
    - If you can point at it, it's a thing
    - Core, agents, content, products, community, tokens, etc.
    - Summary with patterns (full details in Ontology.md)
 
 4. **[connections.md](./connections.md)** - 25 relationship types
+
    - Thing-to-thing relationships
    - Ownership, membership, transactions
    - Protocol-agnostic design
    - Summary with patterns (full details in Ontology.md)
 
 5. **[events.md](./events.md)** - 67 event types
+
    - Time-stamped actions
    - Complete audit trail
    - Inference & revenue tracking
@@ -67,6 +72,7 @@ Organisations → People → Things → Connections → Events → Knowledge
 ## The Complete Specification
 
 **[Ontology.md](./ontology.md)** - The single source of truth
+
 - Complete technical specification
 - All 66 thing types with properties
 - All 25 connection types with metadata patterns
@@ -114,6 +120,7 @@ Organisations → People → Things → Connections → Events → Knowledge
 ### 1. Six Dimensions
 
 Everything in ONE exists in one of 6 dimensions:
+
 - **organizations** - multi-tenant isolation (ownership partitioning)
 - **people** - authorization & governance (who can do what)
 - **things** - entities (66 types)
@@ -124,6 +131,7 @@ Everything in ONE exists in one of 6 dimensions:
 ### 2. Knowledge-Last
 
 Knowledge is now the last primitive:
+
 - Tags
 - Describes
 - Adds vector embeddings for semantic search
@@ -133,6 +141,7 @@ Knowledge is now the last primitive:
 ### 3. Protocol-Agnostic
 
 All protocols map TO the ontology via metadata:
+
 - `metadata.protocol` identifies the protocol (a2a, acp, ap2, x402, agui)
 - `metadata.network` identifies blockchain (sui, solana, base)
 - Core ontology remains stable
@@ -141,6 +150,7 @@ All protocols map TO the ontology via metadata:
 ### 4. Organisation-Scoped
 
 Multi-tenant isolation:
+
 - Every resource belongs to an organization
 - Permissions enforced via membership connections
 - Usage tracked per organization
@@ -149,6 +159,7 @@ Multi-tenant isolation:
 ### 5. Event-Driven
 
 Complete audit trail:
+
 - Every action logs an event
 - Every state change is immutable
 - Time-stamped with actor
@@ -228,17 +239,17 @@ This ontology proves you don't need complexity to build a complete AI-native pla
 ```typescript
 // things table
 defineTable({
-  type: v.string(),           // ThingType
+  type: v.string(), // ThingType
   name: v.string(),
-  properties: v.any(),        // Flexible JSON
+  properties: v.any(), // Flexible JSON
   status: v.string(),
   createdAt: v.number(),
   updatedAt: v.number(),
   deletedAt: v.optional(v.number()),
 })
-.index("by_type", ["type"])
-.index("by_status", ["status"])
-.index("by_created", ["createdAt"])
+  .index("by_type", ["type"])
+  .index("by_status", ["status"])
+  .index("by_created", ["createdAt"]);
 
 // connections table
 defineTable({
@@ -252,25 +263,25 @@ defineTable({
   createdAt: v.number(),
   updatedAt: v.optional(v.number()),
 })
-.index("from_type", ["fromThingId", "relationshipType"])
-.index("to_type", ["toThingId", "relationshipType"])
-.index("bidirectional", ["fromThingId", "toThingId"])
+  .index("from_type", ["fromThingId", "relationshipType"])
+  .index("to_type", ["toThingId", "relationshipType"])
+  .index("bidirectional", ["fromThingId", "toThingId"]);
 
 // events table
 defineTable({
-  type: v.string(),           // EventType
+  type: v.string(), // EventType
   actorId: v.id("things"),
   targetId: v.optional(v.id("things")),
   timestamp: v.number(),
   metadata: v.any(),
 })
-.index("type_time", ["type", "timestamp"])
-.index("actor_time", ["actorId", "timestamp"])
-.index("thing_type_time", ["targetId", "type", "timestamp"])
+  .index("type_time", ["type", "timestamp"])
+  .index("actor_time", ["actorId", "timestamp"])
+  .index("thing_type_time", ["targetId", "type", "timestamp"]);
 
 // knowledge table
 defineTable({
-  knowledgeType: v.string(),  // 'label' | 'document' | 'chunk' | 'vector_only'
+  knowledgeType: v.string(), // 'label' | 'document' | 'chunk' | 'vector_only'
   text: v.optional(v.string()),
   embedding: v.optional(v.array(v.number())),
   embeddingModel: v.optional(v.string()),
@@ -284,9 +295,9 @@ defineTable({
   updatedAt: v.number(),
   deletedAt: v.optional(v.number()),
 })
-.index("by_type", ["knowledgeType"])
-.index("by_source", ["sourceThingId"])
-.index("by_created", ["createdAt"])
+  .index("by_type", ["knowledgeType"])
+  .index("by_source", ["sourceThingId"])
+  .index("by_created", ["createdAt"]);
 // Vector index (provider-specific)
 
 // thingKnowledge junction table
@@ -297,8 +308,8 @@ defineTable({
   metadata: v.optional(v.any()),
   createdAt: v.number(),
 })
-.index("by_thing", ["thingId"])
-.index("by_knowledge", ["knowledgeId"])
+  .index("by_thing", ["thingId"])
+  .index("by_knowledge", ["knowledgeId"]);
 ```
 
 ---
@@ -306,17 +317,20 @@ defineTable({
 ## Roadmap
 
 ### Phase 1: Foundation ✅
+
 - Ontology complete
 - Knowledge system designed
 - Documentation organized
 
 ### Phase 2: Implementation (Current)
+
 - Convex schema migration
 - Embedding pipeline
 - Vector search
 - Inference tracking
 
 ### Phase 3: Scale
+
 - Multi-tenant dashboards
 - Revenue sharing automation
 - Cross-chain bridges

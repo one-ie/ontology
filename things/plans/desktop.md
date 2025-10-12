@@ -17,19 +17,21 @@ ONE Desktop transforms emdash's multi-agent orchestration into a native command 
 ## Architecture Alignment with ONE Ontology
 
 ### Things (Entities)
+
 ```typescript
 // Desktop-specific thing types (extend ontology)
 type DesktopThingType =
-  | 'desktop_session'        // Running desktop instance
-  | 'agent_workspace'        // Isolated agent environment
-  | 'git_worktree'           // Git worktree instance
-  | 'agent_task'             // Task assigned to agent
-  | 'agent_output'           // Agent-generated artifact
-  | 'workspace_snapshot'     // Saved workspace state
-  | 'agent_conversation'     // Chat history with agent
+  | "desktop_session" // Running desktop instance
+  | "agent_workspace" // Isolated agent environment
+  | "git_worktree" // Git worktree instance
+  | "agent_task" // Task assigned to agent
+  | "agent_output" // Agent-generated artifact
+  | "workspace_snapshot" // Saved workspace state
+  | "agent_conversation"; // Chat history with agent
 ```
 
 ### Connections (Relationships)
+
 ```typescript
 // Desktop workspace relationships
 relationshipType =
@@ -41,6 +43,7 @@ relationshipType =
 ```
 
 ### Events (Actions)
+
 ```typescript
 // Desktop activity tracking
 eventType =
@@ -55,6 +58,7 @@ eventType =
 ```
 
 ### Knowledge (RAG + Labels)
+
 - Index all agent outputs as knowledge chunks
 - Label tasks by `capability:*`, `technology:*`, `status:*`
 - Enable semantic search across all agent conversations
@@ -65,6 +69,7 @@ eventType =
 ## Technology Stack (from emdash)
 
 ### Core Technologies
+
 - **Electron** - Cross-platform desktop (macOS, Windows, Linux)
 - **TypeScript** - Type-safe throughout
 - **Vite** - Fast build tooling
@@ -72,6 +77,7 @@ eventType =
 - **SQLite** - Local-first data persistence
 
 ### Key Differences from emdash
+
 1. **Backend Integration** - Sync with ONE backend (Convex)
 2. **Ontology-Aware** - All operations map to things/connections/events
 3. **Knowledge Engine** - Built-in RAG for agent context
@@ -83,20 +89,25 @@ eventType =
 ## Feature Set
 
 ### 1. Agent Orchestration (from emdash)
+
 **Inherited Features:**
+
 - ✅ Run multiple AI agents in parallel
 - ✅ Isolated git worktrees per agent
 - ✅ Support for Claude Code, Cursor, GitHub Copilot, etc.
 - ✅ Local SQLite for workspace tracking
 
 **ONE Enhancements:**
+
 - 🆕 Map agents to `business_agents` ontology (strategy, marketing, sales, etc.)
 - 🆕 Agents share knowledge through ONE's knowledge table
 - 🆕 Tasks create `agent_task` things with proper connections
 - 🆕 All agent activity logged as events for analytics
 
 ### 2. Workspace Management
+
 **Base (emdash):**
+
 ```typescript
 interface Workspace {
   id: string;
@@ -108,13 +119,14 @@ interface Workspace {
 ```
 
 **ONE Extension:**
+
 ```typescript
 interface ONEWorkspace extends Workspace {
   // Link to ONE deployment
   deployment: {
-    url: string;              // Backend Convex URL
-    organizationId: Id<'things'>;  // Org this workspace belongs to
-    creatorId: Id<'things'>;       // Creator who owns it
+    url: string; // Backend Convex URL
+    organizationId: Id<"things">; // Org this workspace belongs to
+    creatorId: Id<"things">; // Creator who owns it
   };
 
   // Sync state with backend
@@ -135,15 +147,16 @@ interface ONEWorkspace extends Workspace {
 
 ### 3. Agent Capabilities Matrix
 
-| Agent Type | emdash Support | ONE Integration |
-|-----------|---------------|-----------------|
-| Claude Code | ✅ Built-in | Map to `engineering_agent` |
-| Cursor | ✅ Built-in | Map to `engineering_agent` |
-| GitHub Copilot | ✅ Built-in | Map to `engineering_agent` |
-| Custom Agents | ✅ Extensible | Map to 10 `business_agents` |
-| External (ElizaOS, etc.) | ❌ None | 🆕 Via `external_agent` ontology |
+| Agent Type               | emdash Support | ONE Integration                  |
+| ------------------------ | -------------- | -------------------------------- |
+| Claude Code              | ✅ Built-in    | Map to `engineering_agent`       |
+| Cursor                   | ✅ Built-in    | Map to `engineering_agent`       |
+| GitHub Copilot           | ✅ Built-in    | Map to `engineering_agent`       |
+| Custom Agents            | ✅ Extensible  | Map to 10 `business_agents`      |
+| External (ElizaOS, etc.) | ❌ None        | 🆕 Via `external_agent` ontology |
 
 ### 4. Deployment Pipeline
+
 **emdash:** Git operations only
 **ONE Desktop:** Full deployment flow
 
@@ -165,6 +178,7 @@ graph LR
 ## User Experience Flow
 
 ### 1. Launch & Connect
+
 ```
 ┌─────────────────────────────────────┐
 │  ONE Desktop                        │
@@ -182,6 +196,7 @@ graph LR
 ```
 
 ### 2. Create Workspace
+
 ```
 ┌─────────────────────────────────────┐
 │  New Workspace                      │
@@ -202,6 +217,7 @@ graph LR
 ```
 
 ### 3. Agent Dashboard (Main View)
+
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │ ONE Desktop - My SaaS Project                   [Sync] [•••] │
@@ -236,6 +252,7 @@ graph LR
 ```
 
 ### 4. Agent Detail View (Click on an agent)
+
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │ ← Back to Dashboard                Claude Code - Engineering │
@@ -276,6 +293,7 @@ graph LR
 ## Data Model (SQLite Schema)
 
 ### Base Schema (from emdash)
+
 ```sql
 -- Workspaces
 CREATE TABLE workspaces (
@@ -310,6 +328,7 @@ CREATE TABLE worktrees (
 ```
 
 ### ONE Extensions
+
 ```sql
 -- ONE Backend Connection
 CREATE TABLE deployments (
@@ -373,11 +392,14 @@ CREATE TABLE sync_queue (
 ## Sync Strategy: Desktop ↔️ Backend
 
 ### 1. Initial Connection
+
 ```typescript
 async function connectToBackend(convexUrl: string): Promise<Deployment> {
   // 1. Authenticate with Better Auth
   const authClient = new BetterAuthClient({ baseURL: convexUrl });
-  const session = await authClient.signIn({ /* ... */ });
+  const session = await authClient.signIn({
+    /* ... */
+  });
 
   // 2. Fetch user's organizations
   const orgs = await convex.query(api.queries.orgs.listMyOrgs);
@@ -395,14 +417,15 @@ async function connectToBackend(convexUrl: string): Promise<Deployment> {
 ```
 
 ### 2. Continuous Sync
+
 ```typescript
 // Watch for local changes
 const watcher = chokidar.watch(workspace.path, {
   ignored: /(^|[\/\\])\../, // ignore dotfiles
-  persistent: true
+  persistent: true,
 });
 
-watcher.on('change', async (path) => {
+watcher.on("change", async (path) => {
   // 1. Determine entity type from file path
   const entityType = inferEntityType(path);
 
@@ -414,7 +437,7 @@ watcher.on('change', async (path) => {
     workspace_id: workspace.id,
     entity_type: entityType,
     entity_id: data.id || generateId(),
-    operation: 'update',
+    operation: "update",
     payload: JSON.stringify(data),
   });
 });
@@ -438,7 +461,7 @@ setInterval(async () => {
       // Mark synced
       await db.sync_queue.update(item.id, { synced: true });
     } catch (error) {
-      console.error('Sync failed:', error);
+      console.error("Sync failed:", error);
       // Retry with exponential backoff
     }
   }
@@ -446,6 +469,7 @@ setInterval(async () => {
 ```
 
 ### 3. Conflict Resolution
+
 ```typescript
 interface SyncConflict {
   file: string;
@@ -461,15 +485,15 @@ async function resolveConflicts(conflicts: SyncConflict[]): Promise<void> {
 
   for (const conflict of conflicts) {
     switch (resolution[conflict.file]) {
-      case 'keep-local':
+      case "keep-local":
         // Overwrite remote with local
         await syncToBackend(conflict.localVersion);
         break;
-      case 'keep-remote':
+      case "keep-remote":
         // Overwrite local with remote
         await syncFromBackend(conflict.remoteVersion);
         break;
-      case 'merge':
+      case "merge":
         // Manual merge in editor
         await openMergeTool(conflict);
         break;
@@ -483,7 +507,9 @@ async function resolveConflicts(conflicts: SyncConflict[]): Promise<void> {
 ## Agent Integration Patterns
 
 ### 1. Engineering Agents (Claude, Cursor, Copilot)
+
 **Workflow:**
+
 ```
 User assigns task → Agent works in isolated worktree →
 Agent makes changes → Desktop detects changes →
@@ -492,17 +518,18 @@ Deploy to backend/frontend → Log events
 ```
 
 **Example Task:**
+
 ```typescript
 const task = await createTask({
-  agent: 'claude-code',
-  title: 'Add user profile page',
+  agent: "claude-code",
+  title: "Add user profile page",
   context: [
-    'User should see their name, email, avatar',
-    'Add edit functionality',
-    'Use existing auth session',
+    "User should see their name, email, avatar",
+    "Add edit functionality",
+    "Use existing auth session",
     'Follow ontology: user is a "creator" thing',
   ],
-  knowledge: await searchKnowledge('user profile ontology'),
+  knowledge: await searchKnowledge("user profile ontology"),
 });
 
 // Claude works on it...
@@ -512,13 +539,15 @@ const changes = await getAgentChanges(task.agent_id);
 // ... 45 files changed, 2,847 insertions, 156 deletions
 
 // Approve & deploy
-await commitChanges(task.agent_id, 'feat: add user profile page');
+await commitChanges(task.agent_id, "feat: add user profile page");
 await deployToBackend(changes.backend);
 await deployToFrontend(changes.frontend);
 ```
 
 ### 2. Business Agents (Strategy, Marketing, Sales, etc.)
+
 **Workflow:**
+
 ```
 User assigns business task → Agent queries knowledge →
 Agent generates output (content, strategy, etc.) →
@@ -527,17 +556,18 @@ Other agents can use output as context
 ```
 
 **Example Task:**
+
 ```typescript
 const task = await createTask({
-  agent: 'marketing-agent',
-  title: 'Generate blog post about ONE Desktop launch',
+  agent: "marketing-agent",
+  title: "Generate blog post about ONE Desktop launch",
   context: [
-    'Target audience: developers and creators',
-    'Highlight multi-agent orchestration',
-    'Include technical details from ontology',
-    'SEO optimized',
+    "Target audience: developers and creators",
+    "Highlight multi-agent orchestration",
+    "Include technical details from ontology",
+    "SEO optimized",
   ],
-  knowledge: await searchKnowledge('ONE desktop agent orchestration'),
+  knowledge: await searchKnowledge("ONE desktop agent orchestration"),
 });
 
 // Marketing agent generates 3 blog posts...
@@ -545,20 +575,22 @@ const task = await createTask({
 // Save as things in backend
 for (const post of task.outputs) {
   await convex.mutation(api.mutations.content.create, {
-    type: 'blog_post',
+    type: "blog_post",
     name: post.title,
     properties: {
       content: post.content,
       seo: post.seo,
-      generatedBy: 'marketing_agent',
+      generatedBy: "marketing_agent",
     },
-    status: 'draft',
+    status: "draft",
   });
 }
 ```
 
 ### 3. External Agents (ElizaOS, AutoGen, etc.)
+
 **Workflow:**
+
 ```
 Connect external agent via API → Register as external_agent thing →
 Desktop routes tasks via A2A protocol → External agent works →
@@ -566,46 +598,47 @@ Results sync back to desktop → Log events → Update knowledge
 ```
 
 **Example Integration:**
+
 ```typescript
 // Register external agent
 const elizaAgent = await convex.mutation(api.mutations.agents.createExternal, {
-  type: 'external_agent',
-  name: 'ElizaOS Research Agent',
+  type: "external_agent",
+  name: "ElizaOS Research Agent",
   properties: {
-    platform: 'elizaos',
-    apiEndpoint: 'https://api.eliza.ai/v1',
-    capabilities: ['research', 'summarization', 'data-extraction'],
+    platform: "elizaos",
+    apiEndpoint: "https://api.eliza.ai/v1",
+    capabilities: ["research", "summarization", "data-extraction"],
   },
 });
 
 // Assign task via A2A protocol
 const task = await createTask({
   agent: elizaAgent._id,
-  title: 'Research competitor pricing',
-  context: ['Find top 10 competitors', 'Extract pricing tiers'],
-  protocol: 'a2a',
+  title: "Research competitor pricing",
+  context: ["Find top 10 competitors", "Extract pricing tiers"],
+  protocol: "a2a",
 });
 
 // ElizaOS works on it...
 
 // Results come back via webhook
-app.post('/webhook/eliza', async (req, res) => {
+app.post("/webhook/eliza", async (req, res) => {
   const result = req.body;
 
   // Save to knowledge
   await convex.mutation(api.mutations.knowledge.create, {
-    knowledgeType: 'document',
+    knowledgeType: "document",
     text: result.summary,
     sourceThingId: elizaAgent._id,
-    labels: ['research', 'competitor-analysis'],
+    labels: ["research", "competitor-analysis"],
   });
 
   // Log event
   await convex.mutation(api.mutations.events.log, {
-    type: 'agent_completed',
+    type: "agent_completed",
     actorId: elizaAgent._id,
     targetId: task._id,
-    metadata: { protocol: 'a2a', duration: result.duration },
+    metadata: { protocol: "a2a", duration: result.duration },
   });
 });
 ```
@@ -615,11 +648,12 @@ app.post('/webhook/eliza', async (req, res) => {
 ## Knowledge Integration
 
 ### 1. Automatic Indexing
+
 ```typescript
 // Watch workspace for changes
 const indexer = new WorkspaceIndexer(workspace);
 
-indexer.on('file-changed', async (file) => {
+indexer.on("file-changed", async (file) => {
   // Extract text
   const text = await readFile(file.path);
 
@@ -629,7 +663,7 @@ indexer.on('file-changed', async (file) => {
   // Generate embeddings
   for (const chunk of chunks) {
     const embedding = await openai.embeddings.create({
-      model: 'text-embedding-3-large',
+      model: "text-embedding-3-large",
       input: chunk.text,
     });
 
@@ -639,8 +673,10 @@ indexer.on('file-changed', async (file) => {
       source_file: file.path,
       chunk_index: chunk.index,
       text: chunk.text,
-      embedding: Buffer.from(new Float32Array(embedding.data[0].embedding).buffer),
-      embedding_model: 'text-embedding-3-large',
+      embedding: Buffer.from(
+        new Float32Array(embedding.data[0].embedding).buffer
+      ),
+      embedding_model: "text-embedding-3-large",
     });
 
     // Queue for backend sync
@@ -650,14 +686,12 @@ indexer.on('file-changed', async (file) => {
 ```
 
 ### 2. Context Retrieval for Agents
+
 ```typescript
-async function getAgentContext(
-  agent: Agent,
-  query: string
-): Promise<string[]> {
+async function getAgentContext(agent: Agent, query: string): Promise<string[]> {
   // 1. Generate query embedding
   const queryEmbedding = await openai.embeddings.create({
-    model: 'text-embedding-3-large',
+    model: "text-embedding-3-large",
     input: query,
   });
 
@@ -680,7 +714,7 @@ async function getAgentContext(
   const uniqueChunks = deduplicateByContent(allChunks);
 
   // 5. Return as context strings
-  return uniqueChunks.map(chunk => chunk.text);
+  return uniqueChunks.map((chunk) => chunk.text);
 }
 
 // Use in agent prompt
@@ -689,7 +723,7 @@ const systemPrompt = `
 You are ${agent.type} working on ${task.title}.
 
 Relevant context from the knowledge base:
-${context.join('\n\n---\n\n')}
+${context.join("\n\n---\n\n")}
 
 Task: ${task.description}
 
@@ -702,15 +736,16 @@ Follow the ONE ontology when making changes. All entities should map to the 6-di
 ## Deployment Integration
 
 ### 1. Backend Deployment (Convex)
+
 ```typescript
 async function deployBackend(workspace: Workspace): Promise<void> {
-  const backendPath = path.join(workspace.path, 'backend');
+  const backendPath = path.join(workspace.path, "backend");
 
   // 1. Run type check
-  await exec('npm run typecheck', { cwd: backendPath });
+  await exec("npm run typecheck", { cwd: backendPath });
 
   // 2. Deploy to Convex
-  const result = await exec('npx convex deploy', {
+  const result = await exec("npx convex deploy", {
     cwd: backendPath,
     env: {
       CONVEX_DEPLOYMENT: workspace.deployment.convex_url,
@@ -719,10 +754,10 @@ async function deployBackend(workspace: Workspace): Promise<void> {
 
   // 3. Log deployment event
   await convex.mutation(api.mutations.events.log, {
-    type: 'deployment_completed',
+    type: "deployment_completed",
     actorId: workspace.creatorId,
     metadata: {
-      target: 'backend',
+      target: "backend",
       deployment_url: workspace.deployment.convex_url,
       duration: result.duration,
     },
@@ -736,15 +771,16 @@ async function deployBackend(workspace: Workspace): Promise<void> {
 ```
 
 ### 2. Frontend Deployment (Cloudflare)
+
 ```typescript
 async function deployFrontend(workspace: Workspace): Promise<void> {
-  const frontendPath = path.join(workspace.path, 'frontend');
+  const frontendPath = path.join(workspace.path, "frontend");
 
   // 1. Build
-  await exec('npm run build', { cwd: frontendPath });
+  await exec("npm run build", { cwd: frontendPath });
 
   // 2. Deploy to Cloudflare Pages
-  const result = await exec('npx wrangler pages deploy ./dist', {
+  const result = await exec("npx wrangler pages deploy ./dist", {
     cwd: frontendPath,
     env: {
       CLOUDFLARE_API_TOKEN: await getCloudflareToken(),
@@ -756,10 +792,10 @@ async function deployFrontend(workspace: Workspace): Promise<void> {
 
   // 4. Log deployment event
   await convex.mutation(api.mutations.events.log, {
-    type: 'deployment_completed',
+    type: "deployment_completed",
     actorId: workspace.creatorId,
     metadata: {
-      target: 'frontend',
+      target: "frontend",
       deployment_url: deployUrl,
       duration: result.duration,
     },
@@ -768,6 +804,7 @@ async function deployFrontend(workspace: Workspace): Promise<void> {
 ```
 
 ### 3. Coordinated Deployment (Full Stack)
+
 ```typescript
 async function deployFullStack(workspace: Workspace): Promise<void> {
   // Deploy in parallel when possible
@@ -787,7 +824,7 @@ async function deployFullStack(workspace: Workspace): Promise<void> {
 
   // Show success notification
   showNotification({
-    title: 'Deployment Complete',
+    title: "Deployment Complete",
     message: `Backend and frontend deployed successfully!`,
     url: frontendResult.url,
   });
@@ -799,36 +836,31 @@ async function deployFullStack(workspace: Workspace): Promise<void> {
 ## Security & Privacy
 
 ### 1. Local-First Data
+
 - All workspace data stored locally in SQLite
 - Embeddings computed locally (option to use local models)
 - Credentials encrypted with OS keychain (Keytar)
 - No data sent to ONE backend without explicit sync
 
 ### 2. Credential Management
+
 ```typescript
-import keytar from 'keytar';
+import keytar from "keytar";
 
 // Store Convex access token securely
 async function storeCredentials(
   deployment: Deployment,
   token: string
 ): Promise<void> {
-  await keytar.setPassword(
-    'one-desktop',
-    deployment.convex_url,
-    token
-  );
+  await keytar.setPassword("one-desktop", deployment.convex_url, token);
 }
 
 // Retrieve token for sync
 async function getCredentials(deployment: Deployment): Promise<string> {
-  const token = await keytar.getPassword(
-    'one-desktop',
-    deployment.convex_url
-  );
+  const token = await keytar.getPassword("one-desktop", deployment.convex_url);
 
   if (!token) {
-    throw new Error('Not authenticated. Please sign in.');
+    throw new Error("Not authenticated. Please sign in.");
   }
 
   return token;
@@ -836,23 +868,24 @@ async function getCredentials(deployment: Deployment): Promise<string> {
 ```
 
 ### 3. Permission Scopes
+
 ```typescript
 // Request minimal permissions from backend
 const scopes = [
-  'read:things',      // Read entities
-  'write:things',     // Create/update entities
-  'read:events',      // Read activity logs
-  'write:events',     // Log new events
-  'read:knowledge',   // Search knowledge base
-  'write:knowledge',  // Add knowledge chunks
-  'deploy:backend',   // Deploy Convex functions
-  'deploy:frontend',  // Deploy to Cloudflare
+  "read:things", // Read entities
+  "write:things", // Create/update entities
+  "read:events", // Read activity logs
+  "write:events", // Log new events
+  "read:knowledge", // Search knowledge base
+  "write:knowledge", // Add knowledge chunks
+  "deploy:backend", // Deploy Convex functions
+  "deploy:frontend", // Deploy to Cloudflare
 ];
 
 // User approves during first connection
 const session = await authClient.signIn({
   scopes,
-  approval: 'interactive', // Shows permission dialog
+  approval: "interactive", // Shows permission dialog
 });
 ```
 
@@ -861,6 +894,7 @@ const session = await authClient.signIn({
 ## Platform Support
 
 ### macOS
+
 - **Native Features:**
   - Menu bar integration
   - Touch Bar support for agent controls
@@ -868,6 +902,7 @@ const session = await authClient.signIn({
   - Notification Center for agent updates
 
 ### Windows
+
 - **Native Features:**
   - System tray integration
   - Windows Search integration
@@ -875,6 +910,7 @@ const session = await authClient.signIn({
   - Jump lists for recent workspaces
 
 ### Linux
+
 - **Native Features:**
   - System tray (via libappindicator)
   - Desktop notifications
@@ -885,6 +921,7 @@ const session = await authClient.signIn({
 ## Development Roadmap
 
 ### Phase 1: MVP (Q1 2025)
+
 - ✅ Fork emdash codebase
 - ✅ Add ONE branding and UI
 - ✅ Implement basic Convex sync
@@ -892,6 +929,7 @@ const session = await authClient.signIn({
 - ✅ Basic knowledge indexing (local only)
 
 ### Phase 2: Full Integration (Q2 2025)
+
 - ⬜ Complete ontology mapping
 - ⬜ Real-time sync with backend
 - ⬜ All 10 business agents supported
@@ -899,6 +937,7 @@ const session = await authClient.signIn({
 - ⬜ Vector search across local + backend knowledge
 
 ### Phase 3: Advanced Features (Q3 2025)
+
 - ⬜ Multi-deployment management
 - ⬜ Conflict resolution UI
 - ⬜ Agent marketplace (discover & install agents)
@@ -906,6 +945,7 @@ const session = await authClient.signIn({
 - ⬜ Team collaboration (shared workspaces)
 
 ### Phase 4: Enterprise (Q4 2025)
+
 - ⬜ SSO integration
 - ⬜ Audit logging
 - ⬜ Role-based access control
@@ -917,6 +957,7 @@ const session = await authClient.signIn({
 ## Success Metrics
 
 ### Developer Experience
+
 - **Goal:** Ship 10x faster with AI agents
 - **Metrics:**
   - Average task completion time
@@ -924,6 +965,7 @@ const session = await authClient.signIn({
   - Lines of code generated vs manually written
 
 ### System Performance
+
 - **Goal:** Sub-second responsiveness
 - **Metrics:**
   - Agent startup time < 2s
@@ -931,6 +973,7 @@ const session = await authClient.signIn({
   - Search response time < 100ms
 
 ### Adoption
+
 - **Goal:** 10,000 active developers by end of 2025
 - **Metrics:**
   - Monthly active users
@@ -942,18 +985,18 @@ const session = await authClient.signIn({
 
 ## Technical Comparison: emdash vs ONE Desktop
 
-| Feature | emdash | ONE Desktop |
-|---------|--------|-------------|
-| **Core Purpose** | Multi-agent parallel execution | AI business orchestration |
-| **Data Model** | SQLite (custom schema) | SQLite + ONE ontology sync |
-| **Supported Agents** | 7 coding agents | 7 coding + 10 business + external |
-| **Backend Integration** | None | Full Convex sync |
-| **Knowledge Base** | None | Built-in RAG with embeddings |
-| **Deployment** | Git only | Git + Convex + Cloudflare |
-| **Organization Support** | Single user | Multi-tenant orgs |
-| **Conflict Resolution** | Manual | UI-guided + auto-merge |
-| **Analytics** | None | Full event tracking |
-| **Marketplace** | None | Agent & template marketplace |
+| Feature                  | emdash                         | ONE Desktop                       |
+| ------------------------ | ------------------------------ | --------------------------------- |
+| **Core Purpose**         | Multi-agent parallel execution | AI business orchestration         |
+| **Data Model**           | SQLite (custom schema)         | SQLite + ONE ontology sync        |
+| **Supported Agents**     | 7 coding agents                | 7 coding + 10 business + external |
+| **Backend Integration**  | None                           | Full Convex sync                  |
+| **Knowledge Base**       | None                           | Built-in RAG with embeddings      |
+| **Deployment**           | Git only                       | Git + Convex + Cloudflare         |
+| **Organization Support** | Single user                    | Multi-tenant orgs                 |
+| **Conflict Resolution**  | Manual                         | UI-guided + auto-merge            |
+| **Analytics**            | None                           | Full event tracking               |
+| **Marketplace**          | None                           | Agent & template marketplace      |
 
 ---
 
@@ -975,12 +1018,14 @@ const session = await authClient.signIn({
 ## Getting Started (Developer)
 
 ### Prerequisites
+
 - Node.js 20+
 - Git
 - Convex account (free tier)
 - Cloudflare account (free tier)
 
 ### Installation
+
 ```bash
 # Clone the repo
 git clone https://github.com/one-ie/desktop
@@ -1000,6 +1045,7 @@ npm run package
 ```
 
 ### Configuration
+
 ```typescript
 // ~/.one-desktop/config.json
 {
@@ -1045,6 +1091,7 @@ npm run package
 **ONE Desktop transforms emdash from a multi-agent code orchestrator into a complete AI business command center.**
 
 By integrating with ONE's ontology, knowledge engine, and deployment pipeline, developers can:
+
 - Orchestrate 17+ AI agents (7 coding + 10 business)
 - Build applications that map to a clean 4-table data model
 - Deploy instantly to global edge infrastructure
@@ -1058,7 +1105,7 @@ By integrating with ONE's ontology, knowledge engine, and deployment pipeline, d
 ## References
 
 - **emdash GitHub:** https://github.com/generalaction/emdash
-- **ONE Ontology:** `/one/connections/ontology.md`
+- **ONE Ontology:** `/one/knowledge/ontology.md`
 - **ONE Vision:** `/one/things/vision.md`
 - **ONE Platform:** https://one.ie
 
@@ -1066,6 +1113,7 @@ By integrating with ONE's ontology, knowledge engine, and deployment pipeline, d
 
 **Status:** Ready for development
 **Next Steps:**
+
 1. Fork emdash repository
 2. Set up ONE branding
 3. Implement Convex sync layer

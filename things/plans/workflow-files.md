@@ -30,7 +30,7 @@
 
 ### 1. Source of Truth
 
-**`one/connections/ontology.md`** - 6-dimension ontology **(already exists)**
+**`one/knowledge/ontology.md`** - 6-dimension ontology **(already exists)**
 
 - Defines all thing types, connection types, event types, tags, and knowledge
 - Single source of truth for entire system
@@ -48,7 +48,7 @@ import { parse } from "yaml";
 
 // Load workflow configuration from ontology
 function loadWorkflowConfig(): any {
-  const yaml = readFileSync("one/connections/ontology-minimal.yaml", "utf-8");
+  const yaml = readFileSync("one/knowledge/ontology-minimal.yaml", "utf-8");
   const ontology = parse(yaml);
   return ontology.workflow;
 }
@@ -60,7 +60,7 @@ function loadAgentPrompt(agentName: string): string {
 
 // Load ontology from one/connections/
 function loadOntology(): string {
-  return readFileSync("one/connections/ontology-minimal.yaml", "utf-8");
+  return readFileSync("one/knowledge/ontology-minimal.yaml", "utf-8");
 }
 
 // Load pattern from one/knowledge/patterns/
@@ -140,9 +140,7 @@ class FileEventLog {
   }
 
   getActivityFeed(): any[] {
-    return this.getEvents()
-      .slice(-20)
-      .reverse();
+    return this.getEvents().slice(-20).reverse();
   }
 }
 
@@ -159,7 +157,9 @@ class AgentOrchestrator {
   // Main workflow: Executes stages defined in ontology-minimal.yaml
   async execute(userIdea: string) {
     console.log("🚀 Starting YAML-driven agent workflow...\n");
-    console.log(`📖 Workflow loaded from: one/connections/ontology-minimal.yaml\n`);
+    console.log(
+      `📖 Workflow loaded from: one/knowledge/ontology-minimal.yaml\n`
+    );
 
     // Get stages from YAML (1_ideas, 2_plans, 3_features, 4_tests, 5_design, 6_implementation)
     const stages = this.workflowConfig.stages;
@@ -169,12 +169,12 @@ class AgentOrchestrator {
 
     // Execute each stage dynamically based on YAML
     for (const stageName of stageNames) {
-      const stageNum = stageName.split('_')[0];
-      const stage = stageName.split('_')[1];
+      const stageNum = stageName.split("_")[0];
+      const stage = stageName.split("_")[1];
 
-      console.log(`\n${'='.repeat(60)}`);
+      console.log(`\n${"=".repeat(60)}`);
       console.log(`Stage ${stageNum}: ${stage.toUpperCase()}`);
-      console.log(`${'='.repeat(60)}\n`);
+      console.log(`${"=".repeat(60)}\n`);
 
       result = await this.executeStage(stage, result);
     }
@@ -186,17 +186,17 @@ class AgentOrchestrator {
   // Execute a stage based on YAML configuration
   private async executeStage(stage: string, previousResult: any): Promise<any> {
     switch (stage) {
-      case 'ideas':
+      case "ideas":
         return this.executeIdeasStage(previousResult);
-      case 'plans':
+      case "plans":
         return this.executePlansStage(previousResult);
-      case 'features':
+      case "features":
         return this.executeFeaturesStage(previousResult);
-      case 'tests':
+      case "tests":
         return this.executeTestsStage(previousResult);
-      case 'design':
+      case "design":
         return this.executeDesignStage(previousResult);
-      case 'implementation':
+      case "implementation":
         return this.executeImplementationStage(previousResult);
       default:
         throw new Error(`Unknown stage: ${stage}`);
@@ -205,7 +205,7 @@ class AgentOrchestrator {
 
   private async executeIdeasStage(input: any) {
     console.log("📋 Director: Validating idea against ontology...");
-    const ideaResult = await this.runAgent('director', 'validate-idea', {
+    const ideaResult = await this.runAgent("director", "validate-idea", {
       idea: input.idea,
       ontology: loadOntology(),
     });
@@ -215,7 +215,7 @@ class AgentOrchestrator {
 
   private async executePlansStage(input: any) {
     console.log("📝 Director: Creating plan from validated idea...");
-    const planResult = await this.runAgent('director', 'create-plan', {
+    const planResult = await this.runAgent("director", "create-plan", {
       idea: input.ideaResult,
       ontology: loadOntology(),
     });
@@ -227,11 +227,13 @@ class AgentOrchestrator {
     console.log("⚙️  Specialists: Writing feature specifications...");
     const features = input.planResult.features || [];
     const featureResults = await Promise.all(
-      features.map((f: any) => this.runAgent('specialist-backend', 'write-feature', {
-        feature: f,
-        ontology: loadOntology(),
-        patterns: this.loadRelevantPatterns('backend'),
-      }))
+      features.map((f: any) =>
+        this.runAgent("specialist-backend", "write-feature", {
+          feature: f,
+          ontology: loadOntology(),
+          patterns: this.loadRelevantPatterns("backend"),
+        })
+      )
     );
     featureResults.forEach((f) => this.saveFeature(f.context));
     return { ...input, featureResults: featureResults.map((r) => r.context) };
@@ -239,7 +241,7 @@ class AgentOrchestrator {
 
   private async executeTestsStage(input: any) {
     console.log("✅ Quality: Defining user flows and acceptance criteria...");
-    const testResults = await this.runAgent('quality', 'define-tests', {
+    const testResults = await this.runAgent("quality", "define-tests", {
       features: input.featureResults,
       ontology: loadOntology(),
     });
@@ -249,10 +251,10 @@ class AgentOrchestrator {
 
   private async executeDesignStage(input: any) {
     console.log("🎨 Design: Creating wireframes and component architecture...");
-    const designResults = await this.runAgent('design', 'create-wireframes', {
+    const designResults = await this.runAgent("design", "create-wireframes", {
       features: input.featureResults,
       tests: input.testResults,
-      patterns: this.loadRelevantPatterns('design'),
+      patterns: this.loadRelevantPatterns("design"),
     });
     designResults.context.features.forEach((f: any) => this.saveDesign(f));
     return { ...input, designResults: designResults.context };
@@ -260,7 +262,7 @@ class AgentOrchestrator {
 
   private async executeImplementationStage(input: any) {
     console.log("📋 Director: Creating task lists from designs...");
-    const taskLists = await this.runAgent('director', 'create-tasks', {
+    const taskLists = await this.runAgent("director", "create-tasks", {
       features: input.featureResults,
       designs: input.designResults,
     });
@@ -272,10 +274,10 @@ class AgentOrchestrator {
     await this.runTestLoop(taskResults);
 
     console.log("📚 Documenter: Writing documentation...");
-    await this.runAgent('documenter', 'write-docs', taskResults);
+    await this.runAgent("documenter", "write-docs", taskResults);
 
     console.log("✅ Director: Marking features complete...");
-    await this.runAgent('director', 'mark-complete', { features: taskResults });
+    await this.runAgent("director", "mark-complete", { features: taskResults });
 
     return { ...input, taskResults };
   }
@@ -506,7 +508,7 @@ if (require.main === module) {
     process.argv[2] || "Build a course platform for fitness creators";
 
   console.log("🎯 YAML-Driven Agent Workflow");
-  console.log("📖 Configuration: one/connections/ontology-minimal.yaml\n");
+  console.log("📖 Configuration: one/knowledge/ontology-minimal.yaml\n");
 
   orchestrator
     .execute(idea)
@@ -791,7 +793,7 @@ tests/
 
 **Source of Truth:**
 
-- `one/connections/ontology.md` - 6-dimension ontology **(already exists)**
+- `one/knowledge/ontology.md` - 6-dimension ontology **(already exists)**
 - `one/connections/workflow.md` - Workflow relationships **(this file)**
 
 ### Orchestration (1 TypeScript file)
@@ -843,7 +845,7 @@ tests/
 
 ### YAML-Driven System (Ontology-Organized)
 
-- **YAML:** Workflow defined in `one/connections/ontology-minimal.yaml` (already exists)
+- **YAML:** Workflow defined in `one/knowledge/ontology-minimal.yaml` (already exists)
 - **TypeScript:** 1 file (~150 lines) in `one/workflows/orchestrator.ts` - reads YAML and executes
 - **Agent prompts (things):** 8 files (~200-400 lines each) in `one/things/agents/`
 - **Patterns (knowledge):** 7 files (~400-700 tokens each) in `one/knowledge/patterns/`
@@ -875,7 +877,7 @@ tests/
 
 ### Phase 1: Knowledge - Patterns (Week 1)
 
-1. ✅ `one/connections/ontology.md` - Already exists
+1. ✅ `one/knowledge/ontology.md` - Already exists
 2. `one/knowledge/patterns/backend/service.md` - Effect.ts service pattern
 3. `one/knowledge/patterns/backend/mutation.md` - Convex mutation pattern
 4. `one/knowledge/patterns/backend/query.md` - Convex query pattern
@@ -904,7 +906,7 @@ tests/
 
 ### Phase 4: Workflows - Orchestrator (Week 3)
 
-21. ✅ `one/connections/ontology-minimal.yaml` - Workflow config already exists
+21. ✅ `one/knowledge/ontology-minimal.yaml` - Workflow config already exists
 22. `one/workflows/orchestrator.ts` - YAML-driven orchestrator (~150 lines)
 23. Implement YAML loader and workflow parser
 24. Implement dynamic stage execution (reads stages from YAML)
@@ -945,7 +947,7 @@ tests/
 
 ### Internal Dependencies
 
-- `one/connections/ontology-minimal.yaml` - **Single source of truth** for entire workflow ✅
+- `one/knowledge/ontology-minimal.yaml` - **Single source of truth** for entire workflow ✅
 - File system access - For reading/writing markdown files
 
 ### No Dependencies On
@@ -983,7 +985,7 @@ const workflowConfig = loadWorkflowConfig();
 const stages = workflowConfig.stages;
 
 // Get agent config (director, specialists, quality, design, problem_solver, documenter)
-const agentConfig = workflowConfig.agents['director'];
+const agentConfig = workflowConfig.agents["director"];
 // Returns: { role, responsibilities, context_tokens }
 
 // Load agent prompts from one/things/agents/

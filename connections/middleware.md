@@ -45,6 +45,7 @@ The **middleware layer** is the glue that binds our three-layer architecture tog
 **Purpose:** Direct connection to Convex for real-time data subscriptions.
 
 **When to Use:**
+
 - ✅ Reading data that updates in real-time (dashboard stats, live messages)
 - ✅ Simple queries without complex business logic
 - ✅ Optimistic UI updates
@@ -54,19 +55,19 @@ The **middleware layer** is the glue that binds our three-layer architecture tog
 
 ```typescript
 // src/hooks/useConvexQuery.ts
-import { useQuery } from 'convex/react';
-import { api } from '@/convex/_generated/api';
-import type { Id } from '@/convex/_generated/dataModel';
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 
 /**
  * Hook for real-time Convex data
  * Automatically re-renders when data changes
  */
-export function useTokenBalance(tokenId: Id<'entities'>) {
+export function useTokenBalance(tokenId: Id<"entities">) {
   return useQuery(api.queries.tokens.getBalance, { id: tokenId });
 }
 
-export function useCreatorStats(creatorId: Id<'entities'>) {
+export function useCreatorStats(creatorId: Id<"entities">) {
   return useQuery(api.queries.dashboard.getStats, { creatorId });
 }
 
@@ -79,9 +80,9 @@ export function useLiveMessages(roomId: string) {
 
 ```tsx
 // src/components/dashboard/TokenBalance.tsx
-import { useTokenBalance } from '@/hooks/useConvexQuery';
+import { useTokenBalance } from "@/hooks/useConvexQuery";
 
-export function TokenBalance({ tokenId }: { tokenId: Id<'entities'> }) {
+export function TokenBalance({ tokenId }: { tokenId: Id<"entities"> }) {
   // Real-time data - automatically updates!
   const balance = useTokenBalance(tokenId);
 
@@ -98,12 +99,14 @@ export function TokenBalance({ tokenId }: { tokenId: Id<'entities'> }) {
 ```
 
 **Benefits:**
+
 - Automatic re-renders on data changes (no manual polling)
 - Optimistic updates built-in
 - Type-safe with generated types
 - WebSocket-based (efficient)
 
 **Limitations:**
+
 - Only for reads (queries), not complex mutations
 - Can't add custom retry logic or error handling easily
 - Limited to Convex-specific patterns
@@ -115,6 +118,7 @@ export function TokenBalance({ tokenId }: { tokenId: Id<'entities'> }) {
 **Purpose:** HTTP client for calling Hono API routes with complex business logic.
 
 **When to Use:**
+
 - ✅ Complex mutations (token purchases, payments, agent creation)
 - ✅ Operations requiring authentication/authorization
 - ✅ External API integrations (Stripe, OpenAI, blockchain)
@@ -124,23 +128,26 @@ export function TokenBalance({ tokenId }: { tokenId: Id<'entities'> }) {
 
 ```typescript
 // src/lib/api-client.ts
-import { Effect } from 'effect';
+import { Effect } from "effect";
 
 /**
  * Tagged errors for API client
  */
 export class NetworkError {
-  readonly _tag = 'NetworkError';
+  readonly _tag = "NetworkError";
   constructor(readonly message: string, readonly cause?: unknown) {}
 }
 
 export class UnauthorizedError {
-  readonly _tag = 'UnauthorizedError';
+  readonly _tag = "UnauthorizedError";
 }
 
 export class ValidationError {
-  readonly _tag = 'ValidationError';
-  constructor(readonly message: string, readonly fields?: Record<string, string>) {}
+  readonly _tag = "ValidationError";
+  constructor(
+    readonly message: string,
+    readonly fields?: Record<string, string>
+  ) {}
 }
 
 /**
@@ -165,9 +172,9 @@ export class APIClient {
       try: async () => {
         const response = await fetch(`${this.baseURL}${path}`, {
           ...options,
-          credentials: 'include',
+          credentials: "include",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
             ...options.headers,
           },
         });
@@ -182,7 +189,7 @@ export class APIClient {
             throw new ValidationError(error.message, error.fields);
           }
 
-          throw new NetworkError(error.message || 'Request failed');
+          throw new NetworkError(error.message || "Request failed");
         }
 
         return response.json() as Promise<T>;
@@ -191,7 +198,7 @@ export class APIClient {
         if (error instanceof UnauthorizedError) return error;
         if (error instanceof ValidationError) return error;
         if (error instanceof NetworkError) return error;
-        return new NetworkError('Network request failed', error);
+        return new NetworkError("Network request failed", error);
       },
     });
   }
@@ -206,8 +213,8 @@ export class APIClient {
     { success: true; newBalance: number },
     NetworkError | UnauthorizedError | ValidationError
   > {
-    return this.request('/api/tokens/purchase', {
-      method: 'POST',
+    return this.request("/api/tokens/purchase", {
+      method: "POST",
       body: JSON.stringify({ tokenId, amount }),
     });
   }
@@ -215,14 +222,16 @@ export class APIClient {
   /**
    * Agent operations
    */
-  createAgent(
-    config: { name: string; description: string; model: string }
-  ): Effect.Effect<
+  createAgent(config: {
+    name: string;
+    description: string;
+    model: string;
+  }): Effect.Effect<
     { id: string; name: string },
     NetworkError | UnauthorizedError | ValidationError
   > {
-    return this.request('/api/agents', {
-      method: 'POST',
+    return this.request("/api/agents", {
+      method: "POST",
       body: JSON.stringify(config),
     });
   }
@@ -230,14 +239,15 @@ export class APIClient {
   /**
    * Content operations
    */
-  publishContent(
-    content: { title: string; body: string }
-  ): Effect.Effect<
+  publishContent(content: {
+    title: string;
+    body: string;
+  }): Effect.Effect<
     { id: string; publishedAt: number },
     NetworkError | UnauthorizedError | ValidationError
   > {
-    return this.request('/api/content', {
-      method: 'POST',
+    return this.request("/api/content", {
+      method: "POST",
       body: JSON.stringify(content),
     });
   }
@@ -250,11 +260,11 @@ export const apiClient = new APIClient();
 
 ```tsx
 // src/components/features/tokens/TokenPurchaseButton.tsx
-import { useState } from 'react';
-import { Effect } from 'effect';
-import { apiClient } from '@/lib/api-client';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { useState } from "react";
+import { Effect } from "effect";
+import { apiClient } from "@/lib/api-client";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 export function TokenPurchaseButton({ tokenId }: { tokenId: string }) {
   const { toast } = useToast();
@@ -268,50 +278,50 @@ export function TokenPurchaseButton({ tokenId }: { tokenId: string }) {
       // Automatic retry on network errors
       Effect.retry({
         times: 3,
-        schedule: Effect.Schedule.exponential('1 second'),
+        schedule: Effect.Schedule.exponential("1 second"),
       }),
 
       // Timeout after 30 seconds
-      Effect.timeout('30 seconds'),
+      Effect.timeout("30 seconds"),
 
       // Type-safe error handling
-      Effect.catchTag('UnauthorizedError', () =>
+      Effect.catchTag("UnauthorizedError", () =>
         Effect.sync(() => {
           toast({
-            title: 'Unauthorized',
-            description: 'Please sign in to purchase tokens',
-            variant: 'destructive',
+            title: "Unauthorized",
+            description: "Please sign in to purchase tokens",
+            variant: "destructive",
           });
-          window.location.href = '/signin';
+          window.location.href = "/signin";
         })
       ),
 
-      Effect.catchTag('ValidationError', (error) =>
+      Effect.catchTag("ValidationError", (error) =>
         Effect.sync(() => {
           toast({
-            title: 'Validation Error',
+            title: "Validation Error",
             description: error.message,
-            variant: 'destructive',
+            variant: "destructive",
           });
         })
       ),
 
-      Effect.catchTag('NetworkError', (error) =>
+      Effect.catchTag("NetworkError", (error) =>
         Effect.sync(() => {
           toast({
-            title: 'Network Error',
-            description: 'Please check your connection',
-            variant: 'destructive',
+            title: "Network Error",
+            description: "Please check your connection",
+            variant: "destructive",
           });
         })
       ),
 
-      Effect.catchTag('TimeoutException', () =>
+      Effect.catchTag("TimeoutException", () =>
         Effect.sync(() => {
           toast({
-            title: 'Request Timeout',
-            description: 'Purchase took too long, please try again',
-            variant: 'destructive',
+            title: "Request Timeout",
+            description: "Purchase took too long, please try again",
+            variant: "destructive",
           });
         })
       ),
@@ -320,7 +330,7 @@ export function TokenPurchaseButton({ tokenId }: { tokenId: string }) {
       Effect.tap((result) =>
         Effect.sync(() => {
           toast({
-            title: 'Success!',
+            title: "Success!",
             description: `Purchased 100 tokens. New balance: ${result.newBalance}`,
           });
         })
@@ -335,13 +345,14 @@ export function TokenPurchaseButton({ tokenId }: { tokenId: string }) {
 
   return (
     <Button onClick={handlePurchase} disabled={loading}>
-      {loading ? 'Processing...' : 'Buy 100 Tokens'}
+      {loading ? "Processing..." : "Buy 100 Tokens"}
     </Button>
   );
 }
 ```
 
 **Benefits:**
+
 - Type-safe errors with exhaustive pattern matching
 - Automatic retry logic with exponential backoff
 - Timeout protection
@@ -355,6 +366,7 @@ export function TokenPurchaseButton({ tokenId }: { tokenId: string }) {
 **Purpose:** Reusable Effect.ts services for complex client-side logic.
 
 **When to Use:**
+
 - ✅ Complex multi-step workflows on client
 - ✅ Local state management with Effect
 - ✅ Client-side caching with retry
@@ -364,15 +376,20 @@ export function TokenPurchaseButton({ tokenId }: { tokenId: string }) {
 
 ```typescript
 // src/lib/effects/token-client.ts
-import { Effect, Context, Layer } from 'effect';
-import { apiClient, NetworkError, UnauthorizedError, ValidationError } from '@/lib/api-client';
-import type { Id } from '@/convex/_generated/dataModel';
+import { Effect, Context, Layer } from "effect";
+import {
+  apiClient,
+  NetworkError,
+  UnauthorizedError,
+  ValidationError,
+} from "@/lib/api-client";
+import type { Id } from "@/convex/_generated/dataModel";
 
 /**
  * Token Purchase Error (domain-specific)
  */
 export class TokenPurchaseError {
-  readonly _tag = 'TokenPurchaseError';
+  readonly _tag = "TokenPurchaseError";
   constructor(readonly message: string) {}
 }
 
@@ -380,7 +397,7 @@ export class TokenPurchaseError {
  * Token Client Service
  * Wraps API client with additional client-side logic
  */
-export class TokenClientService extends Context.Tag('TokenClientService')<
+export class TokenClientService extends Context.Tag("TokenClientService")<
   TokenClientService,
   {
     purchase: (args: {
@@ -400,28 +417,32 @@ export class TokenClientService extends Context.Tag('TokenClientService')<
         // Client-side validation
         if (args.amount <= 0) {
           return yield* Effect.fail(
-            new TokenPurchaseError('Amount must be positive')
+            new TokenPurchaseError("Amount must be positive")
           );
         }
 
         if (args.amount > 10000) {
           return yield* Effect.fail(
-            new TokenPurchaseError('Amount too large (max 10,000)')
+            new TokenPurchaseError("Amount too large (max 10,000)")
           );
         }
 
         // Call API with retry
-        const result = yield* apiClient.purchaseTokens(args.tokenId, args.amount).pipe(
-          Effect.retry({
-            times: 3,
-            schedule: Effect.Schedule.exponential('1 second'),
-          }),
-          Effect.timeout('30 seconds'),
-          Effect.catchTags({
-            NetworkError: (e) => Effect.fail(new TokenPurchaseError(e.message)),
-            ValidationError: (e) => Effect.fail(new TokenPurchaseError(e.message)),
-          })
-        );
+        const result = yield* apiClient
+          .purchaseTokens(args.tokenId, args.amount)
+          .pipe(
+            Effect.retry({
+              times: 3,
+              schedule: Effect.Schedule.exponential("1 second"),
+            }),
+            Effect.timeout("30 seconds"),
+            Effect.catchTags({
+              NetworkError: (e) =>
+                Effect.fail(new TokenPurchaseError(e.message)),
+              ValidationError: (e) =>
+                Effect.fail(new TokenPurchaseError(e.message)),
+            })
+          );
 
         return result;
       }),
@@ -429,12 +450,9 @@ export class TokenClientService extends Context.Tag('TokenClientService')<
     getBalance: (tokenId) =>
       Effect.gen(function* () {
         // Fetch balance from API
-        const result = yield* apiClient.request<{ balance: number }>(
-          `/api/tokens/balance/${tokenId}`
-        ).pipe(
-          Effect.retry({ times: 2 }),
-          Effect.timeout('10 seconds')
-        );
+        const result = yield* apiClient
+          .request<{ balance: number }>(`/api/tokens/balance/${tokenId}`)
+          .pipe(Effect.retry({ times: 2 }), Effect.timeout("10 seconds"));
 
         return result.balance;
       }),
@@ -446,10 +464,10 @@ export class TokenClientService extends Context.Tag('TokenClientService')<
 
 ```typescript
 // src/lib/effects/layers.ts
-import { Layer } from 'effect';
-import { TokenClientService } from './token-client';
-import { AgentClientService } from './agent-client';
-import { ContentClientService } from './content-client';
+import { Layer } from "effect";
+import { TokenClientService } from "./token-client";
+import { AgentClientService } from "./agent-client";
+import { ContentClientService } from "./content-client";
 
 /**
  * Client layer with all services
@@ -465,9 +483,9 @@ export const ClientLayer = Layer.mergeAll(
 
 ```tsx
 // src/components/features/tokens/AdvancedPurchase.tsx
-import { Effect } from 'effect';
-import { TokenClientService } from '@/lib/effects/token-client';
-import { ClientLayer } from '@/lib/effects/layers';
+import { Effect } from "effect";
+import { TokenClientService } from "@/lib/effects/token-client";
+import { ClientLayer } from "@/lib/effects/layers";
 
 export function AdvancedPurchase({ tokenId }: { tokenId: string }) {
   const handlePurchase = async (amount: number) => {
@@ -482,7 +500,7 @@ export function AdvancedPurchase({ tokenId }: { tokenId: string }) {
 
     const result = await Effect.runPromise(program);
 
-    console.log('Purchase completed:', result);
+    console.log("Purchase completed:", result);
   };
 
   return <button onClick={() => handlePurchase(100)}>Buy 100 Tokens</button>;
@@ -490,6 +508,7 @@ export function AdvancedPurchase({ tokenId }: { tokenId: string }) {
 ```
 
 **Benefits:**
+
 - Reusable business logic on client
 - Composable services
 - Type-safe error handling
@@ -505,8 +524,8 @@ export function AdvancedPurchase({ tokenId }: { tokenId: string }) {
 
 ```typescript
 // src/middleware/auth.ts
-import { Effect, Context, Layer } from 'effect';
-import { apiClient } from '@/lib/api-client';
+import { Effect, Context, Layer } from "effect";
+import { apiClient } from "@/lib/api-client";
 
 /**
  * Session data
@@ -524,7 +543,7 @@ export interface Session {
 /**
  * Auth Service (client-side)
  */
-export class AuthService extends Context.Tag('AuthService')<
+export class AuthService extends Context.Tag("AuthService")<
   AuthService,
   {
     getSession: () => Effect.Effect<Session | null, never>;
@@ -536,14 +555,14 @@ export class AuthService extends Context.Tag('AuthService')<
   static readonly Live = Layer.succeed(AuthService, {
     getSession: () =>
       Effect.sync(() => {
-        const sessionJson = localStorage.getItem('session');
+        const sessionJson = localStorage.getItem("session");
         if (!sessionJson) return null;
 
         const session = JSON.parse(sessionJson) as Session;
 
         // Check if expired
         if (session.expiresAt < Date.now()) {
-          localStorage.removeItem('session');
+          localStorage.removeItem("session");
           return null;
         }
 
@@ -552,14 +571,14 @@ export class AuthService extends Context.Tag('AuthService')<
 
     signIn: (email, password) =>
       Effect.gen(function* () {
-        const result = yield* apiClient.request<Session>('/api/auth/signin', {
-          method: 'POST',
+        const result = yield* apiClient.request<Session>("/api/auth/signin", {
+          method: "POST",
           body: JSON.stringify({ email, password }),
         });
 
         // Store session
         yield* Effect.sync(() => {
-          localStorage.setItem('session', JSON.stringify(result));
+          localStorage.setItem("session", JSON.stringify(result));
         });
 
         return result;
@@ -568,18 +587,18 @@ export class AuthService extends Context.Tag('AuthService')<
     signOut: () =>
       Effect.gen(function* () {
         // Call API
-        yield* apiClient.request('/api/auth/signout', { method: 'POST' });
+        yield* apiClient.request("/api/auth/signout", { method: "POST" });
 
         // Clear local session
         yield* Effect.sync(() => {
-          localStorage.removeItem('session');
+          localStorage.removeItem("session");
         });
       }),
 
     isAuthenticated: () =>
       Effect.gen(function* () {
         const session = yield* Effect.sync(() => {
-          const sessionJson = localStorage.getItem('session');
+          const sessionJson = localStorage.getItem("session");
           return sessionJson ? JSON.parse(sessionJson) : null;
         });
 
@@ -593,10 +612,10 @@ export class AuthService extends Context.Tag('AuthService')<
 
 ```tsx
 // src/components/auth/ProtectedRoute.tsx
-import { useEffect, useState } from 'react';
-import { Effect } from 'effect';
-import { AuthService } from '@/middleware/auth';
-import { Layer } from 'effect';
+import { useEffect, useState } from "react";
+import { Effect } from "effect";
+import { AuthService } from "@/middleware/auth";
+import { Layer } from "effect";
 
 const AuthLayer = AuthService.Live;
 
@@ -617,7 +636,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated) {
-    window.location.href = '/signin';
+    window.location.href = "/signin";
     return null;
   }
 
@@ -635,9 +654,9 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 ```tsx
 // src/components/ErrorBoundary.tsx
-import React from 'react';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import React from "react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   children: React.ReactNode;
@@ -660,7 +679,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
+    console.error("Error caught by boundary:", error, errorInfo);
   }
 
   render() {
@@ -673,7 +692,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
         <Alert variant="destructive">
           <AlertTitle>Something went wrong</AlertTitle>
           <AlertDescription>
-            {this.state.error?.message || 'An unexpected error occurred'}
+            {this.state.error?.message || "An unexpected error occurred"}
           </AlertDescription>
           <Button
             variant="outline"
@@ -718,14 +737,16 @@ import DashboardContent from '@/components/dashboard/DashboardContent';
 
 ```tsx
 // src/components/features/TokenDashboard.tsx
-import { useQuery } from 'convex/react';
-import { api as convexApi } from '@/convex/_generated/api';
-import { apiClient } from '@/lib/api-client';
-import { Effect } from 'effect';
+import { useQuery } from "convex/react";
+import { api as convexApi } from "@/convex/_generated/api";
+import { apiClient } from "@/lib/api-client";
+import { Effect } from "effect";
 
 export function TokenDashboard({ tokenId }: { tokenId: string }) {
   // Real-time balance via Convex hook
-  const balance = useQuery(convexApi.queries.tokens.getBalance, { id: tokenId });
+  const balance = useQuery(convexApi.queries.tokens.getBalance, {
+    id: tokenId,
+  });
 
   // Purchase via Hono API
   const handlePurchase = async (amount: number) => {
@@ -744,6 +765,7 @@ export function TokenDashboard({ tokenId }: { tokenId: string }) {
 ```
 
 **Benefits:**
+
 - Real-time data updates (Convex)
 - Complex mutations (Hono)
 - Best of both worlds
@@ -754,10 +776,10 @@ export function TokenDashboard({ tokenId }: { tokenId: string }) {
 
 ```typescript
 // src/lib/workflows/create-agent-with-content.ts
-import { Effect } from 'effect';
-import { AgentClientService } from '@/lib/effects/agent-client';
-import { ContentClientService } from '@/lib/effects/content-client';
-import { TokenClientService } from '@/lib/effects/token-client';
+import { Effect } from "effect";
+import { AgentClientService } from "@/lib/effects/agent-client";
+import { ContentClientService } from "@/lib/effects/content-client";
+import { TokenClientService } from "@/lib/effects/token-client";
 
 /**
  * Complex workflow: Create agent, publish content, deduct tokens
@@ -792,7 +814,7 @@ export const createAgentWithContent = (args: {
     // Automatic rollback on any failure
     Effect.onError((error) =>
       Effect.gen(function* () {
-        console.error('Workflow failed, rolling back:', error);
+        console.error("Workflow failed, rolling back:", error);
         // Rollback logic here
       })
     )
@@ -842,21 +864,26 @@ if (!session) {
 
 ```typescript
 // tests/middleware/token-client.test.ts
-import { describe, it, expect } from 'vitest';
-import { Effect, Layer } from 'effect';
-import { TokenClientService, TokenPurchaseError } from '@/lib/effects/token-client';
+import { describe, it, expect } from "vitest";
+import { Effect, Layer } from "effect";
+import {
+  TokenClientService,
+  TokenPurchaseError,
+} from "@/lib/effects/token-client";
 
-describe('TokenClientService', () => {
-  it('should validate amount', async () => {
+describe("TokenClientService", () => {
+  it("should validate amount", async () => {
     const program = Effect.gen(function* () {
       const service = yield* TokenClientService;
-      return yield* service.purchase({ tokenId: 'test', amount: -1 });
+      return yield* service.purchase({ tokenId: "test", amount: -1 });
     }).pipe(Effect.provide(TokenClientService.Live));
 
-    await expect(Effect.runPromise(program)).rejects.toThrow(TokenPurchaseError);
+    await expect(Effect.runPromise(program)).rejects.toThrow(
+      TokenPurchaseError
+    );
   });
 
-  it('should purchase tokens successfully', async () => {
+  it("should purchase tokens successfully", async () => {
     // Mock API client
     const MockTokenClient = Layer.succeed(TokenClientService, {
       purchase: () =>
@@ -866,7 +893,7 @@ describe('TokenClientService', () => {
 
     const program = Effect.gen(function* () {
       const service = yield* TokenClientService;
-      return yield* service.purchase({ tokenId: 'test', amount: 100 });
+      return yield* service.purchase({ tokenId: "test", amount: 100 });
     }).pipe(Effect.provide(MockTokenClient));
 
     const result = await Effect.runPromise(program);
@@ -881,19 +908,19 @@ describe('TokenClientService', () => {
 
 ```typescript
 // tests/integration/token-purchase-flow.test.ts
-import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { TokenPurchaseButton } from '@/components/features/tokens/TokenPurchaseButton';
+import { describe, it, expect } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { TokenPurchaseButton } from "@/components/features/tokens/TokenPurchaseButton";
 
-describe('Token Purchase Flow', () => {
-  it('should complete purchase and show success toast', async () => {
+describe("Token Purchase Flow", () => {
+  it("should complete purchase and show success toast", async () => {
     render(<TokenPurchaseButton tokenId="test-token" />);
 
-    const button = screen.getByText('Buy 100 Tokens');
+    const button = screen.getByText("Buy 100 Tokens");
     fireEvent.click(button);
 
     // Wait for success toast
-    await screen.findByText('Success!');
+    await screen.findByText("Success!");
 
     expect(screen.getByText(/Purchased 100 tokens/)).toBeInTheDocument();
   });
@@ -911,14 +938,14 @@ describe('Token Purchase Flow', () => {
 ```typescript
 // ✅ GOOD: Typed errors
 export class PaymentError {
-  readonly _tag = 'PaymentError';
+  readonly _tag = "PaymentError";
   constructor(readonly message: string) {}
 }
 
 const program = apiClient.purchase(args).pipe(
-  Effect.catchTag('PaymentError', (e) => {
+  Effect.catchTag("PaymentError", (e) => {
     // Type-safe error handling
-    toast({ title: 'Payment Failed', description: e.message });
+    toast({ title: "Payment Failed", description: e.message });
   })
 );
 
@@ -927,7 +954,7 @@ try {
   await apiClient.purchase(args);
 } catch (error) {
   // Lost type information
-  toast({ title: 'Error', description: String(error) });
+  toast({ title: "Error", description: String(error) });
 }
 ```
 
@@ -936,10 +963,10 @@ try {
 **Use exponential backoff for network errors:**
 
 ```typescript
-const program = apiClient.request('/api/data').pipe(
+const program = apiClient.request("/api/data").pipe(
   Effect.retry({
     times: 3,
-    schedule: Effect.Schedule.exponential('1 second', 2.0), // 1s, 2s, 4s
+    schedule: Effect.Schedule.exponential("1 second", 2.0), // 1s, 2s, 4s
   })
 );
 ```
@@ -950,8 +977,8 @@ const program = apiClient.request('/api/data').pipe(
 
 ```typescript
 const program = apiClient.longRunningOperation().pipe(
-  Effect.timeout('30 seconds'),
-  Effect.catchTag('TimeoutException', () => {
+  Effect.timeout("30 seconds"),
+  Effect.catchTag("TimeoutException", () => {
     // Handle timeout
     return Effect.succeed({ timedOut: true });
   })
@@ -974,7 +1001,7 @@ const handleAction = async () => {
   }
 };
 
-return <Button disabled={loading}>{loading ? 'Loading...' : 'Submit'}</Button>;
+return <Button disabled={loading}>{loading ? "Loading..." : "Submit"}</Button>;
 ```
 
 ### 5. Optimistic Updates
@@ -1023,17 +1050,18 @@ The middleware layer provides **five key components**:
 
 **When to Use What:**
 
-| Use Case | Component | Example |
-|----------|-----------|---------|
-| Real-time data | Convex Hooks | Dashboard stats, live messages |
-| Complex mutations | Hono API Client | Token purchase, payment processing |
-| Multi-step workflows | Effect.ts Services | Create agent + publish content |
-| Session management | Auth Middleware | Protected routes, user context |
-| Error display | Error Boundaries | Catch React errors |
+| Use Case             | Component          | Example                            |
+| -------------------- | ------------------ | ---------------------------------- |
+| Real-time data       | Convex Hooks       | Dashboard stats, live messages     |
+| Complex mutations    | Hono API Client    | Token purchase, payment processing |
+| Multi-step workflows | Effect.ts Services | Create agent + publish content     |
+| Session management   | Auth Middleware    | Protected routes, user context     |
+| Error display        | Error Boundaries   | Catch React errors                 |
 
 **Related Documentation:**
+
 - [frontend.md](../things/frontend.md) - Astro + React frontend patterns
 - [hono.md](../things/hono.md) - Hono API backend implementation
-- [architecture.md](../things/architecture.md) - Complete system architecture
+- [architecture.md](../knowledge/architecture.md) - Complete system architecture
 
 The middleware layer is the **glue** that makes our three-layer architecture work seamlessly! 🚀

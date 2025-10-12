@@ -9,6 +9,7 @@
 ## Executive Summary
 
 **New YAML-driven approach:**
+
 - **6 levels:** ideas → plans → features → tests → design → implementation
 - **Agent roles:** Director, Specialists, Quality, Design, Problem Solver, Documenter
 - **YAML config:** Entire workflow defined in `ontology-minimal.yaml` (single source of truth)
@@ -39,6 +40,7 @@
 ### Engineering Director Agent
 
 **Responsibilities:**
+
 - Validates and refines ideas into plans
 - Creates team structure and assigns specialists
 - Reviews features and refines plans when needed
@@ -56,12 +58,14 @@
 ### Specialist Agents
 
 **Responsibilities:**
+
 - Write features based on director's assignments
 - Implement assigned tasks in parallel
 - Fix problems when tests fail
 - Add lessons learned to knowledge base
 
 **Types:**
+
 - Backend Specialist (services, mutations, queries)
 - Frontend Specialist (pages, components)
 - Integration Specialist (connections between systems)
@@ -77,6 +81,7 @@
 ### Quality Agent
 
 **Responsibilities:**
+
 - Checks features against ontology
 - Creates user flows and acceptance criteria
 - Defines unit, integration, and e2e tests
@@ -94,6 +99,7 @@
 ### Design Agent
 
 **Responsibilities:**
+
 - Creates wireframes that satisfy test criteria
 - Designs UI that enables user flows to pass
 - Defines component architecture
@@ -111,6 +117,7 @@
 ### Problem Solver Agent
 
 **Responsibilities:**
+
 - Analyzes failed tests using ultrathink mode
 - Determines root cause of failures
 - Proposes solutions to specialists
@@ -127,6 +134,7 @@
 ### Documenter Agent
 
 **Responsibilities:**
+
 - Writes feature documentation
 - Creates user guides
 - Documents API changes
@@ -159,6 +167,7 @@ IMPLEMENTATION (code)
 ```
 
 **Key principles:**
+
 - **Ideas → Plans:** Director validates against ontology
 - **Plans → Features:** Director breaks into feature specs
 - **Features → Tests:** Quality defines user flows (definition of done)
@@ -197,6 +206,7 @@ Creators sell courses, users enroll, track progress
 ```
 
 **Director Agent Process:**
+
 1. Receives idea from user
 2. Validates against ontology (200 tokens context)
 3. Decides: turn into plan or feature
@@ -238,6 +248,7 @@ Creators sell courses, users enroll, track progress
 ```
 
 **Director Agent Process:**
+
 1. Breaks idea into features
 2. Assigns specialists to features
 3. Creates numbering: `2-plan-name` → `2-1-feature`, `2-2-feature`, etc.
@@ -277,6 +288,7 @@ Creators sell courses, users enroll, track progress
 ```
 
 **Feature Workflow:**
+
 1. **Specialist Agent:** Writes feature specification
 2. **Director:** Reviews and refines if needed
 3. **Next:** Pass to Quality Agent for test definition
@@ -378,6 +390,7 @@ Creators sell courses, users enroll, track progress
 ```
 
 **Test Workflow:**
+
 1. **Quality Agent:** Defines user flows first (what users need to do)
 2. **Quality Agent:** Defines acceptance criteria (how we know it works)
 3. **Quality Agent:** Defines technical tests (implementation validation)
@@ -430,69 +443,75 @@ Creators sell courses, users enroll, track progress
 
 ### Create Course Form
 ```
+
 ┌─────────────────────────────────────┐
-│  Create Course                    × │
+│ Create Course × │
 ├─────────────────────────────────────┤
-│                                     │
-│  Course Title *                     │
-│  ┌─────────────────────────────┐   │
-│  │ [cursor here]               │   │
-│  └─────────────────────────────┘   │
-│                                     │
-│  Description (optional)             │
-│  ┌─────────────────────────────┐   │
-│  │                             │   │
-│  │                             │   │
-│  └─────────────────────────────┘   │
-│                                     │
-│  Price (optional)                   │
-│  ┌──────┐                           │
-│  │ $0   │                           │
-│  └──────┘                           │
-│                                     │
-│  [ Create Course ]  [Cancel]       │
+│ │
+│ Course Title \* │
+│ ┌─────────────────────────────┐ │
+│ │ [cursor here] │ │
+│ └─────────────────────────────┘ │
+│ │
+│ Description (optional) │
+│ ┌─────────────────────────────┐ │
+│ │ │ │
+│ │ │ │
+│ └─────────────────────────────┘ │
+│ │
+│ Price (optional) │
+│ ┌──────┐ │
+│ │ $0 │ │
+│ └──────┘ │
+│ │
+│ [ Create Course ] [Cancel] │
 └─────────────────────────────────────┘
+
 ```
 
 ### Course Card with Edit
 ```
+
 ┌──────────────────────────────────┐
-│ Fitness Fundamentals       [Edit]│
-│ Learn the basics...              │
-│ $49                              │
-│                      [• • •]     │
+│ Fitness Fundamentals [Edit]│
+│ Learn the basics... │
+│ $49 │
+│ [• • •] │
 └──────────────────────────────────┘
-      ↓ (click Edit)
+↓ (click Edit)
 ┌──────────────────────────────────┐
-│ Title                            │
-│ ┌────────────────────────────┐  │
-│ │ Fitness Fundamentals       │  │
-│ └────────────────────────────┘  │
-│                                  │
-│ Description                      │
-│ ┌────────────────────────────┐  │
-│ │ Learn the basics...        │  │
-│ └────────────────────────────┘  │
-│                                  │
-│ Saved 2s ago ✓   [Done]         │
+│ Title │
+│ ┌────────────────────────────┐ │
+│ │ Fitness Fundamentals │ │
+│ └────────────────────────────┘ │
+│ │
+│ Description │
+│ ┌────────────────────────────┐ │
+│ │ Learn the basics... │ │
+│ └────────────────────────────┘ │
+│ │
+│ Saved 2s ago ✓ [Done] │
 └──────────────────────────────────┘
+
 ```
 
 ### Delete Confirmation
 ```
+
 ┌─────────────────────────────────────┐
-│  Delete Course?                     │
+│ Delete Course? │
 ├─────────────────────────────────────┤
-│                                     │
-│  "Fitness Fundamentals" will be     │
-│  removed from your course list.     │
-│                                     │
-│  Students will lose access.         │
-│  This can be undone for 30 days.    │
-│                                     │
-│  [Keep Course]   [Delete Course]   │
+│ │
+│ "Fitness Fundamentals" will be │
+│ removed from your course list. │
+│ │
+│ Students will lose access. │
+│ This can be undone for 30 days. │
+│ │
+│ [Keep Course] [Delete Course] │
 └─────────────────────────────────────┘
-```
+
+````
 
 ## Component Architecture
 
@@ -515,7 +534,7 @@ CourseManagement/
     ├── ConsequenceExplanation
     ├── KeepButton (default)
     └── DeleteButton
-```
+````
 
 ## Design Tokens
 
@@ -536,6 +555,7 @@ fieldSpacing: 16px
 ```
 
 ## Accessibility
+
 - All forms keyboard navigable
 - Focus indicators visible
 - Error messages announced to screen readers
@@ -543,6 +563,7 @@ fieldSpacing: 16px
 - Touch targets ≥ 44px
 
 **Design Workflow:**
+
 1. **Design Agent:** Creates wireframes that satisfy test criteria
 2. **Design Agent:** Defines component architecture
 3. **Design Agent:** Sets design tokens
@@ -575,13 +596,13 @@ fieldSpacing: 16px
 ```
 
 **Implementation Workflow:**
+
 1. **Specialists:** Build according to design specs
 2. **Specialists:** Write code that passes tests
 3. **Quality Agent:** Runs all tests (user flows + technical)
 4. **If tests fail:** Problem Solver → analyze → fix → re-test
 5. **If tests pass:** Documenter writes docs
 6. **Director:** Marks feature complete
-
 
 ---
 
@@ -676,6 +697,7 @@ Tests run
 **When activated:** Test fails or implementation blocked
 
 **Process:**
+
 1. **Deep Analysis:** Analyzes failed test output + implementation
 2. **Root Cause:** Identifies why test failed (logic error, missing dependency, etc.)
 3. **Solution Proposal:** Proposes specific fix with code changes
@@ -685,19 +707,24 @@ Tests run
 **Context:** Failed tests + implementation + ontology (2,500 tokens)
 
 **Example:**
-```markdown
+
+````markdown
 # Problem: Test Failed - CourseService.create()
 
 ## Failed Test
+
 - Test: CourseService.create() should log course_created event
 - Error: Event not logged to events table
 
 ## Root Cause (Ultrathink Analysis)
+
 - CourseService.create() calls db.insert() but doesn't log event
 - Missing: await ctx.db.insert('events', { type: 'course_created', ... })
 
 ## Proposed Solution
+
 Add event logging after course creation:
+
 ```typescript
 async create(course: Course) {
   const id = await ctx.db.insert('courses', course)
@@ -713,12 +740,15 @@ async create(course: Course) {
   return id
 }
 ```
+````
 
 ## Delegation
+
 - Assigned to: Backend Specialist Agent
 - Priority: High (blocking test)
 - Expected fix time: 5 minutes
-```
+
+````
 
 ### Knowledge Management Integration
 
@@ -738,7 +768,7 @@ async create(course: Course) {
 **Solution:** Added event logging after db.insert()
 **Pattern:** Every entity creation must log corresponding event
 **Ontology Rule:** All thing creations trigger events
-```
+````
 
 ---
 
@@ -749,17 +779,20 @@ async create(course: Course) {
 **Location:** `knowledge/lessons-learned.md`
 
 **Structure:**
+
 ```markdown
 # Lessons Learned
 
 ## Backend Patterns
 
 ### Always Log Events After Entity Creation
+
 - **Problem:** Forgot event logging
 - **Solution:** Add after every db.insert()
 - **Rule:** thing_created events are mandatory
 
 ### Effect.ts Services Need Error Handling
+
 - **Problem:** Service threw unhandled error
 - **Solution:** Wrap in Effect.try()
 - **Rule:** All services use Effect error handling
@@ -767,6 +800,7 @@ async create(course: Course) {
 ## Frontend Patterns
 
 ### SSR Pages Need Convex Client Setup
+
 - **Problem:** useQuery() failed on SSR page
 - **Solution:** Initialize ConvexHttpClient in getStaticProps
 - **Rule:** SSR requires ConvexHttpClient, not useConvex()
@@ -774,12 +808,14 @@ async create(course: Course) {
 ## Testing Patterns
 
 ### Integration Tests Need Real Convex Instance
+
 - **Problem:** Mocks didn't catch event logging issue
 - **Solution:** Use real Convex test instance
 - **Rule:** Integration tests use real backend
 ```
 
 **Usage:**
+
 - **Specialists:** Add after fixing problems
 - **Quality Agent:** References during validation
 - **Problem Solver:** Searches for similar issues
@@ -788,6 +824,7 @@ async create(course: Course) {
 ### Knowledge Accumulation
 
 **Over time:**
+
 1. Lessons learned grow into pattern library
 2. Common problems have documented solutions
 3. Agents learn from past mistakes
@@ -795,6 +832,7 @@ async create(course: Course) {
 5. Quality improves with each feature
 
 **Benefits:**
+
 - ✅ Institutional knowledge captured
 - ✅ Prevents repeated mistakes
 - ✅ Faster problem solving
@@ -878,18 +916,22 @@ async create(course: Course) {
 **How agents coordinate autonomously:**
 
 1. **Director Agent:**
+
    - Logs: `plan_started`, `feature_assigned`, `tasks_created`, `feature_complete`
    - Watches: `quality_check_complete`, `documentation_complete`
 
 2. **Specialist Agents:**
+
    - Log: `feature_started`, `implementation_complete`, `task_started`, `task_completed`, `fix_started`, `fix_complete`, `lesson_learned_added`
    - Watch: `feature_assigned`, `task_created`, `solution_proposed`
 
 3. **Quality Agent:**
+
    - Logs: `quality_check_started`, `quality_check_complete`, `test_started`, `test_passed`, `test_failed`
    - Watches: `implementation_complete`, `task_completed`
 
 4. **Problem Solver Agent:**
+
    - Logs: `problem_analysis_started`, `solution_proposed`
    - Watches: `test_failed`
 
@@ -1036,6 +1078,7 @@ one/
 ```
 
 **That's it. No more:**
+
 - ❌ 59 workflow YAML files
 - ❌ 45 template files
 - ❌ 33 checklist files
@@ -1047,63 +1090,63 @@ one/
 ```typescript
 // one/workflows/orchestrator.ts (YAML-driven workflow in ~150 lines)
 
-import { readFileSync } from 'fs'
-import { parse } from 'yaml'
+import { readFileSync } from "fs";
+import { parse } from "yaml";
 
 // Load workflow configuration from ontology-minimal.yaml
 function loadWorkflowConfig() {
-  const yaml = readFileSync('one/connections/ontology-minimal.yaml', 'utf-8')
-  const ontology = parse(yaml)
-  return ontology.workflow // Returns: stages, agents, numbering, events, coordination
+  const yaml = readFileSync("one/knowledge/ontology-minimal.yaml", "utf-8");
+  const ontology = parse(yaml);
+  return ontology.workflow; // Returns: stages, agents, numbering, events, coordination
 }
 
 class AgentOrchestrator {
-  private workflowConfig: any
+  private workflowConfig: any;
 
   constructor() {
-    this.workflowConfig = loadWorkflowConfig() // Load from YAML
+    this.workflowConfig = loadWorkflowConfig(); // Load from YAML
   }
 
   // Execute workflow based on YAML configuration
   async execute(userIdea: string) {
-    const stages = this.workflowConfig.stages // 1_ideas, 2_plans, 3_features, 4_tests, 5_design, 6_implementation
+    const stages = this.workflowConfig.stages; // 1_ideas, 2_plans, 3_features, 4_tests, 5_design, 6_implementation
 
-    let result = { idea: userIdea }
+    let result = { idea: userIdea };
 
     // Execute each stage dynamically
     for (const [stageName, stageConfig] of Object.entries(stages)) {
-      result = await this.executeStage(stageName, result)
+      result = await this.executeStage(stageName, result);
     }
 
-    return result
+    return result;
   }
 
   // Execute a stage based on its name and configuration
   private async executeStage(stageName: string, input: any) {
-    const stage = stageName.split('_')[1] // "1_ideas" → "ideas"
+    const stage = stageName.split("_")[1]; // "1_ideas" → "ideas"
 
     switch (stage) {
-      case 'ideas':
-        return this.runAgent('director', 'validate-idea', input)
-      case 'plans':
-        return this.runAgent('director', 'create-plan', input)
-      case 'features':
-        return this.runAgentParallel('specialist', 'write-features', input)
-      case 'tests':
-        return this.runAgent('quality', 'define-tests', input)
-      case 'design':
-        return this.runAgent('design', 'create-wireframes', input)
-      case 'implementation':
-        return this.runImplementation(input)
+      case "ideas":
+        return this.runAgent("director", "validate-idea", input);
+      case "plans":
+        return this.runAgent("director", "create-plan", input);
+      case "features":
+        return this.runAgentParallel("specialist", "write-features", input);
+      case "tests":
+        return this.runAgent("quality", "define-tests", input);
+      case "design":
+        return this.runAgent("design", "create-wireframes", input);
+      case "implementation":
+        return this.runImplementation(input);
     }
   }
 
   // Run agent with configuration from YAML
   private async runAgent(agentName: string, task: string, context: any) {
-    const agentConfig = this.workflowConfig.agents[agentName]
+    const agentConfig = this.workflowConfig.agents[agentName];
     // agentConfig contains: role, responsibilities, context_tokens
 
-    const prompt = loadAgentPrompt(agentName)
+    const prompt = loadAgentPrompt(agentName);
 
     // Execute with AI assistant
     // Log events defined in workflow.workflow_events
@@ -1122,13 +1165,13 @@ class AgentOrchestrator {
 
 ### Context Usage
 
-| Level | Old System | New System | Reduction |
-|-------|-----------|------------|-----------|
-| **Idea** | 50k tokens (all workflows) | 200 tokens (type names) | **99.6%** |
-| **Vision** | 80k tokens (workflows + templates) | 1,500 tokens (types) | **98.1%** |
-| **Mission** | 100k tokens (everything) | 2,500 tokens (types + patterns) | **97.5%** |
-| **Story** | 120k tokens (examples) | 2,000 tokens (patterns) | **98.3%** |
-| **Tasks** | 150k tokens (agents + coordination) | 3,000 tokens (category context) | **98.0%** |
+| Level       | Old System                          | New System                      | Reduction |
+| ----------- | ----------------------------------- | ------------------------------- | --------- |
+| **Idea**    | 50k tokens (all workflows)          | 200 tokens (type names)         | **99.6%** |
+| **Vision**  | 80k tokens (workflows + templates)  | 1,500 tokens (types)            | **98.1%** |
+| **Mission** | 100k tokens (everything)            | 2,500 tokens (types + patterns) | **97.5%** |
+| **Story**   | 120k tokens (examples)              | 2,000 tokens (patterns)         | **98.3%** |
+| **Tasks**   | 150k tokens (agents + coordination) | 3,000 tokens (category context) | **98.0%** |
 
 **Average reduction: 98.3%**
 
@@ -1136,30 +1179,31 @@ class AgentOrchestrator {
 
 ### Execution Speed
 
-| Stage | Old System | New System | Speedup |
-|-------|-----------|------------|---------|
-| **Idea → Vision** | 15s (sequential) | 3s (parallel context) | **5x** |
-| **Vision → Mission** | 25s (complex workflows) | 5s (type loading) | **5x** |
-| **Mission → Story** | 30s (templates) | 4s (pattern matching) | **7.5x** |
-| **Story → Tasks** | 45s (sequential agents) | 8s (parallel execution) | **5.6x** |
-| **Total** | 115s | 20s | **5.75x** |
+| Stage                | Old System              | New System              | Speedup   |
+| -------------------- | ----------------------- | ----------------------- | --------- |
+| **Idea → Vision**    | 15s (sequential)        | 3s (parallel context)   | **5x**    |
+| **Vision → Mission** | 25s (complex workflows) | 5s (type loading)       | **5x**    |
+| **Mission → Story**  | 30s (templates)         | 4s (pattern matching)   | **7.5x**  |
+| **Story → Tasks**    | 45s (sequential agents) | 8s (parallel execution) | **5.6x**  |
+| **Total**            | 115s                    | 20s                     | **5.75x** |
 
 ---
 
 ### Maintainability
 
-| Metric | Old System | New System | Improvement |
-|--------|-----------|------------|-------------|
-| **Files to update** | 137 (workflows + templates + checklists) | 1 (ontology) | **137x** |
-| **Lines of config** | 15,000+ | 300 | **50x** |
-| **Complexity** | O(n²) (coordination) | O(n) (parallel) | **Linear** |
-| **Single source of truth** | No (4 systems) | Yes (ontology) | **Unified** |
+| Metric                     | Old System                               | New System      | Improvement |
+| -------------------------- | ---------------------------------------- | --------------- | ----------- |
+| **Files to update**        | 137 (workflows + templates + checklists) | 1 (ontology)    | **137x**    |
+| **Lines of config**        | 15,000+                                  | 300             | **50x**     |
+| **Complexity**             | O(n²) (coordination)                     | O(n) (parallel) | **Linear**  |
+| **Single source of truth** | No (4 systems)                           | Yes (ontology)  | **Unified** |
 
 ---
 
 ### Developer Experience
 
 **Old System:**
+
 ```bash
 # Adding a new feature type:
 1. Update ontology.md (add type)
@@ -1174,6 +1218,7 @@ Coordination complexity: High
 ```
 
 **New System:**
+
 ```bash
 # Adding a new feature type:
 1. Update ontology.md (add type)
@@ -1190,6 +1235,7 @@ Coordination: Auto-derived
 ### Agent-Based Workflow
 
 **The 6 Levels:**
+
 1. **Ideas** → Director validates against ontology
 2. **Plans** → Director creates feature collections, assigns to specialists
 3. **Features** → Specialists write specifications
@@ -1198,6 +1244,7 @@ Coordination: Auto-derived
 6. **Implementation** → Specialists code → Quality validates → Problem solving → Documentation → Complete
 
 **The 6 Agent Roles:**
+
 1. **Engineering Director** → Validates ideas, creates plans, assigns work, marks complete
 2. **Specialist Agents** → Write features, execute tasks, fix problems
 3. **Quality Agent** → Defines user flows, creates tests, validates results
@@ -1206,6 +1253,7 @@ Coordination: Auto-derived
 6. **Documenter Agent** → Writes documentation after features complete
 
 **Numbering System:**
+
 - `2-plan-name` → Plan level
 - `2-1-feature-name` → Feature level
 - `2-1-feature-name-tasks` → Task list
@@ -1214,12 +1262,14 @@ Coordination: Auto-derived
 ### Key Principles
 
 1. **Ontology IS the workflow**
+
    - Types define structure
    - Patterns define implementation
    - Events define coordination
    - Single source of truth
 
 2. **Agent collaboration**
+
    - Director orchestrates
    - Specialists execute in parallel
    - Quality ensures correctness
@@ -1227,6 +1277,7 @@ Coordination: Auto-derived
    - Documenter captures knowledge
 
 3. **Quality loops**
+
    - Tests defined up front
    - Tests run on completion
    - Failures trigger problem solver
@@ -1234,6 +1285,7 @@ Coordination: Auto-derived
    - Knowledge accumulates
 
 4. **Events = coordination**
+
    - No external coordination system
    - Events table IS message bus
    - Agents query events to coordinate
@@ -1248,6 +1300,7 @@ Coordination: Auto-derived
 ### Results
 
 **Before (Old CASCADE):**
+
 - 15,000+ lines of config
 - 137 files to maintain
 - 98% context waste
@@ -1257,6 +1310,7 @@ Coordination: Auto-derived
 - No knowledge capture
 
 **After (YAML-Driven):**
+
 - 150 lines of orchestration code (reads YAML)
 - 1 source of truth (ontology-minimal.yaml)
 - Workflow configuration in YAML (not hardcoded)
@@ -1274,6 +1328,7 @@ Coordination: Auto-derived
 ## Next Steps
 
 1. **Implement agent prompts**
+
    - Write director agent prompt
    - Write specialist agent prompts (backend, frontend, integration)
    - Write quality agent prompt
@@ -1281,18 +1336,21 @@ Coordination: Auto-derived
    - Write documenter agent prompt
 
 2. **Create event types**
+
    - Define all workflow event types in ontology
    - plan_started, feature_assigned, implementation_complete, etc.
    - quality_check_complete, test_passed, test_failed, etc.
    - solution_proposed, lesson_learned_added, etc.
 
 3. **Build orchestrator**
+
    - Ideas → Plans flow
    - Plans → Features delegation
    - Features → Tasks parallel execution
    - Event-driven coordination
 
 4. **Setup knowledge base**
+
    - Create `knowledge/lessons-learned.md`
    - Define lesson structure
    - Integrate with problem solver

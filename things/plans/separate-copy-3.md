@@ -3,17 +3,20 @@
 ## Executive Summary
 
 **Goal:** Transform the current tightly-coupled architecture into a fully headless, **backend-agnostic** architecture where:
+
 - **Frontend:** Pure Astro/React UI with DataProvider interface (no backend dependency)
 - **Backend:** ANY backend that implements the 6-dimension ontology (Convex, WordPress, Notion, Supabase, etc.)
 - **Connection:** DataProvider interface - swap backends by changing ONE line
 
 **Current State:**
+
 - ✅ Frontend is **working** and connected to Convex backend
 - ✅ Auth is functional with tests in `frontend/tests/auth/*`
 - ✅ Direct Convex integration (using `useQuery`, `useMutation`, Convex hooks)
 - ⚠️ Tightly coupled to Convex - can't swap to WordPress/Notion/Supabase
 
 **Target State:**
+
 - Frontend uses DataProvider interface
 - Backend is pluggable - organizations can use Convex, their existing WordPress site, Notion databases, or any other backend
 - Existing auth tests continue to pass
@@ -26,18 +29,21 @@
 **This is NOT a bug fix - this is a strategic enhancement.**
 
 ✅ **Current System Works:**
+
 - Frontend successfully talks to Convex backend
 - Auth is functional with passing tests
 - All features operational
 - No critical issues requiring immediate changes
 
 ⚠️ **Why Separate Now:**
+
 - Add backend flexibility (support WordPress, Notion, Shopify, etc.)
 - Enable multi-backend federation (auth in Convex, blog in WordPress, products in Shopify)
 - Allow organizations to use existing infrastructure
 - Remove Convex lock-in
 
 **Migration Approach:**
+
 - Zero downtime - wrap existing working functionality
 - Preserve all existing tests (especially auth tests)
 - Gradual page-by-page migration
@@ -92,6 +98,7 @@
 **Status:** ✅ Working - Auth functional, tests passing
 
 **Limitations (Not Bugs):**
+
 - ⚠️ Frontend tightly coupled to Convex (works, but inflexible)
 - ⚠️ Can't swap backend without rewriting frontend
 - ⚠️ Organizations must use Convex (can't use existing WordPress/Notion)
@@ -185,6 +192,7 @@
 ```
 
 **Benefits:**
+
 - ✅ **Backend-Agnostic:** Change backend by editing ONE line in config
 - ✅ **Multi-Backend Support:** Organizations can use existing infrastructure (WordPress, Notion, etc.)
 - ✅ **No Lock-In:** Not tied to Convex, any backend works
@@ -238,11 +246,13 @@
 ### Example: User Creates a Course
 
 **Organizations (Dimension 1):**
+
 ```typescript
-organizationId: "fitnesspro_123"  // All operations scoped here
+organizationId: "fitnesspro_123"; // All operations scoped here
 ```
 
 **People (Dimension 2):**
+
 ```typescript
 // Separate people table (NOT things!)
 {
@@ -254,6 +264,7 @@ organizationId: "fitnesspro_123"  // All operations scoped here
 ```
 
 **Things (Dimension 3):**
+
 ```typescript
 // Course is a thing
 {
@@ -270,6 +281,7 @@ organizationId: "fitnesspro_123"  // All operations scoped here
 ```
 
 **Connections (Dimension 4):**
+
 ```typescript
 // Sarah owns the course
 {
@@ -282,6 +294,7 @@ organizationId: "fitnesspro_123"  // All operations scoped here
 ```
 
 **Events (Dimension 5):**
+
 ```typescript
 // Log the creation
 {
@@ -295,6 +308,7 @@ organizationId: "fitnesspro_123"  // All operations scoped here
 ```
 
 **Knowledge (Dimension 6):**
+
 ```typescript
 // Embed course content for AI
 {
@@ -320,140 +334,142 @@ organizationId: "fitnesspro_123"  // All operations scoped here
 
 ```typescript
 // frontend/src/providers/DataProvider.ts
-import { Effect, Context } from 'effect'
+import { Effect, Context } from "effect";
 
 // Universal interface ALL backends implement
 export interface DataProvider {
   // Dimension 1: Organizations
   organizations: {
-    get: (id: string) => Effect.Effect<Organization, OrganizationNotFoundError>
-    list: (params?: { status?: string }) => Effect.Effect<Organization[], Error>
-  }
+    get: (id: string) => Effect.Effect<Organization, OrganizationNotFoundError>;
+    list: (params?: {
+      status?: string;
+    }) => Effect.Effect<Organization[], Error>;
+  };
 
   // Dimension 2: People (separate from things!)
   people: {
-    get: (id: string) => Effect.Effect<Person, PersonNotFoundError>
+    get: (id: string) => Effect.Effect<Person, PersonNotFoundError>;
     list: (params: {
-      organizationId?: string
-      role?: string
-    }) => Effect.Effect<Person[], Error>
+      organizationId?: string;
+      role?: string;
+    }) => Effect.Effect<Person[], Error>;
     create: (input: {
-      email: string
-      displayName: string
-      role: string
-      organizationId: string
-    }) => Effect.Effect<string, Error>
-  }
+      email: string;
+      displayName: string;
+      role: string;
+      organizationId: string;
+    }) => Effect.Effect<string, Error>;
+  };
 
   // Dimension 3: Things
   things: {
-    get: (id: string) => Effect.Effect<Thing, ThingNotFoundError>
+    get: (id: string) => Effect.Effect<Thing, ThingNotFoundError>;
     list: (params: {
-      type: ThingType
-      organizationId?: string
-    }) => Effect.Effect<Thing[], Error>
+      type: ThingType;
+      organizationId?: string;
+    }) => Effect.Effect<Thing[], Error>;
     create: (input: {
-      type: ThingType
-      name: string
-      organizationId: string
-      properties: any
-    }) => Effect.Effect<string, Error>
-  }
+      type: ThingType;
+      name: string;
+      organizationId: string;
+      properties: any;
+    }) => Effect.Effect<string, Error>;
+  };
 
   // Dimension 4: Connections
   connections: {
     create: (input: {
-      fromPersonId?: string        // Can connect people
-      fromThingId?: string          // OR things
-      toThingId: string
-      relationshipType: ConnectionType
-      organizationId: string
-      metadata?: any
-    }) => Effect.Effect<string, Error>
-  }
+      fromPersonId?: string; // Can connect people
+      fromThingId?: string; // OR things
+      toThingId: string;
+      relationshipType: ConnectionType;
+      organizationId: string;
+      metadata?: any;
+    }) => Effect.Effect<string, Error>;
+  };
 
   // Dimension 5: Events
   events: {
     log: (event: {
-      type: EventType
-      actorId: string              // Always a Person ID!
-      targetId?: string
-      organizationId: string
-      metadata?: any
-    }) => Effect.Effect<void, Error>
-  }
+      type: EventType;
+      actorId: string; // Always a Person ID!
+      targetId?: string;
+      organizationId: string;
+      metadata?: any;
+    }) => Effect.Effect<void, Error>;
+  };
 
   // Dimension 6: Knowledge
   knowledge: {
     search: (params: {
-      query: string
-      organizationId: string
-      k?: number
-    }) => Effect.Effect<KnowledgeChunk[], Error>
-  }
+      query: string;
+      organizationId: string;
+      k?: number;
+    }) => Effect.Effect<KnowledgeChunk[], Error>;
+  };
 }
 
-export const DataProvider = Context.GenericTag<DataProvider>('DataProvider')
+export const DataProvider = Context.GenericTag<DataProvider>("DataProvider");
 ```
 
 ### Effect.ts Service Example
 
 ```typescript
 // backend/services/CourseService.ts
-import { Effect } from 'effect'
-import { DataProvider } from '@/providers/DataProvider'
+import { Effect } from "effect";
+import { DataProvider } from "@/providers/DataProvider";
 
 export class CourseService extends Effect.Service<CourseService>()(
-  'CourseService',
+  "CourseService",
   {
     effect: Effect.gen(function* () {
-      const provider = yield* DataProvider
+      const provider = yield* DataProvider;
 
       return {
         // Create course → touches all 6 dimensions
         create: (params: {
-          name: string
-          creatorId: string
-          organizationId: string
-          properties: any
+          name: string;
+          creatorId: string;
+          organizationId: string;
+          properties: any;
         }) =>
           Effect.gen(function* () {
             // 3. Create thing (course)
             const courseId = yield* provider.things.create({
-              type: 'course',
+              type: "course",
               name: params.name,
               organizationId: params.organizationId,
-              properties: params.properties
-            })
+              properties: params.properties,
+            });
 
             // 4. Create connection (person owns course)
             yield* provider.connections.create({
-              fromPersonId: params.creatorId,  // Person ID!
+              fromPersonId: params.creatorId, // Person ID!
               toThingId: courseId,
-              relationshipType: 'owns',
-              organizationId: params.organizationId
-            })
+              relationshipType: "owns",
+              organizationId: params.organizationId,
+            });
 
             // 5. Log event (course created)
             yield* provider.events.log({
-              type: 'course_created',
-              actorId: params.creatorId,       // Person who did it
+              type: "course_created",
+              actorId: params.creatorId, // Person who did it
               targetId: courseId,
               organizationId: params.organizationId,
               metadata: {
                 courseName: params.name,
-                creatorEmail: 'sarah@fitnesspro.com'
-              }
-            })
+                creatorEmail: "sarah@fitnesspro.com",
+              },
+            });
 
             // 6. Embed for knowledge (AI can find it)
             // (handled by background job)
 
-            return courseId
-          })
-      }
+            return courseId;
+          }),
+      };
     }),
-    dependencies: [DataProvider]
+    dependencies: [DataProvider],
   }
 ) {}
 ```
@@ -462,17 +478,17 @@ export class CourseService extends Effect.Service<CourseService>()(
 
 ```tsx
 // frontend/src/components/CreateCourse.tsx
-import { useEffectRunner } from '@/hooks/useEffectRunner'
-import { CourseService } from '@/services/CourseService'
-import { Effect } from 'effect'
+import { useEffectRunner } from "@/hooks/useEffectRunner";
+import { CourseService } from "@/services/CourseService";
+import { Effect } from "effect";
 
 export function CreateCourseForm() {
-  const { run, loading } = useEffectRunner()
+  const { run, loading } = useEffectRunner();
 
   const handleSubmit = async (formData: CourseFormData) => {
     // Define Effect program using CourseService
     const program = Effect.gen(function* () {
-      const courseService = yield* CourseService
+      const courseService = yield* CourseService;
 
       // Create course → touches all 6 dimensions automatically
       const courseId = yield* courseService.create({
@@ -481,32 +497,33 @@ export function CreateCourseForm() {
         organizationId: currentOrg.id,
         properties: {
           description: formData.description,
-          price: formData.price
-        }
-      })
+          price: formData.price,
+        },
+      });
 
-      return courseId
-    })
+      return courseId;
+    });
 
     // Run program (frontend uses DataProvider)
-    const courseId = await run(program)
+    const courseId = await run(program);
 
     // Redirect to course page
-    navigate(`/courses/${courseId}`)
-  }
+    navigate(`/courses/${courseId}`);
+  };
 
-  return <form onSubmit={handleSubmit}>...</form>
+  return <form onSubmit={handleSubmit}>...</form>;
 }
 ```
 
 ### Backend Provider Implementations
 
 **Convex Provider:**
+
 ```typescript
 // frontend/src/providers/convex/ConvexProvider.ts
-import { Effect, Layer } from 'effect'
-import { ConvexHttpClient } from 'convex/browser'
-import { DataProvider } from '../DataProvider'
+import { Effect, Layer } from "effect";
+import { ConvexHttpClient } from "convex/browser";
+import { DataProvider } from "../DataProvider";
 
 export class ConvexProvider implements DataProvider {
   constructor(private client: ConvexHttpClient) {}
@@ -515,17 +532,17 @@ export class ConvexProvider implements DataProvider {
     create: (input) =>
       Effect.tryPromise({
         try: () => this.client.mutation(api.things.create, input),
-        catch: (error) => new Error(String(error))
-      })
-  }
+        catch: (error) => new Error(String(error)),
+      }),
+  };
 
   people = {
     create: (input) =>
       Effect.tryPromise({
         try: () => this.client.mutation(api.people.create, input),
-        catch: (error) => new Error(String(error))
-      })
-  }
+        catch: (error) => new Error(String(error)),
+      }),
+  };
 
   // ... other dimensions
 }
@@ -534,15 +551,15 @@ export const convexProvider = (config: { url: string }) =>
   Layer.succeed(
     DataProvider,
     new ConvexProvider(new ConvexHttpClient(config.url))
-  )
+  );
 ```
 
 **Composite Provider (Multi-Backend):**
 
 ```typescript
 // frontend/src/providers/composite/CompositeProvider.ts
-import { Effect, Layer } from 'effect'
-import { DataProvider } from '../DataProvider'
+import { Effect, Layer } from "effect";
+import { DataProvider } from "../DataProvider";
 
 export class CompositeProvider implements DataProvider {
   constructor(
@@ -553,81 +570,79 @@ export class CompositeProvider implements DataProvider {
   // Route to appropriate provider based on thing type
   private getProvider(type?: ThingType): DataProvider {
     if (type && this.routes.has(type)) {
-      return this.routes.get(type)!
+      return this.routes.get(type)!;
     }
-    return this.defaultProvider
+    return this.defaultProvider;
   }
 
   things = {
     get: (id: string) =>
       Effect.gen(function* () {
         // Fetch thing to determine type
-        const thing = yield* this.defaultProvider.things.get(id)
+        const thing = yield* this.defaultProvider.things.get(id);
 
         // Route to appropriate provider
-        const provider = this.getProvider(thing.type)
+        const provider = this.getProvider(thing.type);
         if (provider !== this.defaultProvider) {
-          return yield* provider.things.get(id)
+          return yield* provider.things.get(id);
         }
-        return thing
+        return thing;
       }),
 
     list: (params: { type: ThingType; organizationId?: string }) =>
       Effect.gen(function* () {
         // Route based on thing type
-        const provider = this.getProvider(params.type)
-        return yield* provider.things.list(params)
+        const provider = this.getProvider(params.type);
+        return yield* provider.things.list(params);
       }),
 
-    create: (input: { type: ThingType; name: string; organizationId: string; properties: any }) =>
+    create: (input: {
+      type: ThingType;
+      name: string;
+      organizationId: string;
+      properties: any;
+    }) =>
       Effect.gen(function* () {
         // Route based on thing type
-        const provider = this.getProvider(input.type)
-        return yield* provider.things.create(input)
-      })
-  }
+        const provider = this.getProvider(input.type);
+        return yield* provider.things.create(input);
+      }),
+  };
 
   // Organizations, People, Events, Knowledge → always use default provider
-  organizations = this.defaultProvider.organizations
-  people = this.defaultProvider.people
-  connections = this.defaultProvider.connections
-  events = this.defaultProvider.events
-  knowledge = this.defaultProvider.knowledge
+  organizations = this.defaultProvider.organizations;
+  people = this.defaultProvider.people;
+  connections = this.defaultProvider.connections;
+  events = this.defaultProvider.events;
+  knowledge = this.defaultProvider.knowledge;
 }
 
 export function compositeProvider(config: {
-  default: Layer<DataProvider>
-  routes: Record<string, Layer<DataProvider> | 'default'>
+  default: Layer<DataProvider>;
+  routes: Record<string, Layer<DataProvider> | "default">;
 }) {
   return Effect.gen(function* () {
     // Resolve default provider
-    const defaultProvider = yield* Effect.provide(
-      DataProvider,
-      config.default
-    )
+    const defaultProvider = yield* Effect.provide(DataProvider, config.default);
 
     // Resolve route providers
-    const routes = new Map<ThingType, DataProvider>()
+    const routes = new Map<ThingType, DataProvider>();
     for (const [type, providerConfig] of Object.entries(config.routes)) {
-      if (providerConfig === 'default') {
-        routes.set(type as ThingType, defaultProvider)
+      if (providerConfig === "default") {
+        routes.set(type as ThingType, defaultProvider);
       } else {
-        const provider = yield* Effect.provide(
-          DataProvider,
-          providerConfig
-        )
-        routes.set(type as ThingType, provider)
+        const provider = yield* Effect.provide(DataProvider, providerConfig);
+        routes.set(type as ThingType, provider);
       }
     }
 
-    return new CompositeProvider(defaultProvider, routes)
-  }).pipe(
-    Effect.map(provider => Layer.succeed(DataProvider, provider))
-  )
+    return new CompositeProvider(defaultProvider, routes);
+  }).pipe(Effect.map((provider) => Layer.succeed(DataProvider, provider)));
 }
 ```
 
 **Real-World Example:**
+
 ```typescript
 // Auth & courses in Convex, blog in WordPress, products in Shopify
 export default defineConfig({
@@ -637,21 +652,22 @@ export default defineConfig({
         default: convexProvider({ url: env.PUBLIC_CONVEX_URL }),
         routes: {
           blog_post: wordpressProvider({
-            url: 'https://blog.yoursite.com',
-            apiKey: env.WP_API_KEY
+            url: "https://blog.yoursite.com",
+            apiKey: env.WP_API_KEY,
           }),
           product: shopifyProvider({
-            store: 'yourstore.myshopify.com',
-            accessToken: env.SHOPIFY_ACCESS_TOKEN
-          })
-        }
-      })
-    })
-  ]
-})
+            store: "yourstore.myshopify.com",
+            accessToken: env.SHOPIFY_ACCESS_TOKEN,
+          }),
+        },
+      }),
+    }),
+  ],
+});
 ```
 
 **Benefits:**
+
 - ✅ **Type-safe**: Compiler enforces all dimensions
 - ✅ **Composable**: Services build on each other
 - ✅ **Testable**: Mock layers, not databases
@@ -666,6 +682,7 @@ export default defineConfig({
 ### 1. Multi-Tenancy Support
 
 **Before:**
+
 ```
 Org A → Frontend A → Convex Deployment A
 Org B → Frontend B → Convex Deployment B
@@ -675,6 +692,7 @@ Org C → Frontend C → Convex Deployment C
 ```
 
 **After:**
+
 ```
 Org A → Frontend A ──┐
                      ├→ Single Backend API → Single Convex Deployment
@@ -688,6 +706,7 @@ Org C → Frontend C ──┘
 ### 2. Backend Independence
 
 **Before:**
+
 - Frontend tightly coupled to Convex
 - Can't switch to WordPress, Notion, Supabase, etc.
 - Organizations must use Convex even if they have existing systems
@@ -696,6 +715,7 @@ Org C → Frontend C ──┘
 ❌ Locked into Convex
 
 **After (Backend-Agnostic):**
+
 - Frontend uses DataProvider interface
 - Organizations can use:
   - **Convex** (real-time, serverless)
@@ -707,11 +727,11 @@ Org C → Frontend C ──┘
 
 ```typescript
 // Swap backends - frontend code unchanged!
-provider: convexProvider({ url: "..." })
+provider: convexProvider({ url: "..." });
 // OR
-provider: wordpressProvider({ url: "...", apiKey: "..." })
+provider: wordpressProvider({ url: "...", apiKey: "..." });
 // OR
-provider: notionProvider({ apiKey: "...", databaseId: "..." })
+provider: notionProvider({ apiKey: "...", databaseId: "..." });
 ```
 
 ✅ Organizations use their existing infrastructure
@@ -719,6 +739,7 @@ provider: notionProvider({ apiKey: "...", databaseId: "..." })
 ### 3. Team Organization
 
 **Before:**
+
 ```
 Full-stack developer needs to know:
 - Astro + React
@@ -729,6 +750,7 @@ Full-stack developer needs to know:
 ```
 
 **After (Backend-Agnostic):**
+
 ```
 Frontend developer needs to know:
 - Astro + React
@@ -748,6 +770,7 @@ Backend developer needs to know:
 ### 4. Progressive Migration & Flexibility
 
 **Before:**
+
 ```
 Organization has WordPress site with 10,000 posts
 Want to use ONE frontend
@@ -759,6 +782,7 @@ Must migrate ALL data to Convex first
 ```
 
 **After (Backend-Agnostic):**
+
 ```
 Organization keeps WordPress backend
 Implements WordPressProvider (maps WP → 6-dimension ontology)
@@ -772,17 +796,18 @@ Frontend talks to WordPress via DataProvider
 ```
 
 **Real-World Example:**
+
 ```typescript
 // Week 1: Deploy ONE frontend with WordPress backend
 provider: wordpressProvider({
-  url: 'https://existing-site.com',
-  apiKey: env.WP_API_KEY
-})
+  url: "https://existing-site.com",
+  apiKey: env.WP_API_KEY,
+});
 
 // Week 50: Migrate to Convex when ready (ONE line change)
 provider: convexProvider({
-  url: env.CONVEX_URL
-})
+  url: env.CONVEX_URL,
+});
 
 // Frontend code? UNCHANGED. No rewrite needed.
 ```
@@ -800,6 +825,7 @@ provider: convexProvider({
 **Goal:** Define the backend-agnostic interface that ALL providers must implement
 
 **Tasks:**
+
 1. Create `/frontend/src/providers/DataProvider.ts`
 2. Define interfaces for 6 dimensions:
    - `organizations: { get, list, update }`
@@ -815,7 +841,7 @@ provider: convexProvider({
 
 **Risk:** None (just interface definition)
 
-**Reference:** See `one/connections/ontology-frontend.md` for complete DataProvider interface
+**Reference:** See `one/knowledge/ontology-frontend.md` for complete DataProvider interface
 
 ---
 
@@ -824,6 +850,7 @@ provider: convexProvider({
 **Goal:** Wrap existing **working** Convex backend with DataProvider interface (NO functionality changes)
 
 **Tasks:**
+
 1. Create `/frontend/src/providers/convex/ConvexProvider.ts`
 2. Implement DataProvider interface using Convex client:
    ```typescript
@@ -841,6 +868,7 @@ provider: convexProvider({
 **Risk:** Very Low (just wraps existing working Convex calls, no logic changes)
 
 **Success Criteria:**
+
 - ✅ ConvexProvider implements DataProvider interface fully
 - ✅ All existing auth tests pass
 - ✅ No functionality changes - just adds abstraction layer
@@ -852,6 +880,7 @@ provider: convexProvider({
 **Goal:** Build generic services that use DataProvider (backend-agnostic)
 
 **Tasks:**
+
 1. Create `/frontend/src/services/ThingService.ts` (generic, handles all 66 types)
 2. Create `/frontend/src/services/ConnectionService.ts`
 3. Create `/frontend/src/services/ClientLayer.ts` (dependency injection)
@@ -880,21 +909,24 @@ provider: convexProvider({
 **Goal:** Wire up ConvexProvider as the active backend
 
 **Tasks:**
+
 1. Update `astro.config.ts`:
+
    ```typescript
-   import { convexProvider } from './src/providers/convex'
+   import { convexProvider } from "./src/providers/convex";
 
    export default defineConfig({
      integrations: [
        react(),
        one({
          provider: convexProvider({
-           url: import.meta.env.PUBLIC_CONVEX_URL
-         })
-       })
-     ]
-   })
+           url: import.meta.env.PUBLIC_CONVEX_URL,
+         }),
+       }),
+     ],
+   });
    ```
+
 2. Test that services can access provider via Effect.ts layers
 
 **Timeline:** 1 day
@@ -908,37 +940,41 @@ provider: convexProvider({
 **Goal:** Replace Convex hooks with Effect.ts services (page by page)
 
 **Before:**
-```tsx
-import { useQuery } from 'convex/react'
-import { api } from '@/convex/_generated/api'
 
-const courses = useQuery(api.queries.things.list, { type: 'course' })
+```tsx
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+
+const courses = useQuery(api.queries.things.list, { type: "course" });
 ```
 
 **After:**
-```tsx
-import { useEffectRunner } from '@/hooks/useEffectRunner'
-import { ThingService } from '@/services/ThingService'
 
-const { run, loading } = useEffectRunner()
-const [courses, setCourses] = useState([])
+```tsx
+import { useEffectRunner } from "@/hooks/useEffectRunner";
+import { ThingService } from "@/services/ThingService";
+
+const { run, loading } = useEffectRunner();
+const [courses, setCourses] = useState([]);
 
 useEffect(() => {
   const program = Effect.gen(function* () {
-    const thingService = yield* ThingService
-    return yield* thingService.list('course', orgId)
-  })
-  run(program, { onSuccess: setCourses })
-}, [])
+    const thingService = yield* ThingService;
+    return yield* thingService.list("course", orgId);
+  });
+  run(program, { onSuccess: setCourses });
+}, []);
 ```
 
 **Migration Order:**
+
 1. Low-traffic pages first (`/about`, `/blog`)
 2. Medium-traffic pages (`/courses`, `/products`)
 3. High-traffic pages (`/`, `/dashboard`)
 4. Authentication pages last (highest risk)
 
 **Critical - Auth Test Validation:**
+
 ```bash
 # After migrating ANY page that touches auth
 npm test frontend/tests/auth/
@@ -963,6 +999,7 @@ npm test frontend/tests/auth/
 **Goal:** Clean up frontend - no more direct Convex imports
 
 **Tasks:**
+
 1. Verify all pages use Effect.ts services (no direct Convex hooks)
 2. Remove `convex` from `frontend/package.json`
 3. Delete `frontend/convex/` directory (no longer needed)
@@ -980,6 +1017,7 @@ npm test frontend/tests/auth/
 **Goal:** Demonstrate backend flexibility - add WordPress, Notion, Supabase providers
 
 **Example - WordPress Provider:**
+
 ```typescript
 // /frontend/src/providers/wordpress/WordPressProvider.ts
 export class WordPressProvider implements DataProvider {
@@ -988,45 +1026,47 @@ export class WordPressProvider implements DataProvider {
       Effect.gen(function* () {
         const response = yield* Effect.tryPromise({
           try: () => fetch(`${this.baseUrl}/wp-json/wp/v2/posts/${id}`),
-          catch: (error) => new Error(String(error))
-        })
+          catch: (error) => new Error(String(error)),
+        });
         const post = yield* Effect.tryPromise({
           try: () => response.json(),
-          catch: (error) => new Error(String(error))
-        })
+          catch: (error) => new Error(String(error)),
+        });
         // Transform WordPress post → ONE thing
         return {
           _id: post.id.toString(),
-          type: 'post',
+          type: "post",
           name: post.title.rendered,
           properties: {
             content: post.content.rendered,
-            publishedAt: post.date
+            publishedAt: post.date,
           },
           status: post.status,
           createdAt: new Date(post.date).getTime(),
-          updatedAt: new Date(post.modified).getTime()
-        }
-      })
-  }
+          updatedAt: new Date(post.modified).getTime(),
+        };
+      }),
+  };
   // ... implement other methods
 }
 ```
 
 **Swap backends in config:**
+
 ```typescript
 // Change from Convex to WordPress - ONE line!
 export default defineConfig({
   integrations: [
     one({
       // provider: convexProvider({ url: "..." })  // OLD
-      provider: wordpressProvider({              // NEW
-        url: 'https://existing-site.com',
-        apiKey: env.WP_API_KEY
-      })
-    })
-  ]
-})
+      provider: wordpressProvider({
+        // NEW
+        url: "https://existing-site.com",
+        apiKey: env.WP_API_KEY,
+      }),
+    }),
+  ],
+});
 ```
 
 **Timeline:** 1-2 weeks per provider
@@ -1044,11 +1084,12 @@ export default defineConfig({
 ### Authentication by Provider
 
 **1. Convex Provider**
+
 ```typescript
 // Frontend reads from environment
 provider: convexProvider({
-  url: import.meta.env.PUBLIC_CONVEX_URL
-})
+  url: import.meta.env.PUBLIC_CONVEX_URL,
+});
 
 // Backend: Better Auth handles sessions
 // Convex mutations check ctx.auth for user identity
@@ -1056,35 +1097,38 @@ provider: convexProvider({
 ```
 
 **2. WordPress Provider**
+
 ```typescript
 // Frontend configured with WordPress API key
 provider: wordpressProvider({
-  url: 'https://yoursite.com',
-  apiKey: import.meta.env.WP_API_KEY  // WordPress Application Password
-})
+  url: "https://yoursite.com",
+  apiKey: import.meta.env.WP_API_KEY, // WordPress Application Password
+});
 
 // Backend: WordPress REST API validates the key
 // Provider adds Authorization header to all requests
 ```
 
 **3. Notion Provider**
+
 ```typescript
 // Frontend configured with Notion integration token
 provider: notionProvider({
-  apiKey: import.meta.env.NOTION_API_KEY,  // Notion integration token
-  databaseId: import.meta.env.NOTION_DB_ID
-})
+  apiKey: import.meta.env.NOTION_API_KEY, // Notion integration token
+  databaseId: import.meta.env.NOTION_DB_ID,
+});
 
 // Backend: Notion API validates the integration token
 ```
 
 **4. Supabase Provider**
+
 ```typescript
 // Frontend uses Supabase anon key + RLS
 provider: supabaseProvider({
   url: import.meta.env.PUBLIC_SUPABASE_URL,
-  apiKey: import.meta.env.PUBLIC_SUPABASE_ANON_KEY
-})
+  apiKey: import.meta.env.PUBLIC_SUPABASE_ANON_KEY,
+});
 
 // Backend: Supabase Row Level Security (RLS) enforces access control
 // User sessions managed by Supabase Auth
@@ -1093,11 +1137,13 @@ provider: supabaseProvider({
 ### Security Model
 
 **Frontend:**
+
 - Frontend stores provider config (URLs, public/anon keys)
 - NO secret keys in frontend
 - Authentication state managed by provider (sessions, tokens, etc.)
 
 **Backend (Provider-Specific):**
+
 - **Convex:** Better Auth sessions + JWT validation
 - **WordPress:** Application Passwords or OAuth
 - **Notion:** Integration tokens (server-side only)
@@ -1108,28 +1154,32 @@ provider: supabaseProvider({
 Each provider implements organization isolation differently:
 
 **Convex:**
+
 ```typescript
 // Convex mutations enforce org scoping
 const courses = await ctx.db
-  .query('things')
-  .withIndex('by_type', q => q.eq('type', 'course'))
-  .filter(q => q.eq(q.field('organizationId'), userOrgId))
-  .collect()
+  .query("things")
+  .withIndex("by_type", (q) => q.eq("type", "course"))
+  .filter((q) => q.eq(q.field("organizationId"), userOrgId))
+  .collect();
 ```
 
 **WordPress:**
+
 ```typescript
 // WordPress categories/taxonomies for org isolation
 // Or use multi-site for complete separation
 ```
 
 **Notion:**
+
 ```typescript
 // Separate Notion databases per organization
 // Or use Notion's built-in sharing/permissions
 ```
 
 **Supabase:**
+
 ```typescript
 // Row Level Security (RLS) policies
 CREATE POLICY "Users can only see their org's data"
@@ -1206,40 +1256,40 @@ frontend/
 // frontend/astro.config.ts
 
 // Option 1: Use Convex for everything
-import { convexProvider } from './src/providers/convex'
+import { convexProvider } from "./src/providers/convex";
 export default defineConfig({
   integrations: [
     one({
-      provider: convexProvider({ url: env.PUBLIC_CONVEX_URL })
-    })
-  ]
-})
+      provider: convexProvider({ url: env.PUBLIC_CONVEX_URL }),
+    }),
+  ],
+});
 
 // Option 2: Use WordPress for everything (change ONE line!)
-import { wordpressProvider } from './src/providers/wordpress'
+import { wordpressProvider } from "./src/providers/wordpress";
 export default defineConfig({
   integrations: [
     one({
       provider: wordpressProvider({
-        url: 'https://yoursite.com',
-        apiKey: env.WP_API_KEY
-      })
-    })
-  ]
-})
+        url: "https://yoursite.com",
+        apiKey: env.WP_API_KEY,
+      }),
+    }),
+  ],
+});
 
 // Option 3: Use Notion for everything (change ONE line!)
-import { notionProvider } from './src/providers/notion'
+import { notionProvider } from "./src/providers/notion";
 export default defineConfig({
   integrations: [
     one({
       provider: notionProvider({
         apiKey: env.NOTION_API_KEY,
-        databaseId: env.NOTION_DB_ID
-      })
-    })
-  ]
-})
+        databaseId: env.NOTION_DB_ID,
+      }),
+    }),
+  ],
+});
 ```
 
 ### Configuration Example (Multi-Provider - Federated Data)
@@ -1248,10 +1298,10 @@ export default defineConfig({
 
 ```typescript
 // frontend/astro.config.ts
-import { compositeProvider } from './src/providers/composite'
-import { convexProvider } from './src/providers/convex'
-import { wordpressProvider } from './src/providers/wordpress'
-import { shopifyProvider } from './src/providers/shopify'
+import { compositeProvider } from "./src/providers/composite";
+import { convexProvider } from "./src/providers/convex";
+import { wordpressProvider } from "./src/providers/wordpress";
+import { shopifyProvider } from "./src/providers/shopify";
 
 export default defineConfig({
   integrations: [
@@ -1259,55 +1309,56 @@ export default defineConfig({
       provider: compositeProvider({
         // Default provider (fallback)
         default: convexProvider({
-          url: env.PUBLIC_CONVEX_URL
+          url: env.PUBLIC_CONVEX_URL,
         }),
 
         // Route specific thing types to specific providers
         routes: {
           // Auth & core data → Convex
-          organizations: 'default',
-          people: 'default',
-          sessions: 'default',
+          organizations: "default",
+          people: "default",
+          sessions: "default",
 
           // Blog content → WordPress
           blog_post: wordpressProvider({
-            url: 'https://blog.yoursite.com',
-            apiKey: env.WP_API_KEY
+            url: "https://blog.yoursite.com",
+            apiKey: env.WP_API_KEY,
           }),
 
           // Products → Shopify
           product: shopifyProvider({
-            store: 'yourstore.myshopify.com',
-            accessToken: env.SHOPIFY_ACCESS_TOKEN
+            store: "yourstore.myshopify.com",
+            accessToken: env.SHOPIFY_ACCESS_TOKEN,
           }),
-          digital_product: 'product', // Use same as product
+          digital_product: "product", // Use same as product
 
           // Courses → Convex (default)
-          course: 'default',
-          lesson: 'default',
-        }
-      })
-    })
-  ]
-})
+          course: "default",
+          lesson: "default",
+        },
+      }),
+    }),
+  ],
+});
 ```
 
 **How it works:**
 
 ```typescript
 // Frontend calls generic service
-const thingService = yield* ThingService
+const thingService = yield * ThingService;
 
 // Service calls DataProvider
-const blogPost = yield* thingService.get(postId)      // → WordPress
-const product = yield* thingService.get(productId)    // → Shopify
-const course = yield* thingService.get(courseId)      // → Convex
+const blogPost = yield * thingService.get(postId); // → WordPress
+const product = yield * thingService.get(productId); // → Shopify
+const course = yield * thingService.get(courseId); // → Convex
 
 // CompositeProvider routes based on thing type
 // Frontend code doesn't change!
 ```
 
 **Benefits:**
+
 - ✅ Use best backend for each data type
 - ✅ Keep existing WordPress blog - no migration
 - ✅ Pull products from Shopify in real-time
@@ -1318,19 +1369,21 @@ const course = yield* thingService.get(courseId)      // → Convex
 ### Advanced: Data Sync Strategies
 
 **Strategy 1: Real-Time (Live Queries)**
+
 ```typescript
 // Products pulled live from Shopify on every request
 product: shopifyProvider({
-  store: 'yourstore.myshopify.com',
-  accessToken: env.SHOPIFY_ACCESS_TOKEN
+  store: "yourstore.myshopify.com",
+  accessToken: env.SHOPIFY_ACCESS_TOKEN,
   // No caching - always fresh
-})
+});
 ```
 
 **Strategy 2: Import & Cache (Better Performance)**
+
 ```typescript
 // Import WordPress posts to Convex, sync periodically
-import { syncedProvider } from './src/providers/synced'
+import { syncedProvider } from "./src/providers/synced";
 
 provider: compositeProvider({
   default: convexProvider({ url: env.PUBLIC_CONVEX_URL }),
@@ -1338,30 +1391,37 @@ provider: compositeProvider({
     // Blog posts synced from WordPress → stored in Convex
     blog_post: syncedProvider({
       source: wordpressProvider({
-        url: 'https://blog.yoursite.com',
-        apiKey: env.WP_API_KEY
+        url: "https://blog.yoursite.com",
+        apiKey: env.WP_API_KEY,
       }),
-      destination: 'default', // Store in Convex
-      syncInterval: '1 hour',  // Sync every hour
-      strategy: 'incremental'  // Only sync new/changed posts
-    })
-  }
-})
+      destination: "default", // Store in Convex
+      syncInterval: "1 hour", // Sync every hour
+      strategy: "incremental", // Only sync new/changed posts
+    }),
+  },
+});
 ```
 
 **Strategy 3: Federation (Query Multiple Backends)**
+
 ```typescript
 // Search across blog posts (WordPress) AND courses (Convex)
-const searchResults = yield* Effect.all([
-  thingService.list('blog_post', { filters: { query: 'fitness' } }),
-  thingService.list('course', { filters: { query: 'fitness' } })
-], { concurrency: 'unbounded' })
+const searchResults =
+  yield *
+  Effect.all(
+    [
+      thingService.list("blog_post", { filters: { query: "fitness" } }),
+      thingService.list("course", { filters: { query: "fitness" } }),
+    ],
+    { concurrency: "unbounded" }
+  );
 
 // CompositeProvider queries both backends in parallel
 // Frontend merges results
 ```
 
 **Strategy 4: Hybrid (Auth + Import)**
+
 ```typescript
 // Common pattern: Auth in Convex, content from external sources
 provider: compositeProvider({
@@ -1369,24 +1429,25 @@ provider: compositeProvider({
   routes: {
     // WordPress posts imported to Convex (fast reads)
     blog_post: syncedProvider({
-      source: wordpressProvider({ url: '...', apiKey: '...' }),
-      destination: 'default',
-      syncInterval: '15 minutes'
+      source: wordpressProvider({ url: "...", apiKey: "..." }),
+      destination: "default",
+      syncInterval: "15 minutes",
     }),
 
     // Shopify products live (always current pricing)
     product: shopifyProvider({
-      store: 'yourstore.myshopify.com',
-      accessToken: env.SHOPIFY_ACCESS_TOKEN
+      store: "yourstore.myshopify.com",
+      accessToken: env.SHOPIFY_ACCESS_TOKEN,
     }),
 
     // Everything else (auth, courses, etc.) in Convex
     // Uses 'default' provider
-  }
-})
+  },
+});
 ```
 
 **Real-World Example: E-commerce Platform**
+
 ```typescript
 export default defineConfig({
   integrations: [
@@ -1397,65 +1458,69 @@ export default defineConfig({
 
         routes: {
           // Auth & users → Convex (real-time, fast)
-          organizations: 'default',
-          people: 'default',
+          organizations: "default",
+          people: "default",
 
           // Products → Shopify (live pricing, inventory)
           product: shopifyProvider({
             store: env.SHOPIFY_STORE,
-            accessToken: env.SHOPIFY_ACCESS_TOKEN
+            accessToken: env.SHOPIFY_ACCESS_TOKEN,
           }),
 
           // Blog → WordPress (existing content, no migration)
           blog_post: syncedProvider({
             source: wordpressProvider({
               url: env.WP_URL,
-              apiKey: env.WP_API_KEY
+              apiKey: env.WP_API_KEY,
             }),
-            destination: 'default',
-            syncInterval: '30 minutes'
+            destination: "default",
+            syncInterval: "30 minutes",
           }),
 
           // Courses → Convex (real-time progress tracking)
-          course: 'default',
-          lesson: 'default',
+          course: "default",
+          lesson: "default",
 
           // Customer reviews → Import from Trustpilot/Google
           review: syncedProvider({
             source: trustpilotProvider({ businessId: env.TRUSTPILOT_ID }),
-            destination: 'default',
-            syncInterval: '24 hours'
-          })
-        }
-      })
-    })
-  ]
-})
+            destination: "default",
+            syncInterval: "24 hours",
+          }),
+        },
+      }),
+    }),
+  ],
+});
 ```
 
 **Frontend Code (Unchanged!):**
+
 ```tsx
 // Component doesn't know or care about backend routing
 export function HomePage() {
-  const { run } = useEffectRunner()
-  const [data, setData] = useState(null)
+  const { run } = useEffectRunner();
+  const [data, setData] = useState(null);
 
   useEffect(() => {
     const program = Effect.gen(function* () {
-      const thingService = yield* ThingService
+      const thingService = yield* ThingService;
 
       // Fetches from multiple backends automatically
-      const [products, posts, courses] = yield* Effect.all([
-        thingService.list('product', orgId),      // → Shopify (live)
-        thingService.list('blog_post', orgId),    // → WordPress (cached)
-        thingService.list('course', orgId)        // → Convex (default)
-      ], { concurrency: 'unbounded' })
+      const [products, posts, courses] = yield* Effect.all(
+        [
+          thingService.list("product", orgId), // → Shopify (live)
+          thingService.list("blog_post", orgId), // → WordPress (cached)
+          thingService.list("course", orgId), // → Convex (default)
+        ],
+        { concurrency: "unbounded" }
+      );
 
-      return { products, posts, courses }
-    })
+      return { products, posts, courses };
+    });
 
-    run(program, { onSuccess: setData })
-  }, [])
+    run(program, { onSuccess: setData });
+  }, []);
 
   // Render federated data
   return (
@@ -1464,11 +1529,12 @@ export function HomePage() {
       <BlogFeed posts={data?.posts} />
       <CourseList courses={data?.courses} />
     </div>
-  )
+  );
 }
 ```
 
 **Key Insights:**
+
 - ✅ Frontend components don't change when adding/removing backends
 - ✅ Mix real-time and cached data based on needs
 - ✅ Organizations keep existing content management systems
@@ -1503,24 +1569,26 @@ export default defineSchema({
   // ... existing entities table
 
   entities: defineTable({
-    type: v.string(),  // Add "api_key" as new type
+    type: v.string(), // Add "api_key" as new type
     name: v.string(),
     properties: v.any(),
-    status: v.optional(v.union(
-      v.literal("active"),
-      v.literal("inactive"),
-      v.literal("draft"),
-      v.literal("published"),
-      v.literal("archived"),
-      v.literal("revoked"),  // ✅ Add for API keys
-    )),
+    status: v.optional(
+      v.union(
+        v.literal("active"),
+        v.literal("inactive"),
+        v.literal("draft"),
+        v.literal("published"),
+        v.literal("archived"),
+        v.literal("revoked") // ✅ Add for API keys
+      )
+    ),
     createdAt: v.number(),
     updatedAt: v.number(),
     deletedAt: v.optional(v.number()),
   })
     .index("by_type", ["type"])
     .index("by_status", ["status"])
-    .index("by_key_hash", ["properties.keyHash"]),  // ✅ Add for fast lookup
+    .index("by_key_hash", ["properties.keyHash"]), // ✅ Add for fast lookup
 
   // ... rest of schema
 });
@@ -1539,9 +1607,7 @@ export const validate = query({
   handler: async (ctx, args) => {
     const apiKey = await ctx.db
       .query("entities")
-      .withIndex("by_key_hash", (q) =>
-        q.eq("properties.keyHash", args.keyHash)
-      )
+      .withIndex("by_key_hash", (q) => q.eq("properties.keyHash", args.keyHash))
       .filter((q) => q.eq(q.field("type"), "api_key"))
       .first();
 
@@ -1559,12 +1625,12 @@ export const listByOrg = query({
       .collect();
 
     // Don't return keyHash (security)
-    return keys.map(key => ({
+    return keys.map((key) => ({
       ...key,
       properties: {
         ...key.properties,
-        keyHash: undefined,  // Remove sensitive data
-      }
+        keyHash: undefined, // Remove sensitive data
+      },
     }));
   },
 });
@@ -1621,7 +1687,7 @@ export const create = mutation({
     // Return plaintext key ONLY this once
     return {
       id: keyId,
-      apiKey,  // ⚠️ Show user - never shown again!
+      apiKey, // ⚠️ Show user - never shown again!
       keyHint,
     };
   },
@@ -1671,14 +1737,17 @@ const app = new Hono();
 
 // Middleware
 app.use("*", logger());
-app.use("/api/*", cors({
-  origin: [
-    "http://localhost:4321",
-    "https://*.pages.dev",
-    process.env.FRONTEND_URL || "",
-  ].filter(Boolean),
-  credentials: true,
-}));
+app.use(
+  "/api/*",
+  cors({
+    origin: [
+      "http://localhost:4321",
+      "https://*.pages.dev",
+      process.env.FRONTEND_URL || "",
+    ].filter(Boolean),
+    credentials: true,
+  })
+);
 
 // Health check (no auth required)
 app.get("/health", (c) => c.json({ status: "ok" }));
@@ -1714,7 +1783,7 @@ const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
 // GET /api/v1/tokens/:id
 app.get("/:id", async (c) => {
   const tokenId = c.req.param("id");
-  const orgId = c.get("orgId");  // From API key middleware
+  const orgId = c.get("orgId"); // From API key middleware
 
   const token = await convex.query(api.queries.entities.get, { id: tokenId });
 
@@ -1782,7 +1851,7 @@ export class ApiClient {
       ...options,
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${this.apiKey}`,
         ...options.headers,
       },
     });
@@ -1796,8 +1865,7 @@ export class ApiClient {
   }
 
   tokens = {
-    get: (id: string) =>
-      this.request<Token>(`/api/v1/tokens/${id}`),
+    get: (id: string) => this.request<Token>(`/api/v1/tokens/${id}`),
 
     purchase: (id: string, amount: number) =>
       this.request<PurchaseResult>(`/api/v1/tokens/${id}/purchase`, {
@@ -1807,18 +1875,14 @@ export class ApiClient {
   };
 
   agents = {
-    get: (id: string) =>
-      this.request<Agent>(`/api/v1/agents/${id}`),
+    get: (id: string) => this.request<Agent>(`/api/v1/agents/${id}`),
 
-    list: () =>
-      this.request<Agent[]>("/api/v1/agents"),
+    list: () => this.request<Agent[]>("/api/v1/agents"),
   };
 }
 
 // Singleton instance
-export const api = new ApiClient(
-  import.meta.env.PUBLIC_API_KEY || ""
-);
+export const api = new ApiClient(import.meta.env.PUBLIC_API_KEY || "");
 ```
 
 ### Step 6: Update Frontend Pages
@@ -1850,12 +1914,14 @@ const token = await api.tokens.get(Astro.params.id);
 ### Step 7: Remove Convex from Frontend
 
 **Delete:**
+
 ```bash
 rm -rf frontend/convex/
 rm frontend/convex.config.ts
 ```
 
 **Update `package.json`:**
+
 ```diff
 {
   "dependencies": {
@@ -1875,6 +1941,7 @@ rm frontend/convex.config.ts
 **REQUIREMENT:** All tests in `frontend/tests/auth/*` must continue to pass throughout migration.
 
 **Strategy:**
+
 ```typescript
 // Run existing auth tests after each phase
 npm test frontend/tests/auth/
@@ -1889,6 +1956,7 @@ npm test frontend/tests/auth/
 ```
 
 **Migration Safety:**
+
 1. **Phase 2 (ConvexProvider):** Run auth tests - should pass unchanged
 2. **Phase 3 (Service Layer):** Run auth tests - should pass with new services
 3. **Phase 5 (Component Migration):** Run auth tests after each page migration
@@ -2010,12 +2078,14 @@ describe("ApiClient", () => {
 ### Environment Variables
 
 **Backend (`backend/api/.env`):**
+
 ```bash
 CONVEX_URL=https://your-deployment.convex.cloud
 FRONTEND_URL=https://yourdomain.com
 ```
 
 **Frontend (`frontend/.env`):**
+
 ```bash
 PUBLIC_API_URL=https://api.yourdomain.com
 PUBLIC_API_KEY=pk_live_1234567890abcdef
@@ -2028,12 +2098,14 @@ PUBLIC_API_KEY=pk_live_1234567890abcdef
 ### 1. API Key Storage
 
 **❌ Never:**
+
 - Store API keys in git
 - Use secret keys (`sk_*`) in frontend
 - Log API keys in console
 - Return key hash in API responses
 
 **✅ Always:**
+
 - Use publishable keys (`pk_*`) in frontend
 - Use secret keys (`sk_*`) only in backend
 - Hash keys before storing (SHA-256)
@@ -2043,6 +2115,7 @@ PUBLIC_API_KEY=pk_live_1234567890abcdef
 ### 2. Rate Limiting
 
 **Implementation:**
+
 ```typescript
 // backend/api/middleware/rateLimit.ts
 import { Context, Next } from "hono";
@@ -2082,22 +2155,28 @@ export async function rateLimit(c: Context, next: Next) {
 ### 3. CORS Configuration
 
 **Backend:**
-```typescript
-app.use("/api/*", cors({
-  origin: (origin) => {
-    // Allow specific domains
-    const allowed = [
-      "http://localhost:4321",
-      "https://yourdomain.com",
-      "https://*.pages.dev",
-    ];
 
-    return allowed.some(pattern =>
-      new RegExp(pattern.replace("*", ".*")).test(origin)
-    ) ? origin : null;
-  },
-  credentials: true,
-}));
+```typescript
+app.use(
+  "/api/*",
+  cors({
+    origin: (origin) => {
+      // Allow specific domains
+      const allowed = [
+        "http://localhost:4321",
+        "https://yourdomain.com",
+        "https://*.pages.dev",
+      ];
+
+      return allowed.some((pattern) =>
+        new RegExp(pattern.replace("*", ".*")).test(origin)
+      )
+        ? origin
+        : null;
+    },
+    credentials: true,
+  })
+);
 ```
 
 ---
@@ -2105,6 +2184,7 @@ app.use("/api/*", cors({
 ## Migration Checklist
 
 ### Backend Setup
+
 - [ ] Add `api_key` entity type to schema
 - [ ] Create API key queries in `backend/convex/queries/apiKeys.ts`
 - [ ] Create API key mutations in `backend/convex/mutations/apiKeys.ts`
@@ -2120,6 +2200,7 @@ app.use("/api/*", cors({
 - [ ] Set up monitoring and logging
 
 ### Frontend Setup
+
 - [ ] Create `frontend/src/lib/api/client.ts`
 - [ ] Create `frontend/src/lib/api/types.ts`
 - [ ] Create `frontend/src/lib/api/errors.ts`
@@ -2135,6 +2216,7 @@ app.use("/api/*", cors({
 - [ ] Test full frontend in production
 
 ### Documentation
+
 - [ ] Update `CLAUDE.md` with new architecture
 - [ ] Document API endpoints (OpenAPI/Swagger)
 - [ ] Create API key management guide
@@ -2150,31 +2232,34 @@ app.use("/api/*", cors({
 If migration encounters issues, rollback is straightforward:
 
 **Option 1: Gradual Rollback (Keep Both)**
+
 ```typescript
 // Keep both Convex hooks and Effect.ts services temporarily
 // Migrate page by page, test thoroughly
 
 // Old page (still works)
-const courses = useQuery(api.queries.things.list, { type: 'course' })
+const courses = useQuery(api.queries.things.list, { type: "course" });
 
 // New page (backend-agnostic)
 const program = Effect.gen(function* () {
-  const thingService = yield* ThingService
-  return yield* thingService.list('course', orgId)
-})
+  const thingService = yield* ThingService;
+  return yield* thingService.list("course", orgId);
+});
 ```
 
 **Option 2: Quick Rollback (Revert Provider)**
+
 ```typescript
 // Change provider back to direct Convex hooks if needed
 // In astro.config.ts:
-provider: convexProvider({ url: env.PUBLIC_CONVEX_URL })  // Keep this working
+provider: convexProvider({ url: env.PUBLIC_CONVEX_URL }); // Keep this working
 
 // Frontend components still work with ConvexProvider
 // Just wraps the same Convex queries/mutations
 ```
 
 **Key Safety:**
+
 - ConvexProvider just wraps existing Convex backend
 - No data migration needed
 - No backend changes required
@@ -2185,12 +2270,14 @@ provider: convexProvider({ url: env.PUBLIC_CONVEX_URL })  // Keep this working
 ## Success Metrics
 
 **Critical Requirements (Must Pass):**
+
 - [ ] All existing auth tests in `frontend/tests/auth/*` pass
 - [ ] Auth functionality unchanged (signup, signin, sessions, password reset, etc.)
 - [ ] No regressions in user-facing features
 - [ ] Zero downtime during migration
 
 **Technical Goals:**
+
 - [ ] Frontend uses DataProvider interface (backend-agnostic)
 - [ ] Can swap from Convex → WordPress by changing ONE line
 - [ ] Can swap from WordPress → Notion by changing ONE line
@@ -2199,6 +2286,7 @@ provider: convexProvider({ url: env.PUBLIC_CONVEX_URL })  // Keep this working
 - [ ] Full type safety maintained with Effect.ts
 
 **Backend Flexibility:**
+
 - [ ] ConvexProvider fully implements DataProvider interface
 - [ ] Organizations can choose their preferred backend
 - [ ] At least 2 provider implementations working (e.g., Convex + WordPress)
@@ -2206,6 +2294,7 @@ provider: convexProvider({ url: env.PUBLIC_CONVEX_URL })  // Keep this working
 - [ ] Authorization enforced by backend (not frontend)
 
 **Developer Experience:**
+
 - [ ] Frontend developers don't need backend-specific knowledge
 - [ ] Adding new provider takes 1-2 weeks (not months)
 - [ ] Frontend components work unchanged when backend swaps
@@ -2225,6 +2314,7 @@ provider: convexProvider({ url: env.PUBLIC_CONVEX_URL })  // Keep this working
 **Week 6 (Optional):** Add alternative provider (WordPress, Notion, etc.) to prove flexibility
 
 **Comparison to Old Plan:**
+
 - ✅ Faster (4-6 weeks vs 6-8 weeks)
 - ✅ Less risky (no REST API to build)
 - ✅ More value (true backend flexibility, not just REST)
@@ -2236,7 +2326,7 @@ provider: convexProvider({ url: env.PUBLIC_CONVEX_URL })  // Keep this working
 
 1. **Review this plan** with team - focus on DataProvider pattern benefits
 2. **Study references:**
-   - Read `one/connections/ontology-frontend.md` (DataProvider architecture)
+   - Read `one/knowledge/ontology-frontend.md` (DataProvider architecture)
    - Review Astro's content layer pattern (inspiration for DataProvider)
    - Understand Effect.ts basics (type-safe composable services)
 3. **Begin Phase 1:** Create DataProvider interface
@@ -2253,6 +2343,7 @@ provider: convexProvider({ url: env.PUBLIC_CONVEX_URL })  // Keep this working
 ## When to Implement This Plan
 
 **DO migrate when:**
+
 - ✅ You need to support organizations with existing WordPress/Notion/Supabase infrastructure
 - ✅ You want to enable multi-backend federation (e.g., auth in Convex + blog in WordPress)
 - ✅ You're building mobile/desktop apps and want backend flexibility
@@ -2260,12 +2351,14 @@ provider: convexProvider({ url: env.PUBLIC_CONVEX_URL })  // Keep this working
 - ✅ You have 4-6 weeks for strategic enhancement work
 
 **DON'T migrate yet if:**
+
 - ❌ You need to ship urgent features (migration is strategic, not urgent)
 - ❌ Current Convex integration is causing actual problems (it's not - it works)
 - ❌ You have less than 4 weeks available (rushed migration = bugs)
 - ❌ Auth tests aren't stable yet (fix tests first, then migrate)
 
 **Current Recommendation:** Keep existing Convex integration until you have:
+
 1. A concrete customer requesting WordPress/Notion/Supabase support
 2. 4-6 weeks of uninterrupted development time
 3. All existing auth tests passing reliably
@@ -2290,6 +2383,7 @@ provider: convexProvider({ url: env.PUBLIC_CONVEX_URL })  // Keep this working
 ### Starting Point: Working System
 
 **What we have today:**
+
 - ✅ Frontend connected to Convex backend (working)
 - ✅ Auth fully functional with passing tests
 - ✅ Real-time updates via Convex WebSockets
@@ -2305,6 +2399,7 @@ This **backend-agnostic separation** transforms ONE from a tightly-coupled (but 
 ### Key Wins
 
 **🎯 For Organizations:**
+
 - ✅ Use your existing infrastructure (WordPress, Notion, Supabase, etc.)
 - ✅ No forced migration to Convex
 - ✅ Keep your existing admin tools, plugins, workflows
@@ -2312,6 +2407,7 @@ This **backend-agnostic separation** transforms ONE from a tightly-coupled (but 
 - ✅ Migrate backend later if/when you want
 
 **🎯 For Developers:**
+
 - ✅ Frontend devs learn DataProvider interface once, work with any backend
 - ✅ Backend devs can use their preferred stack
 - ✅ No vendor lock-in
@@ -2319,6 +2415,7 @@ This **backend-agnostic separation** transforms ONE from a tightly-coupled (but 
 - ✅ Clear separation: frontend renders, backend manages data
 
 **🎯 For ONE Platform:**
+
 - ✅ Serve organizations with diverse infrastructure needs
 - ✅ Prove the 6-dimension ontology is universal (works with ANY backend)
 - ✅ Attract organizations who would never adopt Convex
@@ -2352,8 +2449,8 @@ At every step, frontend still works. At every step, we can rollback. At every st
 
 ### Read More
 
-- **Full Architecture:** See `one/connections/ontology-frontend.md`
-- **6-Dimension Ontology:** See `one/connections/ontology.md`
+- **Full Architecture:** See `one/knowledge/ontology-frontend.md`
+- **6-Dimension Ontology:** See `one/knowledge/ontology.md`
 - **Effect.ts Integration:** Frontend guide shows complete patterns
 
 ---

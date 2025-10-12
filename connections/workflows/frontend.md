@@ -110,6 +110,7 @@ src/
 ```
 
 **Key Frontend Features:**
+
 - ✅ Static site generation with dynamic islands
 - ✅ Optimal performance (minimal JavaScript)
 - ✅ SEO-friendly server-rendered HTML
@@ -126,6 +127,7 @@ src/
 **Examples:** `index.astro`, `ontology.astro`, `creators.astro`, `software.astro`
 
 **Structure:**
+
 ```astro
 ---
 import Layout from '@/layouts/Layout.astro';
@@ -151,6 +153,7 @@ import { Card } from '@/components/ui/card';
 ```
 
 **Key Patterns:**
+
 - Static generation (`export const prerender = true`)
 - USAL animations (`data-usal="fade-up duration-600"`)
 - Semantic colors (`bg-background`, `text-foreground`)
@@ -164,6 +167,7 @@ import { Card } from '@/components/ui/card';
 **Examples:** `blog/index.astro`, `blog/[...slug].astro`
 
 **Index Pattern:**
+
 ```astro
 ---
 import { getCollection } from 'astro:content';
@@ -179,6 +183,7 @@ const viewMode = Astro.url.searchParams.get('view') || 'list';
 ```
 
 **Dynamic Page Pattern:**
+
 ```astro
 ---
 import { getCollection } from 'astro:content';
@@ -202,6 +207,7 @@ const { Content, headings } = await entry.render();
 ```
 
 **Key Patterns:**
+
 - Content collections with Zod schemas
 - Static generation with `getStaticPaths()`
 - `client:load` for interactive search
@@ -215,6 +221,7 @@ const { Content, headings } = await entry.render();
 **Examples:** `app/index.astro`, `app/courses/[id].astro`
 
 **Pattern:**
+
 ```astro
 ---
 import AppLayout from '@/layouts/AppLayout.astro';
@@ -240,6 +247,7 @@ const session = Astro.locals.session;
 ```
 
 **Key Patterns:**
+
 - `AppLayout.astro` for authenticated shell
 - SSR with `ConvexHttpClient` for initial data
 - Real-time updates via `useQuery()` in components
@@ -253,6 +261,7 @@ const session = Astro.locals.session;
 **Examples:** `account/signin.astro`, `account/signup.astro`, `account/settings.astro`
 
 **Pattern:**
+
 ```astro
 ---
 import Layout from '@/layouts/Layout.astro';
@@ -267,6 +276,7 @@ import { SignInForm } from '@/components/auth/SignInForm';
 ```
 
 **Key Patterns:**
+
 - Better Auth integration
 - Form validation with React Hook Form
 - OAuth providers (GitHub, Google)
@@ -281,15 +291,16 @@ import { SignInForm } from '@/components/auth/SignInForm';
 **Examples:** `api/hello.ts`, `rss.xml.ts`
 
 **Pattern:**
+
 ```typescript
 // src/pages/api/thing.ts
-import type { APIRoute } from 'astro';
+import type { APIRoute } from "astro";
 
 export const GET: APIRoute = async ({ params, request }) => {
-  return new Response(
-    JSON.stringify({ data: "value" }),
-    { status: 200, headers: { 'Content-Type': 'application/json' } }
-  );
+  return new Response(JSON.stringify({ data: "value" }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 };
 ```
 
@@ -303,9 +314,10 @@ export const GET: APIRoute = async ({ params, request }) => {
 **Examples:** `button.tsx`, `card.tsx`, `dialog.tsx`, `input.tsx`
 
 **Pattern:**
+
 ```tsx
-import * as React from 'react';
-import { cn } from '@/lib/utils';
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
 export const Button = React.forwardRef<
   HTMLButtonElement,
@@ -314,16 +326,17 @@ export const Button = React.forwardRef<
   <button
     ref={ref}
     className={cn(
-      'rounded-md bg-primary text-primary-foreground px-4 py-2',
+      "rounded-md bg-primary text-primary-foreground px-4 py-2",
       className
     )}
     {...props}
   />
 ));
-Button.displayName = 'Button';
+Button.displayName = "Button";
 ```
 
 **Key Patterns:**
+
 - Radix UI primitives
 - `cn()` utility for class merging
 - `forwardRef` for ref passing
@@ -337,10 +350,11 @@ Button.displayName = 'Button';
 **Examples:** `CourseCard.tsx`, `TokenPurchase.tsx`, `AgentChat.tsx`
 
 **Pattern:**
+
 ```tsx
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 interface CourseCardProps {
   courseId: string;
@@ -355,7 +369,7 @@ export function CourseCard({
   title,
   description,
   price,
-  onEnroll
+  onEnroll,
 }: CourseCardProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -367,7 +381,7 @@ export function CourseCard({
     try {
       await onEnroll(courseId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to enroll');
+      setError(err instanceof Error ? err.message : "Failed to enroll");
     } finally {
       setLoading(false);
     }
@@ -383,12 +397,10 @@ export function CourseCard({
         <div className="flex items-center justify-between">
           <span className="text-2xl font-bold">${price}</span>
           <Button onClick={handleEnroll} disabled={loading}>
-            {loading ? 'Enrolling...' : 'Enroll Now'}
+            {loading ? "Enrolling..." : "Enroll Now"}
           </Button>
         </div>
-        {error && (
-          <p className="text-destructive text-sm mt-2">{error}</p>
-        )}
+        {error && <p className="text-destructive text-sm mt-2">{error}</p>}
       </CardContent>
     </Card>
   );
@@ -396,6 +408,7 @@ export function CourseCard({
 ```
 
 **Key Patterns:**
+
 - ✅ Props-based interface (data passed from parent)
 - ✅ Callback handlers for actions
 - ✅ Local state for UI (loading, error)
@@ -410,6 +423,7 @@ export function CourseCard({
 **Examples:** `Layout.astro`, `Blog.astro`, `AppLayout.astro`
 
 **Main Layout Pattern:**
+
 ```astro
 ---
 import { Sidebar } from '@/components/Sidebar';
@@ -452,16 +466,19 @@ const { title, description } = Astro.props;
 **Steps:**
 
 1. **Map to Ontology**
+
    - Which dimension(s)? (e.g., "Tokens" = THINGS dimension)
    - What entities? (e.g., token, creator, transaction)
    - What relationships? (e.g., creator → owns → token)
 
 2. **Create Page File**
+
    ```bash
    touch src/pages/tokens.astro
    ```
 
 3. **Define Structure**
+
    ```astro
    ---
    import Layout from '@/layouts/Layout.astro';
@@ -476,6 +493,7 @@ const { title, description } = Astro.props;
    ```
 
 4. **Add Content**
+
    - Copy patterns from similar pages (e.g., `software.astro`)
    - Use semantic colors
    - Add USAL animations
@@ -494,11 +512,13 @@ const { title, description } = Astro.props;
 **Steps:**
 
 1. **Create Markdown File**
+
    ```bash
    touch src/content/blog/my-post.md
    ```
 
 2. **Add Frontmatter**
+
    ```markdown
    ---
    title: "My Post Title"
@@ -514,6 +534,7 @@ const { title, description } = Astro.props;
    ```
 
 3. **Sync Content Types**
+
    ```bash
    npx astro sync
    ```
@@ -529,25 +550,29 @@ const { title, description } = Astro.props;
 **Steps:**
 
 1. **Map to Ontology**
+
    - What dimension? (e.g., "Token Purchase" = THINGS + EVENTS)
    - What data? (e.g., token entity, purchase event)
    - What mutations? (e.g., `api.tokens.purchase`)
 
 2. **Create Component Directory**
+
    ```bash
    mkdir -p src/components/features/tokens
    ```
 
 3. **Create Component**
+
    ```bash
    touch src/components/features/tokens/TokenPurchase.tsx
    ```
 
 4. **Implement Pattern**
+
    ```tsx
-   import { useMutation } from 'convex/react';
-   import { api } from '@/convex/_generated/api';
-   import { Button } from '@/components/ui/button';
+   import { useMutation } from "convex/react";
+   import { api } from "@/convex/_generated/api";
+   import { Button } from "@/components/ui/button";
 
    export function TokenPurchase({ tokenId }) {
      const purchase = useMutation(api.tokens.purchase);
@@ -561,6 +586,7 @@ const { title, description } = Astro.props;
    ```
 
 5. **Use in Page**
+
    ```astro
    ---
    import { TokenPurchase } from '@/components/features/tokens/TokenPurchase';
@@ -576,11 +602,13 @@ const { title, description } = Astro.props;
 **Steps:**
 
 1. **Create Page**
+
    ```bash
    touch src/pages/app/courses/[id].astro
    ```
 
 2. **SSR Data Fetch**
+
    ```astro
    ---
    import { ConvexHttpClient } from 'convex/browser';
@@ -594,6 +622,7 @@ const { title, description } = Astro.props;
    ```
 
 3. **Add Interactive Component**
+
    ```astro
    <AppLayout title={course.name}>
      <CourseView client:load courseId={course._id} />
@@ -615,21 +644,25 @@ const { title, description } = Astro.props;
 **Steps:**
 
 1. **Identify File**
+
    ```bash
    # Example: Update homepage
    open src/pages/index.astro
    ```
 
 2. **Read Existing Code**
+
    - Understand current structure
    - Identify sections to modify
 
 3. **Make Changes**
+
    - Use same patterns as existing code
    - Maintain color scheme
    - Keep animations consistent
 
 4. **Test Changes**
+
    ```bash
    bun run dev
    ```
@@ -664,12 +697,14 @@ const data = await fetch('...').then(r => r.json());
 ### Pattern 2: Form Handling
 
 ```tsx
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-export function ContactForm({ onSubmit }: {
+export function ContactForm({
+  onSubmit,
+}: {
   onSubmit: (data: FormData) => Promise<void>;
 }) {
   const [loading, setLoading] = useState(false);
@@ -681,9 +716,9 @@ export function ContactForm({ onSubmit }: {
 
     const formData = new FormData(e.currentTarget);
     const data = {
-      name: formData.get('name') as string,
-      email: formData.get('email') as string,
-      message: formData.get('message') as string,
+      name: formData.get("name") as string,
+      email: formData.get("email") as string,
+      message: formData.get("message") as string,
     };
 
     try {
@@ -691,7 +726,7 @@ export function ContactForm({ onSubmit }: {
       setSuccess(true);
       e.currentTarget.reset();
     } catch (error) {
-      console.error('Form submission failed:', error);
+      console.error("Form submission failed:", error);
     } finally {
       setLoading(false);
     }
@@ -716,7 +751,7 @@ export function ContactForm({ onSubmit }: {
         <Input id="message" name="message" required />
       </div>
       <Button type="submit" disabled={loading}>
-        {loading ? 'Sending...' : 'Send Message'}
+        {loading ? "Sending..." : "Send Message"}
       </Button>
     </form>
   );
@@ -729,9 +764,9 @@ export function ContactForm({ onSubmit }: {
 
 ```tsx
 export function SearchableList({ items }) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
 
-  const filtered = items.filter(item =>
+  const filtered = items.filter((item) =>
     item.name.toLowerCase().includes(query.toLowerCase())
   );
 
@@ -739,10 +774,12 @@ export function SearchableList({ items }) {
     <>
       <Input
         value={query}
-        onChange={e => setQuery(e.target.value)}
+        onChange={(e) => setQuery(e.target.value)}
         placeholder="Search..."
       />
-      {filtered.map(item => <Card key={item.id}>{item.name}</Card>)}
+      {filtered.map((item) => (
+        <Card key={item.id}>{item.name}</Card>
+      ))}
     </>
   );
 }
@@ -770,7 +807,6 @@ const view = Astro.url.searchParams.get('view') || 'list';
   {/* Items */}
 </div>
 ```
-
 
 ---
 
@@ -873,15 +909,15 @@ RESEND_API_KEY=your-resend-api-key
 
 ### File Locations
 
-| Type | Location | Example |
-|------|----------|---------|
-| Landing Page | `src/pages/` | `tokens.astro` |
-| Blog Post | `src/content/blog/` | `my-post.md` |
-| App Page | `src/pages/app/` | `courses/[id].astro` |
-| Auth Page | `src/pages/account/` | `signin.astro` |
+| Type              | Location                   | Example                |
+| ----------------- | -------------------------- | ---------------------- |
+| Landing Page      | `src/pages/`               | `tokens.astro`         |
+| Blog Post         | `src/content/blog/`        | `my-post.md`           |
+| App Page          | `src/pages/app/`           | `courses/[id].astro`   |
+| Auth Page         | `src/pages/account/`       | `signin.astro`         |
 | Feature Component | `src/components/features/` | `tokens/TokenCard.tsx` |
-| UI Component | `src/components/ui/` | `button.tsx` |
-| Layout | `src/layouts/` | `AppLayout.astro` |
+| UI Component      | `src/components/ui/`       | `button.tsx`           |
+| Layout            | `src/layouts/`             | `AppLayout.astro`      |
 
 ### Commands
 
@@ -933,11 +969,13 @@ wrangler pages deploy    # Deploy to Cloudflare
 ### Core Documentation
 
 **6-Dimension Ontology:**
-- **[one/connections/ontology.md](../ontology.md)** - Complete ontology specification
+
+- **[one/knowledge/ontology.md](../ontology.md)** - Complete ontology specification
   - 66 thing types, 25 connection types, 67 event types
   - Organizations, People, Things, Connections, Events, Knowledge
 
 **Frontend Reference:**
+
 - `/frontend` - Reference implementation
   - Astro 5 + React 19 + shadcn/ui + Tailwind v4
   - 50+ UI components
@@ -947,6 +985,7 @@ wrangler pages deploy    # Deploy to Cloudflare
 ### External Resources
 
 **Astro:**
+
 - https://docs.astro.build/ - Official Astro documentation
 - File-based routing
 - Content collections
@@ -954,16 +993,19 @@ wrangler pages deploy    # Deploy to Cloudflare
 - Islands architecture
 
 **React 19:**
+
 - https://react.dev/ - Official React documentation
 - Hooks and state management
 - Component patterns
 
 **shadcn/ui:**
+
 - https://ui.shadcn.com/ - Component library
 - Built on Radix UI primitives
 - Tailwind CSS styling
 
 **Tailwind CSS v4:**
+
 - https://tailwindcss.com/ - Utility-first CSS
 - CSS-based configuration
 - Dark mode support
@@ -975,6 +1017,7 @@ wrangler pages deploy    # Deploy to Cloudflare
 **ONE Frontend Development Workflow**
 
 **Key Principles:**
+
 1. **6-Dimension Ontology** - Map all features to: Organizations, People, Things, Connections, Events, Knowledge
 2. **Islands Architecture** - Static HTML with selective hydration for interactivity
 3. **Type Safety** - TypeScript strict mode throughout
@@ -982,6 +1025,7 @@ wrangler pages deploy    # Deploy to Cloudflare
 5. **Performance First** - Minimal JavaScript, optimal loading
 
 **Page Types:**
+
 - **Landing** - Marketing, static, SEO-optimized
 - **Blog** - Content collections with search
 - **App** - Authenticated, interactive

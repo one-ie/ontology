@@ -39,13 +39,14 @@ Phase 6: TEST & DOCUMENT
 
 **MANDATORY READING ORDER:**
 
-1. **`one/connections/ontology.md`** (5 min) - The 6-dimension universe
+1. **`one/knowledge/ontology.md`** (5 min) - The 6-dimension universe
 2. **`one/things/README.md`** (2 min) - Understand thing types
 3. **`one/connections/README.md`** (2 min) - Understand connection types
 4. **`one/events/README.md`** (2 min) - Understand event types
 5. **`one/things/files.md`** (3 min) - File organization
 
 **For specific features, also read:**
+
 - **Blockchain features:** `one/things/Sui.md`, `one/connections/cryptonetworks.md`
 - **Inference features:** `one/events/InferenceRevenue.md`
 - **Protocol features:** `one/connections/protocols.md` + specific protocol doc
@@ -55,6 +56,7 @@ Phase 6: TEST & DOCUMENT
 ### Step 1.2: Identify Feature Category
 
 **Ask yourself:**
+
 - Is this a new entity type?
 - Is this a new relationship?
 - Is this a new action/event?
@@ -65,6 +67,7 @@ Phase 6: TEST & DOCUMENT
 ### Step 1.3: Find Similar Patterns
 
 **Search for existing implementations:**
+
 - Similar entity types in `convex/schema.ts`
 - Similar mutations in `convex/mutations/`
 - Similar queries in `convex/queries/`
@@ -73,6 +76,7 @@ Phase 6: TEST & DOCUMENT
 
 **Example:**
 If building "NFT Minting", search for:
+
 - Token minting patterns
 - Blockchain transaction patterns
 - Payment processing patterns
@@ -88,6 +92,7 @@ If building "NFT Minting", search for:
 **Question:** What entities are involved?
 
 **Template:**
+
 ```
 Things:
   - <thing_name> (type: "<thing_type>")
@@ -97,6 +102,7 @@ Things:
 ```
 
 **Example: Token Purchase**
+
 ```
 Things:
   - user (type: "creator" or "audience_member")
@@ -110,6 +116,7 @@ Things:
 **Question:** How do entities relate to each other?
 
 **Template:**
+
 ```
 Connections:
   - <from_thing> → <to_thing> (relationshipType: "<type>")
@@ -117,6 +124,7 @@ Connections:
 ```
 
 **Example: Token Purchase**
+
 ```
 Connections:
   - user → token (relationshipType: "holds_tokens")
@@ -133,6 +141,7 @@ Connections:
 **Question:** What actions need to be logged?
 
 **Template:**
+
 ```
 Events:
   - <event_type>
@@ -142,6 +151,7 @@ Events:
 ```
 
 **Example: Token Purchase**
+
 ```
 Events:
   - tokens_purchased
@@ -162,6 +172,7 @@ Events:
 Use tags for categorization; use knowledge items for RAG when needed.
 
 **Template:**
+
 ```
 Tags:
   - thingTags: [<tag1>, <tag2>] // applied via junction
@@ -172,6 +183,7 @@ Knowledge (optional):
 ```
 
 **Example: Token Purchase**
+
 ```
 Tags:
   - ["network:sui", "protocol:sui-move", "status:active"]
@@ -183,6 +195,7 @@ Knowledge:
 ### Step 2.5: Validate Ontology Mapping
 
 **Checklist:**
+
 - [ ] All entities map to existing thing types (or propose new type)
 - [ ] All relationships use existing connection types
 - [ ] All events use existing event types
@@ -208,6 +221,7 @@ Declare protocol usage explicitly across primitives.
 ### Step 3.1: Define Service Interface
 
 **Pattern:**
+
 ```typescript
 // convex/services/<category>/<service>.ts
 export class <Service>Service extends Effect.Service<<Service>Service>()(
@@ -230,6 +244,7 @@ export class <Service>Service extends Effect.Service<<Service>Service>()(
 ```
 
 **Example: Token Purchase Service**
+
 ```typescript
 // convex/services/blockchain/token.ts
 export class TokenService extends Effect.Service<TokenService>()(
@@ -299,6 +314,7 @@ export class TokenService extends Effect.Service<TokenService>()(
 ### Step 3.2: Define Error Types
 
 **Pattern:**
+
 ```typescript
 // convex/services/<category>/errors.ts
 import { Data } from "effect";
@@ -310,6 +326,7 @@ export class <Error>Error extends Data.TaggedError("<Error>Error")<{
 ```
 
 **Example:**
+
 ```typescript
 // convex/services/blockchain/errors.ts
 export class UserNotFoundError extends Data.TaggedError("UserNotFoundError")<{
@@ -317,7 +334,9 @@ export class UserNotFoundError extends Data.TaggedError("UserNotFoundError")<{
   userId: string;
 }> {}
 
-export class InsufficientBalanceError extends Data.TaggedError("InsufficientBalanceError")<{
+export class InsufficientBalanceError extends Data.TaggedError(
+  "InsufficientBalanceError"
+)<{
   message: string;
   required: number;
   available: number;
@@ -333,6 +352,7 @@ export class BlockchainError extends Data.TaggedError("BlockchainError")<{
 ### Step 3.3: Service Rules
 
 **MUST:**
+
 - Pure functions only (no side effects outside Effect)
 - Explicit types (no `any`)
 - Typed errors with `_tag` pattern
@@ -340,6 +360,7 @@ export class BlockchainError extends Data.TaggedError("BlockchainError")<{
 - Business logic ONLY (no Convex-specific code)
 
 **MUST NOT:**
+
 - Use `console.log` (use Effect.log)
 - Catch errors with try/catch (use Effect.tryPromise)
 - Mix UI logic with business logic
@@ -362,6 +383,7 @@ export class BlockchainError extends Data.TaggedError("BlockchainError")<{
 ### Step 4.1: Create Mutation
 
 **Pattern:**
+
 ```typescript
 // convex/mutations/<domain>.ts
 import { confect } from "@/convex/lib/confect";
@@ -385,6 +407,7 @@ export const <methodName> = confect.mutation({
 ```
 
 **Example: Token Purchase Mutation**
+
 ```typescript
 // convex/mutations/tokens.ts
 export const purchase = confect.mutation({
@@ -412,6 +435,7 @@ export const purchase = confect.mutation({
 ### Step 4.2: Create Query
 
 **Pattern:**
+
 ```typescript
 // convex/queries/<domain>.ts
 export const <queryName> = confect.query({
@@ -427,6 +451,7 @@ export const <queryName> = confect.query({
 ```
 
 **Example: Get Token Balance**
+
 ```typescript
 // convex/queries/tokens.ts
 export const getBalance = confect.query({
@@ -445,6 +470,7 @@ export const getBalance = confect.query({
 ### Step 4.3: Backend Rules
 
 **Convex functions should:**
+
 - Validate arguments with Convex validators
 - Call service methods (thin wrapper)
 - Provide MainLayer
@@ -452,6 +478,7 @@ export const getBalance = confect.query({
 - Return serializable data only
 
 **Convex functions should NOT:**
+
 - Contain business logic (use services)
 - Make external API calls directly (use services)
 - Parse/transform complex data (use services)
@@ -461,16 +488,16 @@ export const getBalance = confect.query({
 For AI outputs that the UI should render dynamically, emit `communication_event` rows with structured payloads and protocol metadata.
 
 ```typescript
-await ctx.db.insert('events', {
-  type: 'communication_event',
+await ctx.db.insert("events", {
+  type: "communication_event",
   actorId: agentId,
   targetId: conversationId,
   timestamp: Date.now(),
   metadata: {
-    protocol: 'openai',
-    messageType: 'ui',
-    component: 'Card',
-    data: { title: 'Campaign Outline', items: ['Hook', 'CTA', 'Channels'] },
+    protocol: "openai",
+    messageType: "ui",
+    component: "Card",
+    data: { title: "Campaign Outline", items: ["Hook", "CTA", "Channels"] },
   },
 });
 ```
@@ -486,6 +513,7 @@ See `one/things/CopilotKit.md` and `one/things/AgentKit.md` for details.
 ### Step 5.1: Create Feature Component
 
 **Pattern:**
+
 ```typescript
 // src/components/features/<domain>/<Component>.tsx
 import { useMutation, useQuery } from "convex/react";
@@ -509,6 +537,7 @@ export function <Component>({ <prop> }: { <prop>: <Type> }) {
 ```
 
 **Example: Token Purchase Component**
+
 ```typescript
 // src/components/features/tokens/TokenPurchase.tsx
 import { useMutation, useQuery } from "convex/react";
@@ -566,6 +595,7 @@ export function TokenPurchase({ tokenId }: { tokenId: Id<"things"> }) {
 ### Step 5.2: Create Astro Page (if needed)
 
 **Pattern:**
+
 ```astro
 ---
 // src/pages/<domain>/[id].astro
@@ -587,6 +617,7 @@ const <data> = await convex.query(api.<domain>.<query>, {
 ```
 
 **Example: Token Detail Page**
+
 ```astro
 ---
 // src/pages/tokens/[id].astro
@@ -614,6 +645,7 @@ const token = await convex.query(api.tokens.get, {
 ### Step 5.3: Frontend Rules
 
 **Components should:**
+
 - Use Convex hooks (`useQuery`, `useMutation`)
 - Use shadcn/ui components
 - Handle loading states
@@ -623,6 +655,7 @@ const token = await convex.query(api.tokens.get, {
 When rendering AG-UI messages, map `communication_event` payloads to PromptKit components (no raw HTML injection).
 
 **Components should NOT:**
+
 - Contain business logic (use mutations)
 - Make API calls directly (use Convex)
 - Mutate props
@@ -637,6 +670,7 @@ When rendering AG-UI messages, map `communication_event` payloads to PromptKit c
 ### Step 6.1: Write Unit Tests
 
 **Pattern:**
+
 ```typescript
 // tests/unit/services/<service>.test.ts
 import { describe, it, expect } from "vitest";
@@ -672,23 +706,26 @@ describe("<Service>Service.<method>", () => {
 ```
 
 **Example: Token Service Test**
+
 ```typescript
 // tests/unit/services/token.test.ts
 describe("TokenService.purchase", () => {
   it("should purchase tokens successfully", async () => {
     const MockSUI = Layer.succeed(SuiProvider, {
-      executeTransaction: () => Effect.succeed({
-        digest: "9mKG...",
-        objectId: "0x123...",
-      }),
+      executeTransaction: () =>
+        Effect.succeed({
+          digest: "9mKG...",
+          objectId: "0x123...",
+        }),
     });
 
     const MockDB = Layer.succeed(ConvexDatabase, {
-      get: (id) => Effect.succeed({
-        _id: id,
-        type: "token",
-        properties: { price: 0.1 },
-      }),
+      get: (id) =>
+        Effect.succeed({
+          _id: id,
+          type: "token",
+          properties: { price: 0.1 },
+        }),
       insert: () => Effect.succeed("connection_id"),
     });
 
@@ -714,6 +751,7 @@ describe("TokenService.purchase", () => {
 ### Step 6.2: Write Integration Tests
 
 **Pattern:**
+
 ```typescript
 // tests/integration/<feature>.test.ts
 import { describe, it, expect } from "vitest";
@@ -731,6 +769,7 @@ describe("<Feature> Integration", () => {
 ### Step 6.3: Update Documentation
 
 **Required updates:**
+
 - Add to `one/things/README.md` if new thing type
 - Add to `one/connections/README.md` if new connection type
 - Add to `one/events/README.md` if new event type
@@ -738,6 +777,7 @@ describe("<Feature> Integration", () => {
 - Add code examples to relevant docs
 
 **Optional updates:**
+
 - Create dedicated doc in `one/things/<ThingType>.md`
 - Create dedicated doc in `one/events/<EventCategory>.md`
 - Update `one/connections/patterns.md` if novel pattern
@@ -747,12 +787,14 @@ describe("<Feature> Integration", () => {
 ## Workflow Checklist
 
 ### Before Starting
-- [ ] Read `one/connections/ontology.md`
+
+- [ ] Read `one/knowledge/ontology.md`
 - [ ] Understand the 6-dimension model
 - [ ] Identify similar existing patterns
 - [ ] Map feature to ontology (Phase 2)
 
 ### During Implementation
+
 - [ ] Design Effect.ts services (Phase 3)
 - [ ] Create thin Convex wrappers (Phase 4)
 - [ ] Build React components (Phase 5)
@@ -762,6 +804,7 @@ describe("<Feature> Integration", () => {
 - [ ] Ensure indexes exist for all queries
 
 ### After Implementation
+
 - [ ] Write unit tests (Phase 6)
 - [ ] Write integration tests (Phase 6)
 - [ ] Update documentation (Phase 6)
@@ -774,12 +817,14 @@ describe("<Feature> Integration", () => {
 ## Anti-Patterns to Avoid
 
 ### ❌ DON'T: Skip Ontology Mapping
+
 ```typescript
 // BAD: Creating custom tables
 await db.insert("custom_nft_table", { ... });
 ```
 
 ### ✅ DO: Map to Ontology
+
 ```typescript
 // GOOD: Using things table
 await db.insert("things", {
@@ -789,6 +834,7 @@ await db.insert("things", {
 ```
 
 ### ❌ DON'T: Put Business Logic in Convex Functions
+
 ```typescript
 // BAD
 export const purchase = mutation({
@@ -798,11 +844,12 @@ export const purchase = mutation({
       throw new Error("Insufficient balance");
     }
     // ... more logic
-  }
+  },
 });
 ```
 
 ### ✅ DO: Put Business Logic in Services
+
 ```typescript
 // GOOD
 export const purchase = confect.mutation({
@@ -810,17 +857,19 @@ export const purchase = confect.mutation({
     Effect.gen(function* () {
       const service = yield* TokenService;
       return yield* service.purchase(args);
-    }).pipe(Effect.provide(MainLayer))
+    }).pipe(Effect.provide(MainLayer)),
 });
 ```
 
 ### ❌ DON'T: Use `any` Types
+
 ```typescript
 // BAD
 const result: any = await service.execute();
 ```
 
 ### ✅ DO: Use Explicit Types
+
 ```typescript
 // GOOD
 const result: PurchaseResult = await service.purchase(args);
@@ -831,6 +880,7 @@ const result: PurchaseResult = await service.purchase(args);
 ## Summary
 
 **The 6-Phase Workflow:**
+
 1. **UNDERSTAND** - Read docs, identify category
 2. **MAP TO ONTOLOGY** - Things, connections, events, tags
 3. **DESIGN SERVICES** - Pure Effect.ts business logic
@@ -839,6 +889,7 @@ const result: PurchaseResult = await service.purchase(args);
 6. **TEST & DOCUMENT** - Unit tests, integration tests, docs
 
 **Key Principles:**
+
 - Ontology first, code second
 - Pure functions, explicit types
 - Business logic in services
@@ -846,6 +897,7 @@ const result: PurchaseResult = await service.purchase(args);
 - Test everything
 
 Additional principles:
+
 - Explicit protocol mapping (`properties.protocol`, `metadata.protocol`).
 - Prefer consolidated connection/event types.
 - Use tags for categorization; use knowledge things for RAG.
