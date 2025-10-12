@@ -258,6 +258,270 @@ one/
 
 ---
 
+### 1-7: Package ONE Cascade for Distribution
+
+**Owner:** Integration Specialist
+**Priority:** High
+**Dependencies:** 1-1 through 1-6 (complete system needs to exist)
+
+Package the complete ONE Cascade system for universal distribution and adoption:
+
+**Objectives:**
+
+1. Consolidate all CASCADE files into `/one` directory structure
+2. Create production-ready `cascade.yaml` orchestrator configuration
+3. Build Claude Code slash command interface (`/one`)
+4. Enable anyone to use CASCADE workflow instantly
+5. Make system self-documenting and discoverable
+
+**Key Components:**
+
+1. **Move Orchestrator to ONE Directory**
+   - Rename: `orchestrator.ts` → `cascade.yaml`
+   - Location: `one/things/cascade/cascade.yaml`
+   - Reason: YAML-based configuration is simpler than TypeScript
+   - Include: Complete workflow definition (6 levels, 8 agents, coordination)
+
+2. **Copy Essential Documentation**
+   - From: `one/things/plans/*` (all plan files)
+   - To: `one/things/cascade/docs/`
+   - Files: workflow.md, agent prompts, examples
+   - Purpose: Complete package with all context
+
+3. **Create Claude Code Command**
+   - File: `.claude/commands/one.md`
+   - Inspiration: `/Users/toc/Server/ONE/import/ONE-Import/.claude/commands/one.md`
+   - Interface: Interactive CLI with numbered selection (1-9, A-Z)
+   - Features:
+     - Main menu with CASCADE status display
+     - Quick start actions (1-5): Ideas → Plans → Features → Tasks
+     - Specialist teams (6-9): Quality, Testing, Documentation
+     - Advanced features (T, W, S): Templates, Workflow Builder, Settings
+     - Help system (H, ?)
+   - Design: 76-character ASCII, mobile-optimized, progressive disclosure
+
+4. **Package Structure**
+
+```
+one/
+├── things/
+│   ├── cascade/                    # ONE Cascade System
+│   │   ├── cascade.yaml           # Main orchestrator config
+│   │   ├── docs/
+│   │   │   ├── workflow.md        # Complete workflow spec
+│   │   │   ├── getting-started.md # Quick start guide
+│   │   │   └── examples/          # Usage examples
+│   │   └── templates/             # Workflow templates
+│   ├── agents/                     # 8 agent prompts (existing)
+│   ├── ideas/                      # Generated ideas
+│   ├── plans/                      # Generated plans
+│   └── features/                   # Generated features
+├── knowledge/
+│   ├── patterns/                   # Implementation patterns
+│   ├── lessons-learned.md         # Accumulated knowledge
+│   └── ontology-minimal.yaml      # Source of truth
+├── events/
+│   ├── workflow/                   # Real-time event log
+│   └── completed/                  # Completion events
+└── connections/
+    └── ontology-minimal.yaml       # Ontology (existing)
+
+.claude/
+└── commands/
+    └── one.md                      # Claude Code slash command
+```
+
+5. **CASCADE.yaml Specification**
+
+```yaml
+# one/things/cascade/cascade.yaml
+name: ONE Cascade
+version: 1.0.0
+description: Agent-orchestrated workflow using 6-dimension ontology
+
+# The 6-Level Flow
+stages:
+  1_ideas:
+    agent: director
+    output: validated idea → plan
+    context_tokens: 200
+  2_plans:
+    agent: director
+    output: plan with features collection
+    context_tokens: 1500
+  3_features:
+    agent: specialist
+    output: feature specifications
+    context_tokens: 1500
+    parallel: true
+  4_tests:
+    agent: quality
+    output: user flows + acceptance criteria
+    context_tokens: 2000
+  5_design:
+    agent: design
+    output: wireframes + component architecture
+    context_tokens: 2000
+  6_implementation:
+    agents: [specialist, quality, problem-solver, documenter]
+    output: working code + documentation
+    context_tokens: 2500
+    quality_loops: true
+
+# Agent Roles
+agents:
+  director:
+    role: Engineering Director
+    responsibilities:
+      - Validate ideas against ontology
+      - Create plans and assign features
+      - Review and refine
+      - Create parallel task lists
+      - Mark features complete
+    prompt_file: one/things/agents/agent-director.md
+
+  specialist:
+    role: Implementation Specialist
+    types: [backend, frontend, integration]
+    responsibilities:
+      - Write feature specifications
+      - Implement tasks in parallel
+      - Fix problems when tests fail
+      - Add lessons learned
+    prompt_files:
+      backend: one/things/agents/agent-backend.md
+      frontend: one/things/agents/agent-frontend.md
+      integration: one/things/agents/agent-integration.md
+
+  quality:
+    role: Quality Agent
+    responsibilities:
+      - Validate features against ontology
+      - Define user flows and acceptance criteria
+      - Define technical tests (unit, integration, e2e)
+      - Validate implementations
+    prompt_file: one/things/agents/agent-quality.md
+
+  design:
+    role: Design Agent
+    responsibilities:
+      - Create wireframes from test criteria
+      - Design UI that enables tests to pass
+      - Define component architecture
+      - Set design tokens
+    prompt_file: one/things/agents/agent-designer.md
+
+  problem-solver:
+    role: Problem Solver
+    responsibilities:
+      - Analyze failed tests (ultrathink mode)
+      - Determine root cause
+      - Propose solutions
+      - Delegate fixes to specialists
+    prompt_file: one/things/agents/agent-problem-solver.md
+
+  documenter:
+    role: Documenter
+    responsibilities:
+      - Write feature documentation
+      - Create user guides
+      - Document API changes
+      - Update knowledge base
+    prompt_file: one/things/agents/agent-documenter.md
+
+# Workflow Events (coordination via events table)
+workflow_events:
+  - plan_started
+  - feature_assigned
+  - feature_started
+  - implementation_complete
+  - quality_check_started
+  - quality_check_complete
+  - test_started
+  - test_passed
+  - test_failed
+  - problem_analysis_started
+  - solution_proposed
+  - fix_started
+  - fix_complete
+  - lesson_learned_added
+  - documentation_started
+  - documentation_complete
+  - feature_complete
+
+# Numbering System
+numbering:
+  plan: "{plan_number}-{plan-name}"
+  feature: "{plan_number}-{feature_number}-{feature-name}"
+  task_list: "{plan_number}-{feature_number}-{feature-name}-tasks"
+  task: "{plan_number}-{feature_number}-task-{task_number}"
+  event: "events/{plan_number}-{feature_number}-{feature-name}-complete.md"
+
+# Coordination Pattern
+coordination:
+  method: event_driven
+  message_bus: events_table
+  parallel_execution: true
+  quality_loops: enabled
+  knowledge_capture: lessons-learned.md
+```
+
+6. **Command Interface Highlights**
+
+Based on `/Users/toc/Server/ONE/import/ONE-Import/.claude/commands/one.md`:
+
+- **Main Menu**: ASCII art logo + CASCADE status (Mission 1 COMPLETE: 4.4/5⭐)
+- **Quick Start (1-5)**: Turn ideas into reality flow
+- **Specialist Teams (6-9)**: Quality & Testing team featured
+- **Templates (T)**: 37+ CASCADE workflow templates
+- **Workflow Builder (W)**: Custom workflow creation
+- **System Settings (S)**: Quality gates, agent config
+- **Help (H, ?)**: Tutorials and command reference
+- **Design**: 76-char width, mobile-optimized, no responsivity needed
+
+**Files to Create:**
+
+- `one/things/cascade/cascade.yaml` (complete orchestrator config)
+- `one/things/cascade/docs/getting-started.md` (quick start guide)
+- `one/things/cascade/docs/workflow.md` (copy from `one/things/plans/workflow.md`)
+- `one/things/cascade/templates/` (directory for workflow templates)
+- `.claude/commands/one.md` (slash command interface)
+
+**Migration Steps:**
+
+1. Create `one/things/cascade/` directory
+2. Create `cascade.yaml` with complete workflow specification
+3. Copy relevant docs from `one/things/plans/*`
+4. Create `.claude/commands/` directory
+5. Create `one.md` command file with full interface
+6. Test `/one` command functionality
+7. Validate all agent prompts accessible
+8. Ensure workflow executes end-to-end
+
+**Success Criteria:**
+
+- [ ] Complete CASCADE system in `/one` directory
+- [ ] `cascade.yaml` defines entire workflow (no code needed)
+- [ ] `/one` command provides intuitive interface
+- [ ] All 8 agent prompts accessible from system
+- [ ] Workflow executes: ideas → plans → features → tests → design → implementation
+- [ ] Quality loops work (failed tests trigger problem solver)
+- [ ] Knowledge accumulates in lessons-learned.md
+- [ ] System is self-documenting and discoverable
+- [ ] Anyone can `git clone` and use CASCADE immediately
+
+**Benefits:**
+
+- ✅ Universal distribution (copy `/one` directory + `.claude/commands/one.md`)
+- ✅ Zero setup required (complete package)
+- ✅ Self-documenting (docs included)
+- ✅ Production-ready (tested workflow)
+- ✅ Extensible (YAML-based configuration)
+- ✅ Developer-friendly (slash command interface)
+- ✅ Complete system (agents, workflow, docs, templates)
+
+---
+
 ## Architecture (from Ontology)
 
 ### Things
@@ -310,14 +574,25 @@ one/
 - [ ] Knowledge base accumulates patterns
 - [ ] 5x faster than manual process
 
-### Phase 4 (Weeks 4-6): Refinement
+### Phase 4 (Week 4): Packaging
+
+- [ ] CASCADE packaged in `/one` directory
+- [ ] `cascade.yaml` orchestrator complete
+- [ ] `/one` command interface functional
+- [ ] Documentation copied and organized
+- [ ] Getting-started guide written
+- [ ] Template library created
+
+### Phase 5 (Weeks 5-6): Testing & Refinement
 
 - [ ] Test on real features
 - [ ] Measure context reduction (target: 98%)
 - [ ] Measure speed improvement (target: 5x)
+- [ ] Test universal distribution (git clone → use)
 - [ ] Gather developer feedback
 - [ ] Iterate and improve
 - [ ] Documentation complete
+- [ ] Ready for public release
 
 ---
 
@@ -325,7 +600,7 @@ one/
 
 ### Week 1: Agent Prompts + Basic Orchestrator
 
-1. **1-1 (Agent Prompts):** Write all 6 agent role prompts
+1. **1-1 (Agent Prompts):** Write all 8 agent role prompts
 2. **1-6 (File Structure):** Set up directory structure
 3. **1-2 (Orchestrator):** Build basic flow (ideas → plans → features)
 
@@ -339,12 +614,22 @@ one/
 6. **1-5 (Problem Solver):** Ultrathink mode for failures
 7. **1-4 (Knowledge):** Lessons learned system
 
-### Week 4-6: Testing + Refinement
+### Week 4: Packaging + Distribution
 
-8. Test complete workflow on sample features
-9. Measure performance and quality
-10. Iterate based on real usage
-11. Write documentation
+8. **1-7 (Package CASCADE):** Create production-ready distribution
+   - Create `cascade.yaml` orchestrator configuration
+   - Copy docs to `one/things/cascade/docs/`
+   - Build `.claude/commands/one.md` slash command interface
+   - Create getting-started guide and templates
+
+### Week 5-6: Testing + Refinement
+
+9. Test complete workflow on sample features
+10. Measure performance and quality
+11. Test `/one` command interface
+12. Validate universal distribution package
+13. Iterate based on real usage
+14. Write final documentation
 
 ---
 
@@ -399,6 +684,7 @@ Week 3:
 4. **Feature 1-3:** Add event coordination
 5. **Feature 1-5:** Implement quality loops
 6. **Feature 1-4:** Build knowledge management
+7. **Feature 1-7:** Package CASCADE for distribution
 
 Each feature will have:
 
@@ -406,6 +692,11 @@ Each feature will have:
 - Tests (user flows + acceptance criteria)
 - Design (structure and components)
 - Implementation (working code)
+
+**Final Deliverable:** Complete ONE Cascade system that anyone can use by:
+1. `git clone` the repository
+2. Run `/one` command in Claude Code
+3. Start turning ideas into reality with 8 AI agents
 
 ---
 
