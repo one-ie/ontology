@@ -82,13 +82,13 @@ Organisations → People → Things → Connections → Events → Knowledge
 ### For AI Agents
 
 1. Read **[Ontology.md](./ontology.md)** (complete spec)
-2. Understand the 4-table universe:
+2. Understand the 6-dimension universe:
    - **Things** - entities
    - **Connections** - relationships
    - **Events** - actions
    - **Knowledge** - vectors + inference
 3. Follow patterns in consolidated files
-4. Everything maps to these 4 tables
+4. Everything maps to these 6 dimensions (organizations, people, things, connections, events, knowledge)
 
 ### For Developers
 

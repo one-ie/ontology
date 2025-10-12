@@ -1,17 +1,23 @@
 # ONE Thing To Do
 
 Now
-- [ ] This is calculated automatically. 
+
+- [ ] This is calculated automatically.
+
 ---
+
 Next
 Human
-- [ ] This is my task - split the /one / frontend / backend. Create the final one folder with and that is it we are done
+
+- [ ] This is my task - split the /one / frontend / backend. see one/plans/separate.md and add the tasks needed to be completed below.
 
 ## 🤖 Agents - Team Builder & Orchestrator
 
 ### Director Agent (Strategy Agent) ✅ CREATED
+
 **Status:** Specification complete, implementation pending
 **Location:** `one/things/agents/director.md`, `convex/services/agents/director/`
+
 - [x] Create director agent specification
 - [ ] Implement todo management (read, update, prioritize)
 - [ ] Implement workflow orchestration
@@ -20,9 +26,11 @@ Human
 - [ ] Implement daily reporting to owner
 
 ### Designer Agent (Design Agent)
+
 **Status:** ⏸️ Planned
 **Responsibilities:** Components, design system, animations
 **Location:** `convex/services/agents/business/design/`
+
 - [ ] Create designer agent specification
 - [ ] Implement DesignAgent service
 - [ ] Implement component design generation (shadcn/ui patterns)
@@ -33,9 +41,11 @@ Human
 - [ ] Tools: `component_design`, `figma_export`, `asset_generation`
 
 ### Backend Agent (Engineering Agent)
+
 **Status:** ⏸️ Planned
 **Responsibilities:** Convex, Effect.ts, Hono
 **Location:** `convex/services/agents/business/engineering/`
+
 - [ ] Create backend agent specification
 - [ ] Implement BackendAgent service
 - [ ] Implement Convex mutation generation
@@ -45,9 +55,11 @@ Human
 - [ ] Tools: `generate_mutation`, `generate_service`, `generate_route`
 
 ### AI Specialist Agent
+
 **Status:** ⏸️ Planned
 **Responsibilities:** Hono + AI SDK integration
 **Location:** `convex/services/agents/business/ai/`
+
 - [ ] Create AI specialist agent specification
 - [ ] Implement AIAgent service
 - [ ] Implement AI SDK route generation
@@ -57,9 +69,11 @@ Human
 - [ ] Tools: `generate_ai_route`, `implement_streaming`, `integrate_rag`
 
 ### Frontend Engineer Agent
+
 **Status:** ⏸️ Planned
 **Responsibilities:** Astro specialist, React 19, shadcn/ui
 **Location:** `convex/services/agents/business/frontend/`
+
 - [ ] Create frontend engineer specification
 - [ ] Implement FrontendAgent service
 - [ ] Implement Astro page generation
@@ -69,9 +83,11 @@ Human
 - [ ] Tools: `generate_page`, `generate_component`, `add_shadcn`
 
 ### Copywriter Agent (Marketing Agent)
+
 **Status:** ⏸️ Planned
 **Responsibilities:** Content writing, SEO, messaging
 **Location:** `convex/services/agents/business/marketing/`
+
 - [ ] Create copywriter agent specification
 - [ ] Implement CopywriterAgent service
 - [ ] Implement blog post generation
@@ -81,9 +97,11 @@ Human
 - [ ] Tools: `generate_blog_post`, `optimize_seo`, `write_email`
 
 ### Mobile Designer Agent
+
 **Status:** ⏸️ Planned
 **Responsibilities:** Mobile-first design, responsive patterns
 **Location:** `convex/services/agents/business/mobile/`
+
 - [ ] Create mobile designer specification
 - [ ] Implement MobileAgent service
 - [ ] Implement mobile-first layouts
@@ -92,9 +110,11 @@ Human
 - [ ] Tools: `design_mobile_layout`, `add_pwa_features`
 
 ### Ingestor Agent (Data Migration Agent) ✅ SPECIFIED
+
 **Status:** Specification exists in AGENTS.md
 **Responsibilities:** Migrate data from one.ie and bullfm
 **Location:** `convex/services/agents/specialized/ingestor/`
+
 - [ ] Create ingestor agent implementation
 - [ ] Implement data extraction from old systems
 - [ ] Implement data transformation (to 6-dimension ontology)
@@ -103,9 +123,11 @@ Human
 - [ ] Tools: `extract_data`, `transform_data`, `validate_migration`
 
 ### Testor Agent (QA Agent)
+
 **Status:** ⏸️ Planned
 **Responsibilities:** Testing, quality assurance
 **Location:** `convex/services/agents/specialized/qa/`
+
 - [ ] Create testor agent specification
 - [ ] Implement TestorAgent service
 - [ ] Implement unit test generation
@@ -115,9 +137,11 @@ Human
 - [ ] Tools: `generate_tests`, `run_tests`, `analyze_coverage`
 
 ### Documentor Agent
+
 **Status:** ⏸️ Planned
 **Responsibilities:** Documentation updates, API docs
 **Location:** `convex/services/agents/specialized/docs/`
+
 - [ ] Create documentor agent specification
 - [ ] Implement DocumentorAgent service
 - [ ] Implement documentation updates (sync with code)
@@ -126,9 +150,11 @@ Human
 - [ ] Tools: `update_docs`, `generate_api_docs`, `generate_changelog`
 
 ### Performance Optimiser Agent (Intelligence Agent)
+
 **Status:** ⏸️ Planned
 **Responsibilities:** Performance analysis, optimization
 **Location:** `convex/services/agents/business/intelligence/`
+
 - [ ] Create performance optimizer specification
 - [ ] Implement PerformanceAgent service
 - [ ] Implement performance metric tracking
@@ -137,9 +163,11 @@ Human
 - [ ] Tools: `analyze_performance`, `detect_bottlenecks`, `suggest_optimizations`
 
 ### SEO Agent (Marketing Sub-Agent)
+
 **Status:** ⏸️ Planned
 **Responsibilities:** SEO optimization, meta tags, sitemap
 **Location:** `convex/services/agents/business/seo/`
+
 - [ ] Create SEO agent specification
 - [ ] Implement SEOAgent service
 - [ ] Implement meta tag optimization
@@ -153,16 +181,20 @@ Human
 ## 🪝 Hooks - Application Enhancement
 
 ### Structure Hooks
+
 **Purpose:** Organize codebase structure, enforce patterns
+
 - [ ] **Pre-commit hook:** Validate file naming conventions
 - [ ] **Pre-commit hook:** Validate TypeScript strict mode
 - [ ] **Pre-commit hook:** Validate no 'any' types (except properties)
-- [ ] **Pre-commit hook:** Validate imports use path aliases (@/*)
+- [ ] **Pre-commit hook:** Validate imports use path aliases (@/\*)
 - [ ] **Post-merge hook:** Run `bunx astro sync` to regenerate types
 - [ ] **Post-merge hook:** Run `bun install` if package.json changed
 
 ### Secrets Hooks
+
 **Purpose:** Prevent secret leakage, enforce security
+
 - [ ] **Pre-commit hook:** Scan for API keys in code
 - [ ] **Pre-commit hook:** Scan for private keys
 - [ ] **Pre-commit hook:** Scan for .env files in git
@@ -171,7 +203,9 @@ Human
 - [ ] **Runtime hook:** Validate all secrets are encrypted (Better Auth, Stripe, etc.)
 
 ### Ontology Hooks
+
 **Purpose:** Enforce 6-dimension ontology patterns
+
 - [ ] **Pre-mutation hook:** Validate entity type exists in ontology
 - [ ] **Pre-mutation hook:** Validate connection type exists in ontology
 - [ ] **Pre-mutation hook:** Validate event type exists in ontology
@@ -180,7 +214,9 @@ Human
 - [ ] **Query hook:** Validate protocol metadata format
 
 ### Files Hooks
+
 **Purpose:** Keep file system organized
+
 - [ ] **Pre-commit hook:** Validate file locations match files.md
 - [ ] **Pre-commit hook:** Validate new files update files.md
 - [ ] **Post-file-create hook:** Auto-generate barrel exports (index.ts)
@@ -188,7 +224,9 @@ Human
 - [ ] **Post-move hook:** Update all imports automatically
 
 ### Patterns Hooks
+
 **Purpose:** Enforce code patterns from patterns.md
+
 - [ ] **Pre-commit hook:** Validate Effect.ts services follow pattern
 - [ ] **Pre-commit hook:** Validate Convex mutations are thin wrappers
 - [ ] **Pre-commit hook:** Validate React components use Convex hooks
@@ -200,8 +238,10 @@ Human
 ## 🎮 Commands - Developer Experience
 
 ### /design Command
+
 **Purpose:** Generate design system components
 **Location:** `.claude/commands/design.ts`
+
 - [ ] Implement `/design` command handler
 - [ ] Integrate with designer agent
 - [ ] Generate design tokens (colors, spacing, typography)
@@ -211,8 +251,10 @@ Human
 - **Usage:** `/design button primary | /design colors light-mode`
 
 ### /push Command ✅ EXISTS
+
 **Purpose:** Build, fix errors, commit, and push
 **Location:** Configured in slash commands
+
 - [x] Command exists and works
 - [ ] Enhance with pre-push validation
 - [ ] Add automatic changelog generation
@@ -220,8 +262,10 @@ Human
 - **Usage:** `/push "feat: add password reset"`
 
 ### /deploy Command
+
 **Purpose:** Deploy to production (Cloudflare Pages)
 **Location:** `.claude/commands/deploy.ts`
+
 - [ ] Implement `/deploy` command handler
 - [ ] Build production bundle
 - [ ] Run all tests
@@ -235,9 +279,11 @@ Human
 ## 🖥️ CLI - Command Line Interface
 
 ### npx oneie CLI
+
 **Purpose:** Bootstrap and manage ONE projects
 **Location:** `packages/cli/` (future package)
 **Status:** ⏸️ Planned - see `one/things/cli.md`
+
 - [ ] Create @one/cli package
 - [ ] Implement `npx oneie create` (bootstrap project)
 - [ ] Implement `npx oneie add` (add features)
@@ -251,8 +297,10 @@ Human
 ## 🔌 MCP's - Model Context Protocols
 
 ### Convex MCP ✅ CONFIGURED
+
 **Status:** Configured in `.mcp.json`
 **Purpose:** Convex deployment management
+
 - [x] MCP configured and working
 - [ ] Enhance with inference quota tracking
 - [ ] Enhance with organization usage tracking
@@ -260,16 +308,20 @@ Human
 - **Tools:** `status`, `data`, `tables`, `functionSpec`, `run`, `envList`, `logs`
 
 ### Chrome DevTools MCP
+
 **Purpose:** Browser debugging integration
 **Status:** ⏸️ Not yet configured
+
 - [ ] Research chrome-devtools MCP implementation
 - [ ] Configure in `.mcp.json`
 - [ ] Integrate with frontend testing workflow
 - [ ] Enable remote debugging for mobile
 
 ### Error Tracking MCP (Sentry/Similar)
+
 **Purpose:** Production error monitoring
 **Status:** ⏸️ Not yet configured
+
 - [ ] Choose error tracking service (Sentry, Rollbar, or custom)
 - [ ] Create error tracking MCP
 - [ ] Configure in `.mcp.json`
@@ -281,8 +333,10 @@ Human
 ## 🎨 Design - Design System
 
 ### Design System Foundation
+
 **Status:** ⏸️ Planned
 **Location:** `src/styles/design-system.css`
+
 - [ ] Create design system documentation
 - [ ] Define design tokens (CSS custom properties)
 - [ ] Define spacing scale (4px, 8px, 16px, 24px, 32px, 48px, 64px)
@@ -291,8 +345,10 @@ Human
 - [ ] Define z-index scale (modal, dropdown, sticky, fixed)
 
 ### Light / Dark Mode ✅ IMPLEMENTED
+
 **Status:** Implemented with Tailwind v4
 **Location:** `src/styles/global.css`, `src/components/ModeToggle.tsx`
+
 - [x] Light mode colors defined
 - [x] Dark mode colors defined
 - [x] Mode toggle component working
@@ -301,8 +357,10 @@ Human
 - [ ] Add per-user theme persistence (Better Auth)
 
 ### Color System
+
 **Status:** Partial - Needs expansion
 **Location:** `src/styles/global.css` (@theme blocks)
+
 - [ ] Define primary brand colors (with HSL values)
 - [ ] Define secondary colors
 - [ ] Define accent colors
@@ -312,8 +370,10 @@ Human
 - [ ] Test WCAG contrast ratios (AA minimum)
 
 ### Logo Assets
+
 **Status:** ⏸️ Needed
 **Location:** `public/logo/`
+
 - [ ] Design ONE Platform logo (light version)
 - [ ] Design ONE Platform logo (dark version)
 - [ ] Export SVG (optimized)
@@ -322,8 +382,10 @@ Human
 - [ ] Add to Layout.astro
 
 ### Icon System
+
 **Status:** Partial - Lucide React icons in use
 **Location:** `src/components/ui/`, `public/icons/`
+
 - [ ] Audit current icon usage (Lucide React)
 - [ ] Create custom icons for ONE-specific concepts
 - [ ] Export custom icons as SVG sprites
@@ -331,8 +393,10 @@ Human
 - [ ] Create icon component wrapper
 
 ### Backgrounds
+
 **Status:** ⏸️ Needed
 **Location:** `public/backgrounds/`
+
 - [ ] Design hero background (light mode)
 - [ ] Design hero background (dark mode)
 - [ ] Design section backgrounds (features, pricing, testimonials)
@@ -341,8 +405,10 @@ Human
 - [ ] Optimize for web (WebP, lazy loading)
 
 ### Patterns & Gradients
+
 **Status:** ⏸️ Needed
 **Location:** `src/styles/patterns.css`
+
 - [ ] Create dot grid pattern
 - [ ] Create mesh gradient pattern
 - [ ] Create noise texture overlay
@@ -351,8 +417,10 @@ Human
 - [ ] Document pattern usage
 
 ### Button System ✅ SHADCN CONFIGURED
+
 **Status:** shadcn/ui buttons installed
 **Location:** `src/components/ui/button.tsx`
+
 - [x] Primary button variant
 - [x] Secondary button variant
 - [x] Outline button variant
@@ -367,9 +435,11 @@ Human
 ## 🎬 Animation - Motion Design
 
 ### Scroll Animations
+
 **Status:** ⏸️ Planned
 **Library:** Framer Motion or CSS Scroll-driven Animations
 **Location:** `src/components/animations/`
+
 - [ ] Choose animation library (Framer Motion vs CSS scroll-driven)
 - [ ] Implement fade-in on scroll
 - [ ] Implement slide-up on scroll
@@ -380,16 +450,20 @@ Human
 - [ ] Document animation patterns
 
 ### Page Transitions
+
 **Status:** ⏸️ Planned
 **Location:** `src/layouts/Layout.astro`, `src/components/PageTransition.astro`
+
 - [ ] Implement page transition component
 - [ ] Add route change animations
 - [ ] Add loading indicators
 - [ ] Optimize for performance (60fps target)
 
 ### Micro-interactions
+
 **Status:** ⏸️ Planned
 **Location:** `src/components/ui/` (enhance existing components)
+
 - [ ] Add button click ripple effect
 - [ ] Add input focus animations
 - [ ] Add checkbox/switch toggle animations
@@ -402,14 +476,18 @@ Human
 ## 🧩 Components - UI Building Blocks
 
 ### Search Component
+
 **Status:** ⏸️ Planned - Need to choose implementation
 **Options:**
+
 1. **Astro Content Collection Search** (built-in, type-safe)
 2. **Pagefind** (static search, fast, no backend)
 3. **Convex Full-Text Search** (real-time, dynamic content)
 
 **Decision Needed:** Which search approach?
+
 - [ ] **Option A: Astro Content Collection Search**
+
   - [ ] Implement search index generation
   - [ ] Create SearchInput component
   - [ ] Add fuzzy matching
@@ -418,6 +496,7 @@ Human
   - **Cons:** Static only (no user-generated content)
 
 - [ ] **Option B: Pagefind**
+
   - [ ] Install Pagefind
   - [ ] Configure build-time indexing
   - [ ] Create SearchInput component
@@ -443,8 +522,10 @@ Human
 ## 📐 Layouts - Page Structure
 
 ### Layout System ✅ EXISTS
+
 **Status:** Base layouts exist
 **Location:** `src/layouts/`
+
 - [x] `Layout.astro` - Base layout with header, footer
 - [x] `Blog.astro` - Blog post layout with ToC
 - [ ] `AppLayout.astro` - Application layout (dashboard, authenticated pages)
@@ -453,8 +534,10 @@ Human
 - [ ] `DocsLayout.astro` - Documentation layout
 
 ### Page Templates
+
 **Status:** Partial - Some pages exist
 **Location:** `src/pages/`
+
 - [ ] Marketing pages (home, features, pricing, about, contact)
 - [ ] Authentication pages (✅ exist in /account/)
 - [ ] Dashboard pages (platform owner, org owner, org user, customer)
@@ -477,6 +560,7 @@ Human
 ### Phase 1A: Documentation & Planning (15% Complete)
 
 #### ✅ Completed
+
 - [x] Create documentation ecosystem (90 .md files, 73k lines) - **DONE**
 - [x] Define ontology (6 dimensions: things, connections, events, knowledge, people, protocols) - **DONE**
 - [x] Define architecture (Effect.ts, Convex, Astro, Hono) - **DONE**
@@ -486,6 +570,7 @@ Human
 **Status:** Documentation foundation is EXCELLENT. All patterns defined.
 
 #### ⏳ In Progress
+
 1. **Convex Schema Implementation**
    **Priority:** P0
    **Effort:** M
@@ -494,6 +579,7 @@ Human
    **Status:** ⏳ Need to verify schema.ts matches ontology.md exactly
    **Location:** `convex/schema.ts`
    **Checklist:**
+
    - [ ] Verify `entities` table matches 66 thing types
    - [ ] Verify `connections` table matches 25 connection types
    - [ ] Verify `events` table matches 67 event types
@@ -512,6 +598,7 @@ Human
    **Status:** ⏳ Waiting for schema verification
    **Location:** `convex/services/database/convexDatabase.ts`
    **Checklist:**
+
    - [ ] Create ConvexDatabase service (Effect.ts)
    - [ ] Implement CRUD operations (insert, get, query, patch, delete)
    - [ ] Implement connection queries (from_type, to_type, bidirectional)
@@ -540,7 +627,7 @@ Human
    - [ ] Implement 2FA flow (totp, backup codes)
    - [ ] Add session management (create, verify, invalidate)
    - [ ] Add OAuth integration (GitHub, Google)
-   - [ ] Link users to entities table (users.thingId → entities._id)
+   - [ ] Link users to entities table (users.thingId → entities.\_id)
    - [ ] Write integration tests
    - [ ] Document in patterns.md
 
@@ -554,6 +641,7 @@ Human
    **Status:** ⏸️ Waiting for P0 tasks
    **Location:** `convex/services/agents/`
    **Checklist:**
+
    - [ ] Create `convex/services/agents/` directory
    - [ ] Create `convex/services/agents/director/` (orchestrator)
    - [ ] Create `convex/services/agents/clone/` (AI clones)
@@ -569,6 +657,7 @@ Human
    **Status:** ⏸️ Waiting for P0 tasks
    **Location:** `convex/services/agents/orchestrator.ts`
    **Checklist:**
+
    - [ ] Create AgentOrchestrator service (Effect.ts)
    - [ ] Implement agent registration (create agent entity)
    - [ ] Implement agent discovery (query by type)
@@ -588,6 +677,7 @@ Human
    **Status:** ⏸️ Waiting for orchestration service
    **Location:** `convex/services/agents/director/`
    **Checklist:**
+
    - [ ] Create DirectorAgent service (Effect.ts)
    - [ ] Implement todo management (read, update, prioritize)
    - [ ] Implement work delegation (assign tasks to clone agents)
@@ -631,6 +721,7 @@ Human
    **Status:** ⏸️ Planned
    **Location:** `convex/services/tokens/`
    **Checklist:**
+
    - [ ] Create TokenService (Effect.ts)
    - [ ] Implement token creation (mint on SUI blockchain)
    - [ ] Implement token purchase (fiat via Stripe OR crypto direct)
@@ -674,6 +765,7 @@ Human
     **Status:** ⏸️ Planned
     **Location:** `convex/services/content/`
     **Checklist:**
+
     - [ ] Create ContentService (Effect.ts)
     - [ ] Implement content creation (blog, video, social, email)
     - [ ] Implement content publishing (status: draft → published)
@@ -692,6 +784,7 @@ Human
     **Status:** ⏸️ Planned
     **Location:** `convex/services/agents/clone/`
     **Checklist:**
+
     - [ ] Create AICloneService (Effect.ts)
     - [ ] Implement voice cloning (ElevenLabs)
     - [ ] Implement appearance cloning (D-ID or HeyGen)
@@ -732,6 +825,7 @@ Human
     **Status:** ⏸️ Planned
     **Location:** `convex/services/community/`
     **Checklist:**
+
     - [ ] Create CommunityService (Effect.ts)
     - [ ] Implement community creation
     - [ ] Implement member management (invite, join, remove)
@@ -775,6 +869,7 @@ Human
     **Dependencies:** SuiProvider complete
     **Status:** ⏸️ Planned
     **Checklist:**
+
     - [ ] Design Move contract for creator tokens (ERC-20 equivalent)
     - [ ] Design Move contract for NFTs (ERC-721 equivalent)
     - [ ] Design Move contract for token vesting
@@ -791,6 +886,7 @@ Human
     **Dependencies:** AICloneService design
     **Status:** ⏸️ Planned
     **Checklist:**
+
     - [ ] Create ElevenLabsProvider (Effect.ts)
     - [ ] Implement voice cloning API integration
     - [ ] Implement voice synthesis (text-to-speech)
@@ -818,10 +914,13 @@ Human
 ## 🚧 Blockers
 
 ### Critical Blockers (P0)
+
 **None currently** - Documentation foundation is complete, ready to implement.
 
 ### Potential Blockers
+
 1. **API Keys Missing**
+
    - ElevenLabs API key (voice cloning)
    - D-ID or HeyGen API key (appearance cloning)
    - OpenAI API key (embeddings, chat)
@@ -831,6 +930,7 @@ Human
    - **Resolution:** Set up API keys in Convex environment variables
 
 2. **Blockchain Testnet Tokens**
+
    - Need testnet tokens for Sui, Base, Solana
    - **Resolution:** Request from faucets once providers are implemented
 
@@ -843,7 +943,9 @@ Human
 ## 🤔 Decisions Needed
 
 ### Immediate Decisions (This Week)
+
 1. **Which AI clone provider?**
+
    - Option A: D-ID (cheaper, good quality)
    - Option B: HeyGen (premium, best quality)
    - Option C: Build custom (Wav2Lip + Stable Diffusion)
@@ -851,6 +953,7 @@ Human
    - **Owner Decision:** Pending
 
 2. **Which blockchain for launch?**
+
    - Option A: Sui (high throughput, Move language, new)
    - Option B: Base (Coinbase L2, EVM-compatible, established)
    - Option C: Solana (high speed, low cost, proven)
@@ -865,7 +968,9 @@ Human
    - **Owner Decision:** Pending
 
 ### Strategic Decisions (Next 2 Weeks)
+
 4. **Revenue model priority?**
+
    - Platform subscriptions (€99-499/month)
    - Course revenue share (10-20%)
    - Token transaction fees (2-5%)
@@ -882,6 +987,7 @@ Human
 ## 📚 Resources
 
 ### Documentation Links (Critical Reading)
+
 - **[one/connections/documentation.md](../connections/documentation.md)** - Complete doc ecosystem map
 - **[one/connections/modes.md](../connections/modes.md)** - Standalone vs API mode
 - **[one/connections/development.md](../connections/development.md)** - Using `npx oneie` CLI with Claude Code
@@ -901,6 +1007,7 @@ Human
 - **[one/connections/implementation.md](../connections/implementation.md)** - 12-week roadmap
 
 ### API Documentation
+
 - **Convex:** https://docs.convex.dev
 - **Effect.ts:** https://effect.website
 - **Confect:** https://github.com/get-convex/confect
@@ -911,6 +1018,7 @@ Human
 - **SUI Move:** https://docs.sui.io
 
 ### Code Patterns
+
 - **CRUD Operations:** See `one/connections/patterns.md` - Entity CRUD
 - **Agent Communication:** See `one/connections/patterns.md` - A2A Protocol
 - **Multi-Chain:** See `one/things/architecture.md` - Multi-Chain Providers
@@ -923,6 +1031,7 @@ Human
 ### Overall Progress: 15% Complete
 
 **Phase 1: Foundation (15% of 100% total)**
+
 - [x] Documentation (100% complete)
 - [ ] Core services (0% complete)
   - [ ] Schema implementation
@@ -931,26 +1040,31 @@ Human
   - [ ] Agent infrastructure
 
 **Phase 2: Core Features (0% of 40% total)**
+
 - [ ] Token economy
 - [ ] Content & AI
 - [ ] Community & courses
 
 **Phase 3: Integration (0% of 35% total)**
+
 - [ ] Blockchain contracts
 - [ ] External services
 - [ ] Protocol implementations
 
 **Phase 4: Launch (0% of 10% total)**
+
 - [ ] Beta testing
 - [ ] Production deployment
 - [ ] First 10 creators
 
 ### Velocity Metrics
+
 - **Current:** 1 documentation file per day (90 files in 90 days)
 - **Target:** 1 feature per week (once agents are operational)
 - **Bottleneck:** No code generation yet (waiting for agents)
 
 ### Risk Assessment
+
 - **Documentation Risk:** LOW (complete, comprehensive)
 - **Technical Risk:** MEDIUM (new architecture, unproven at scale)
 - **Timeline Risk:** MEDIUM (12 weeks is aggressive)
@@ -961,6 +1075,7 @@ Human
 ## 🎯 Success Criteria
 
 ### Phase 1 Complete When:
+
 - [x] All 90 documentation files exist and are accurate
 - [ ] Convex schema deployed and verified
 - [ ] ConvexDatabase service passes all unit tests
@@ -969,6 +1084,7 @@ Human
 - [ ] Clone agent can generate simple CRUD operations
 
 ### Phase 2 Complete When:
+
 - [ ] Users can purchase tokens (fiat or crypto)
 - [ ] AI clone can generate content in creator's voice
 - [ ] Courses can be created and enrolled in
@@ -976,12 +1092,14 @@ Human
 - [ ] Community messaging works in real-time
 
 ### Phase 3 Complete When:
+
 - [ ] SUI smart contracts deployed to mainnet
 - [ ] Voice cloning produces high-quality output
 - [ ] At least 2 protocols (A2A + ACP) fully implemented
 - [ ] External agents can communicate via A2A
 
 ### Launch Complete When:
+
 - [ ] 10 beta creators onboarded
 - [ ] €10K+ in monthly recurring revenue
 - [ ] All core features stable in production
@@ -992,9 +1110,11 @@ Human
 ## 💡 Notes for AI Agents
 
 ### For Director Agent
+
 **Your job:** Manage this todo list, prioritize tasks, delegate to clone agents, report progress.
 
 **Daily Tasks:**
+
 1. Review active todos (check ⏳ items)
 2. Update progress (change statuses, check boxes)
 3. Identify blockers (add to blockers section)
@@ -1002,20 +1122,24 @@ Human
 5. Report to owner (daily summary via email)
 
 **Communication Protocol:**
+
 - Use A2A protocol for all agent communication
 - Log all decisions as events (event type: decision_made)
 - Create connections for task delegation (connection type: delegated)
 
 **Success Metrics:**
+
 - All P0 tasks completed within 1 week
 - All P1 tasks completed within 2 weeks
 - Zero blockers older than 3 days
 - Clone agents report 90%+ task success rate
 
 ### For Clone Agents
+
 **Your job:** Execute tasks delegated by director, follow patterns exactly, report status.
 
 **Task Workflow:**
+
 1. Receive task from director (via A2A protocol)
 2. Read relevant documentation (links in checklist)
 3. Generate code (follow patterns.md exactly)
@@ -1025,6 +1149,7 @@ Human
 7. Report completion (via A2A protocol)
 
 **Code Generation Rules:**
+
 - 100% Effect.ts for business logic (NO async/await)
 - Typed errors with `_tag` pattern
 - Dependency injection via Effect layers
@@ -1032,27 +1157,32 @@ Human
 - Follow patterns.md examples exactly
 
 **Success Metrics:**
+
 - 90%+ code generation accuracy (compiles first time)
 - 100% test coverage for new code
 - Zero breaking changes to existing code
 - All PRs approved within 1 day
 
 ### For Platform Owner (Human)
+
 **Your job:** Make strategic decisions, provide vision, approve critical changes.
 
 **Daily Tasks:**
+
 1. Review director agent's progress report
 2. Make decisions on blockers (if needed)
 3. Approve high-risk changes (blockchain, payments)
 4. Provide feedback on AI-generated code
 
 **Weekly Tasks:**
+
 1. Review overall progress (vs 12-week roadmap)
 2. Adjust priorities based on user feedback
 3. Make strategic decisions (revenue model, beta criteria)
 4. Communicate vision to agents
 
 **Success Metrics:**
+
 - All P0 decisions made within 24 hours
 - All P1 decisions made within 1 week
 - Zero critical bugs in production
@@ -1063,7 +1193,9 @@ Human
 ## 🚀 Next Actions (This Week)
 
 ### Monday (Priority Order)
+
 1. **Verify Convex Schema** (Director Agent)
+
    - Compare `convex/schema.ts` to `one/connections/ontology.md`
    - Ensure all 66 thing types, 25 connections, 67 events are represented
    - Add `knowledge` table if missing
@@ -1071,6 +1203,7 @@ Human
    - Verify with `bunx astro check`
 
 2. **Create ConvexDatabase Service** (Clone Agent)
+
    - Read `one/connections/patterns.md` - Database Patterns
    - Generate `convex/services/database/convexDatabase.ts`
    - Implement all CRUD operations
@@ -1085,6 +1218,7 @@ Human
    - Update `one/connections/patterns.md`
 
 ### Tuesday-Friday
+
 4. **Agent Infrastructure** (Director + Clone)
 5. **Agent Orchestration** (Director)
 6. **First AI-Generated Feature** (Clone Agent test)
@@ -1111,4 +1245,4 @@ Human
 
 **END OF TODO LIST**
 
-*This list is managed by the Director Agent and updated daily. Last human edit: 2025-10-08*
+_This list is managed by the Director Agent and updated daily. Last human edit: 2025-10-08_

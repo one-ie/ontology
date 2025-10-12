@@ -2125,7 +2125,7 @@ const byProtocol = allPayments.reduce((acc, e) => {
 
 ## Merged: Protocol Integration Requirements (from OntologyUpdates.md)
 
-This section consolidates the proposal in `OntologyUpdates.md` into the ontology’s protocol‑agnostic model. We preserve the 4‑table universe and use consolidated types + `metadata.protocol` for extensibility and query performance.
+This section consolidates the proposal in `OntologyUpdates.md` into the ontology's protocol‑agnostic model. We preserve the 6‑dimension architecture (organizations, people, things, connections, events, knowledge) and use consolidated types + `metadata.protocol` for extensibility and query performance.
 
 - Things
   - Keep consolidated `mandate` thing with `properties.mandateType: "intent" | "cart"` instead of separate `intent_mandate`/`cart_mandate` types. This reduces index fan‑out and simplifies queries while preserving full fidelity in `properties`.

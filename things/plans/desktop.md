@@ -8,7 +8,7 @@
 
 ## Vision
 
-ONE Desktop transforms emdash's multi-agent orchestration into a native command center for the ONE platform, where developers coordinate autonomous AI agents that build, deploy, and maintain AI-powered businesses through ONE's 4-table ontology.
+ONE Desktop transforms emdash's multi-agent orchestration into a native command center for the ONE platform, where developers coordinate autonomous AI agents that build, deploy, and maintain AI-powered businesses through ONE's 6-dimension ontology (organizations, people, things, connections, events, knowledge).
 
 **Core Philosophy:** Just as emdash enables parallel agent execution across git worktrees, ONE Desktop enables parallel agent execution across your entire business ontology — from content creation to audience engagement to knowledge generation.
 
@@ -693,7 +693,7 @@ ${context.join('\n\n---\n\n')}
 
 Task: ${task.description}
 
-Follow the ONE ontology when making changes. All entities should map to the 4-table system.
+Follow the ONE ontology when making changes. All entities should map to the 6-dimension architecture (organizations, people, things, connections, events, knowledge).
 `;
 ```
 

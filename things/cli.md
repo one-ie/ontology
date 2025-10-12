@@ -16,10 +16,12 @@ npx oneie
 Downloads /one/ → Generates Frontend → Generates Backend → Configures AI → Ready!
 ```
 
-**Result:** A complete Astro + Effect.ts + Convex + Hono project where:
-- Every entity, connection, event, and tag maps to the 4-table ontology
+**Result:** A complete Astro + Effect.ts + Backend-of-Choice project where:
+- Every organization, person, thing, connection, event, and knowledge maps to the 6-dimension ontology
+- **Backend-agnostic frontend** works with Convex, WordPress, Notion, Supabase, or custom APIs
 - AI agents (Claude, GPT, MCPs) can generate features using the DSL
 - Code is type-safe, tested, and production-ready
+- Organizations can use their **existing infrastructure**
 
 ---
 
@@ -27,46 +29,72 @@ Downloads /one/ → Generates Frontend → Generates Backend → Configures AI �
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  1. DOWNLOAD /one/ ONTOLOGY                                 │
+│  1. CLONE ONTOLOGY & DOCS                                   │
 │                                                              │
-│  Downloads from GitHub:                                     │
-│  • Ontology.md (4-table universe)                          │
-│  • Rules.md, Patterns.md, Workflow.md                      │
-│  • Protocol specs (A2A, ACP, AP2, X402, AGUI, ACPayments)  │
-│  • DSL specs (ONE DSL.md, ONE DSL English.md)              │
-│  • Architecture docs (Frontend, Middleware, Hono)           │
-│  • All core specifications                                  │
+│  Creates 2 directories:                                     │
+│                                                              │
+│  /one/ - Ontology documentation (from source repo):         │
+│    • Ontology.md (6-dimension universe)                    │
+│    • ontology-frontend.md (backend-agnostic patterns)      │
+│    • ontology-backend.md (Convex + Effect.ts)              │
+│    • Rules.md, Patterns.md, Workflow.md                    │
+│    • Protocol specs (A2A, ACP, AP2, X402, AGUI)            │
+│    • DSL specs, Architecture docs                          │
+│                                                              │
+│  /docs/ - 3rd party documentation (cloned for AI):          │
+│    • Astro docs                                             │
+│    • Convex docs                                            │
+│    • Effect.ts docs                                         │
+│    • React docs                                             │
 └─────────────────────────────────────────────────────────────┘
     ↓
 ┌─────────────────────────────────────────────────────────────┐
 │  2. GENERATE FRONTEND (Astro 5 + React 19 + Effect.ts)    │
+│     📖 See: one/connections/ontology-frontend.md            │
 │                                                              │
-│  src/                                                        │
-│  ├── pages/*.astro              # SSR pages                │
-│  ├── components/ui/*            # shadcn/ui (50+)          │
-│  ├── components/features/*      # Feature components        │
-│  ├── styles/global.css          # Tailwind v4              │
-│  └── layouts/Layout.astro       # Base layout              │
+│  frontend/                                                   │
+│  ├── src/                                                    │
+│  │   ├── pages/*.astro          # SSR pages                │
+│  │   ├── components/ui/*        # shadcn/ui (50+)          │
+│  │   ├── components/features/*  # Feature components        │
+│  │   ├── providers/             # Backend-agnostic layer   │
+│  │   │   ├── DataProvider.ts    # Universal ontology API   │
+│  │   │   ├── convex/            # Convex implementation    │
+│  │   │   ├── wordpress/         # WordPress provider       │
+│  │   │   └── notion/            # Notion provider          │
+│  │   ├── services/              # Effect.ts client layer   │
+│  │   │   ├── ThingClientService.ts  # Generic thing ops    │
+│  │   │   └── ConnectionClientService.ts  # Connection ops  │
+│  │   ├── styles/global.css      # Tailwind v4              │
+│  │   └── layouts/Layout.astro   # Base layout              │
+│  ├── public/                    # Static assets            │
+│  └── astro.config.mjs           # Provider selection       │
 └─────────────────────────────────────────────────────────────┘
     ↓
 ┌─────────────────────────────────────────────────────────────┐
-│  3. GENERATE BACKEND (Convex + Hono + Effect.ts)          │
+│  3. GENERATE BACKEND (Convex + Effect.ts)                 │
+│     📖 See: one/connections/ontology-backend.md             │
 │                                                              │
-│  convex/                                                     │
-│  ├── schema.ts                  # 4-table ontology         │
-│  ├── services/*                 # Effect.ts logic          │
-│  ├── mutations/*                # Convex wrappers          │
-│  ├── queries/*                  # Convex wrappers          │
-│  ├── actions/*                  # Convex wrappers          │
-│  └── providers/*                # External services        │
-│                                                              │
-│  api/                                                        │
-│  ├── routes/*                   # Hono endpoints           │
-│  └── middleware/*               # Auth, CORS, etc          │
+│  backend/                                                    │
+│  ├── convex/                                                 │
+│  │   ├── schema.ts              # 6-dimension schema       │
+│  │   ├── services/              # Effect.ts services       │
+│  │   ├── mutations/             # Convex mutations         │
+│  │   ├── queries/               # Convex queries           │
+│  │   ├── actions/               # Convex actions           │
+│  │   └── providers/             # External integrations    │
+│  └── package.json               # Backend dependencies     │
 └─────────────────────────────────────────────────────────────┘
     ↓
 ┌─────────────────────────────────────────────────────────────┐
-│  4. CONFIGURE AI INTEGRATION                                │
+│  4. CREATE IMPORT UTILITIES                                 │
+│                                                              │
+│  import/                                                     │
+│  └── ...                        # Data import scripts       │
+└─────────────────────────────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────────────────────────────┐
+│  5. CONFIGURE AI INTEGRATION                                │
 │                                                              │
 │  • CLAUDE.md (instructions for Claude Code)                 │
 │  • AGENTS.md (Convex patterns)                              │
@@ -87,37 +115,181 @@ npx oneie create my-creator-platform
 cd my-creator-platform
 ```
 
-**Generated structure:** 
+**Generated structure:**
 
 ```
-one/
-├── one/                # ⭐ Canonical ontology (downloaded) update to show 
-│   ├── people
-│   ├── things
-│   ├── connections
-│   ├── events
-│   └── knowledge
+my-creator-platform/
+├── one/                # ⭐ Ontology (cloned from source)
+│   ├── people/         # Dimension 2: Authorization & intent
+│   ├── things/         # Dimension 3: Entities (66 types)
+│   ├── connections/    # Dimension 4: Relationships (25 types)
+│   │   └── ontology-frontend.md  # 🔑 Frontend implementation guide
+│   ├── events/         # Dimension 5: Behavior patterns (67 types)
+│   └── knowledge/      # Dimension 6: Embeddings & search
 │
-├── src/                # ⭐ Astro frontend
-│   ├── pages/
-│   ├── components/
-│   └── styles/
+├── frontend/           # ⭐ Generated Astro + React app
+│   ├── src/
+│   │   ├── pages/              # Astro pages
+│   │   ├── components/         # React components
+│   │   ├── providers/          # Backend-agnostic layer
+│   │   ├── services/           # Effect.ts client services
+│   │   ├── hooks/              # React hooks
+│   │   ├── ontology/           # UI config
+│   │   └── styles/             # CSS/Tailwind
+│   ├── public/                 # Static assets
+│   └── astro.config.mjs        # Config (provider selection)
 │
-├── convex/             # ⭐ Convex backend
-│   ├── schema.ts
-│   ├── services/
-│   └── mutations/
+├── backend/            # ⭐ Generated Convex backend
+│   ├── convex/
+│   │   ├── schema.ts           # 6-dimension schema
+│   │   ├── services/           # Effect.ts services
+│   │   ├── queries/            # Convex queries
+│   │   ├── mutations/          # Convex mutations
+│   │   ├── actions/            # Convex actions
+│   │   └── providers/          # External services
+│   └── package.json
 │
-├── api/                # ⭐ Hono API
-│   └── routes/
+├── docs/               # ⭐ 3rd party docs (cloned)
+│   ├── astro/                  # Astro documentation
+│   ├── convex/                 # Convex documentation
+│   ├── effect/                 # Effect.ts documentation
+│   └── react/                  # React documentation
 │
-├── .claude/            # ⭐ Claude Code config
+├── import/             # ⭐ Import utilities
+│   └── ...                     # Data import scripts
+│
+├── .claude/            # Claude Code config
 │   └── hooks/
 │
-├── CLAUDE.md           # AI instructions
-├── .mcp.json           # MCP config
-└── package.json        # Bun, Effect.ts, Convex, Astro
+├── .env                # Environment variables
+├── CLAUDE.md           # AI agent instructions
+├── .mcp.json           # MCP server config
+└── package.json        # Root dependencies
 ```
+
+**Key Features:**
+- **5 Core Directories:** `/one/`, `/frontend/`, `/backend/`, `/docs/`, `/import/`
+- **Self-Contained:** All docs (ontology + 3rd party) included for offline AI access
+- **Backend-Agnostic:** Frontend works with Convex, WordPress, Notion, or custom backends
+- **AI-Ready:** MCP server, Claude Code config, complete documentation
+- **Portable:** Clone and deploy anywhere
+
+---
+
+## Frontend Architecture (Backend-Agnostic)
+
+**See: `one/connections/ontology-frontend.md` for complete implementation guide.**
+
+### DataProvider Pattern (Inspired by Astro Content Layer)
+
+The CLI generates a **backend-agnostic frontend** using the DataProvider pattern:
+
+```typescript
+// astro.config.ts - Swap backends by changing ONE line
+import { defineConfig } from 'astro/config'
+import { one } from '@one/astro-integration'
+import { convexProvider } from './src/providers/convex'
+// import { wordpressProvider } from './src/providers/wordpress'
+// import { notionProvider } from './src/providers/notion'
+
+export default defineConfig({
+  integrations: [
+    one({
+      // ✅ Change this ONE line to swap backends
+      provider: convexProvider({
+        url: import.meta.env.PUBLIC_BACKEND_URL
+      })
+    })
+  ]
+})
+```
+
+### Universal Ontology API
+
+Every provider implements the same 6-dimension interface:
+
+```typescript
+// src/providers/DataProvider.ts
+export interface DataProvider {
+  organizations: {
+    get: (id: string) => Effect.Effect<Organization, Error>
+    list: (params) => Effect.Effect<Organization[], Error>
+    update: (id: string, updates) => Effect.Effect<void, Error>
+  }
+  people: {
+    get, list, create, update, delete
+  }
+  things: {
+    get, list, create, update, delete
+  }
+  connections: {
+    create, getRelated, getCount, delete
+  }
+  events: {
+    log, query
+  }
+  knowledge: {
+    embed, search
+  }
+}
+```
+
+**Result:**
+- Frontend works with **any backend** (Convex, WordPress, Notion, Supabase)
+- Organizations can use their **existing infrastructure**
+- Swap backends without changing frontend code
+- ONE ontology = universal API
+
+### Generated Providers
+
+The CLI generates provider implementations for popular backends:
+
+#### Convex Provider (Default)
+```typescript
+// src/providers/convex/ConvexProvider.ts
+export class ConvexProvider implements DataProvider {
+  things = {
+    get: (id) => Effect.tryPromise(() =>
+      this.client.query(api.queries.things.get, { id })
+    ),
+    list: (params) => Effect.tryPromise(() =>
+      this.client.query(api.queries.things.list, params)
+    ),
+    // ... all 6 dimensions
+  }
+}
+```
+
+#### WordPress Provider
+```typescript
+// src/providers/wordpress/WordPressProvider.ts
+export class WordPressProvider implements DataProvider {
+  things = {
+    get: (id) => Effect.gen(function* () {
+      // Map ONE thing → WordPress post
+      const response = yield* fetch(`${this.baseUrl}/wp-json/wp/v2/posts/${id}`)
+      const post = yield* response.json()
+      return transformToThing(post)
+    })
+  }
+}
+```
+
+#### Notion Provider
+```typescript
+// src/providers/notion/NotionProvider.ts
+export class NotionProvider implements DataProvider {
+  things = {
+    get: (id) => Effect.gen(function* () {
+      // Map ONE thing → Notion page
+      const page = yield* this.notion.pages.retrieve({ page_id: id })
+      return transformToThing(page)
+    })
+  }
+}
+```
+
+**All providers implement the same interface** → Frontend code stays identical.
 
 ---
 
@@ -221,7 +393,7 @@ Building...
 
 ## MCP Integration
 
-The CLI generates `.mcp.json` with ontology server:
+The CLI generates `.mcp.json` with ontology server and local docs access:
 
 ```json
 {
@@ -244,25 +416,32 @@ The CLI generates `.mcp.json` with ontology server:
 
 **MCP Tools:**
 
-- `ontology.read` → Full Ontology.md
-- `ontology.query` → Query entities/connections/events/tags
+- `ontology.read` → Full Ontology.md from `/one/`
+- `ontology.query` → Query entities/connections/events/knowledge from `/one/`
 - `ontology.validate` → Validate feature specs
 - `dsl.parse` → Plain English → Technical DSL
 - `dsl.compile` → Technical DSL → TypeScript
+- `docs.read` → Read 3rd party docs from `/docs/` (Astro, Convex, Effect.ts, React)
 
-**AI Usage:**
+**AI Usage (Offline):**
 
 ```typescript
-// Claude Code can now:
+// Claude Code reads from local /one/ directory:
 await mcp.ontology.query("entities", { filter: "token" });
-// → Returns: token entity type with properties
+// → Returns: token entity type with properties (no web fetch)
 
 await mcp.dsl.parse(plainEnglishSpec);
 // → Returns: Technical DSL structure
 
 await mcp.ontology.validate(technicalDSL);
 // → Returns: { valid: true, errors: [] }
+
+// Read 3rd party docs locally from /docs/:
+await mcp.docs.read("convex", "mutations");
+// → Returns: Convex mutation docs (no web fetch)
 ```
+
+**Key Benefit:** All documentation (ontology + 3rd party) is **cloned into the project**, enabling fast offline AI operation.
 
 ---
 
@@ -270,16 +449,29 @@ await mcp.ontology.validate(technicalDSL);
 
 ### `npx oneie create <name>`
 
-Bootstrap new project.
+Bootstrap new project with 5-directory structure.
 
 **Options:**
-- `--template <name>` - Template: `full-stack`, `frontend-only`, `backend-only`
+- `--backend <type>` - Backend: `convex` (default), `wordpress`, `notion`, `supabase`, `none`
+- `--no-docs` - Skip cloning 3rd party docs to `/docs/`
 - `--no-install` - Skip `bun install`
 - `--ai <provider>` - AI provider: `claude`, `gpt`, `cursor`
 
 ```bash
-npx oneie create my-platform --template full-stack --ai claude
+# Full stack with Convex backend (default)
+npx oneie create my-platform
+
+# Frontend + WordPress backend
+npx oneie create my-platform --backend wordpress
+
+# Frontend only (bring your own backend)
+npx oneie create my-platform --backend none
+
+# Skip docs cloning (smaller project size)
+npx oneie create my-platform --no-docs
 ```
+
+**Generated Structure:** Always creates 5 directories (`/one/`, `/frontend/`, `/backend/`, `/docs/`, `/import/`)
 
 ---
 
@@ -358,33 +550,60 @@ npx oneie validate --fix
 
 ## Generated Files
 
-### Convex Schema (4-Table Ontology)
+### Convex Schema (6-Dimension Ontology)
 
 ```typescript
 // convex/schema.ts
 export default defineSchema({
-  // TABLE 1: ENTITIES (all "things")
-  entities: defineTable({
+  // DIMENSION 1: ORGANIZATIONS (multi-tenancy)
+  organizations: defineTable({
+    name: v.string(),
+    slug: v.string(),
+    status: v.union(v.literal("active"), v.literal("suspended"), v.literal("trial")),
+    plan: v.union(v.literal("starter"), v.literal("pro"), v.literal("enterprise")),
+  }).index("by_slug", ["slug"]),
+
+  // DIMENSION 2: PEOPLE (authorization, intent)
+  people: defineTable({
+    email: v.string(),
+    username: v.string(),
+    displayName: v.string(),
+    role: v.union(
+      v.literal("platform_owner"),
+      v.literal("org_owner"),
+      v.literal("org_user"),
+      v.literal("customer")
+    ),
+    organizationId: v.id("organizations"),
+  }).index("by_email", ["email"]),
+
+  // DIMENSION 3: THINGS (all entities)
+  things: defineTable({
     type: v.union(
-      v.literal("user"),
-      v.literal("creator"),
-      v.literal("ai_clone"),
-      v.literal("token"),
       v.literal("course"),
+      v.literal("lesson"),
+      v.literal("product"),
+      v.literal("token"),
+      v.literal("ai_clone"),
       // ... 66 total types
     ),
     name: v.string(),
+    organizationId: v.id("organizations"),
     properties: v.any(), // JSON blob for type-specific fields
     status: v.string(),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_type", ["type"]),
+  })
+    .index("by_type", ["type"])
+    .index("by_org", ["organizationId"]),
 
-  // TABLE 2: CONNECTIONS (all relationships)
+  // DIMENSION 4: CONNECTIONS (all relationships)
   connections: defineTable({
-    fromEntityId: v.id("entities"),
-    toEntityId: v.id("entities"),
+    fromThingId: v.id("things"),
+    toThingId: v.id("things"),
     relationshipType: v.union(
+      v.literal("part_of"),
+      v.literal("enrolled_in"),
       v.literal("owns"),
       v.literal("following"),
       v.literal("member_of"),
@@ -392,35 +611,44 @@ export default defineSchema({
     ),
     metadata: v.optional(v.any()),
     createdAt: v.number(),
-  }).index("from_type", ["fromEntityId", "relationshipType"]),
+  })
+    .index("from_type", ["fromThingId", "relationshipType"])
+    .index("to_type", ["toThingId", "relationshipType"]),
 
-  // TABLE 3: EVENTS (all actions)
+  // DIMENSION 5: EVENTS (all behavior)
   events: defineTable({
-    entityId: v.id("entities"),
-    eventType: v.union(
-      v.literal("created"),
+    type: v.union(
+      v.literal("thing_created"),
+      v.literal("connection_created"),
       v.literal("tokens_purchased"),
       v.literal("chat_interaction"),
+      v.literal("course_completed"),
       // ... 67 total types
     ),
+    actorId: v.id("people"),          // Person who did it
+    targetId: v.optional(v.string()), // Thing/Person/Connection ID
+    organizationId: v.id("organizations"),
     timestamp: v.number(),
-    actorType: v.string(),
-    actorId: v.optional(v.id("entities")),
     metadata: v.optional(v.any()),
-  }).index("by_entity", ["entityId"]),
+  })
+    .index("by_actor", ["actorId"])
+    .index("by_org", ["organizationId"])
+    .index("by_type", ["type"]),
 
-  // TABLE 4: TAGS (all categories)
-  tags: defineTable({
-    category: v.string(),
-    name: v.string(),
-    description: v.optional(v.string()),
-  }).index("by_category", ["category"]),
-
-  // Junction table for many-to-many
-  entityTags: defineTable({
-    entityId: v.id("entities"),
-    tagId: v.id("tags"),
-  }).index("by_entity", ["entityId"]),
+  // DIMENSION 6: KNOWLEDGE (embeddings, search)
+  knowledge: defineTable({
+    text: v.string(),
+    embedding: v.array(v.float64()),
+    sourceThingId: v.optional(v.id("things")),
+    sourcePersonId: v.optional(v.id("people")),
+    organizationId: v.id("organizations"),
+    labels: v.optional(v.array(v.string())),
+  })
+    .vectorIndex("by_embedding", {
+      vectorField: "embedding",
+      dimensions: 1536,
+    })
+    .index("by_org", ["organizationId"]),
 });
 ```
 
@@ -633,14 +861,35 @@ Generated `.claude/settings.local.json`:
 2. Configure 10+ tools (days)
 3. Learn patterns (weeks)
 4. Write boilerplate (hours per feature)
+5. Locked into one backend forever
 
 **ONE CLI approach:**
 1. `npx oneie create` (5 minutes)
 2. Everything pre-configured ✅
 3. AI learns from patterns ✅
 4. `npx oneie generate` (1 minute)
+5. Backend-agnostic (swap anytime) ✅
 
-**Result:** 100x faster, higher quality, AI-ready.
+**Key Innovations:**
+
+1. **5-Directory Structure**
+   - `/one/` - Ontology docs cloned into project (AI can read)
+   - `/frontend/` - Backend-agnostic Astro + React app
+   - `/backend/` - Convex backend (or generate for any backend)
+   - `/docs/` - 3rd party docs cloned locally (offline AI access)
+   - `/import/` - Data import utilities
+
+2. **Universal Ontology API**
+   - Frontend only knows 6 dimensions (organizations, people, things, connections, events, knowledge)
+   - Backend provider pattern = swap Convex ↔ WordPress ↔ Notion
+   - Same frontend code works with ANY backend
+
+3. **Self-Contained & Portable**
+   - All documentation included (ontology + 3rd party)
+   - AI agents work offline (no web fetches needed)
+   - Clone project = clone complete knowledge base
+
+**Result:** 100x faster, higher quality, AI-ready, backend-flexible, fully portable.
 
 ---
 
@@ -648,10 +897,14 @@ Generated `.claude/settings.local.json`:
 
 ### Phase 1: Core Bootstrap (Q1 2025)
 - ✅ `npx oneie create` - Full scaffolding
-- ✅ Ontology download from GitHub
-- ✅ Astro + Convex + Hono setup
+- ✅ 5-directory structure (`/one/`, `/frontend/`, `/backend/`, `/docs/`, `/import/`)
+- ✅ Ontology cloning from GitHub
+- ✅ 3rd party docs cloning (Astro, Convex, Effect.ts, React)
+- ✅ Backend-agnostic frontend (Astro + React + DataProvider)
+- ✅ Convex backend generation (6-dimension schema)
 - ✅ shadcn/ui installation
 - ✅ Better Auth configuration
+- ✅ MCP server setup
 
 ### Phase 2: Feature Generation (Q2 2025)
 - ⏳ `npx oneie generate` - DSL compilation
@@ -690,14 +943,44 @@ Generated `.claude/settings.local.json`:
 
 ## Related Documentation
 
-- **[Ontology.md](./ontology.md)** - 4-table data model (source of truth)
+### Architecture Guides
+- **[structure.md](../connections/structure.md)** - 📁 Repository & project structure (5-directory architecture)
+- **[ontology-frontend.md](../connections/ontology-frontend.md)** - 🔑 Frontend implementation (backend-agnostic)
+- **[ontology-backend.md](../connections/ontology-backend.md)** - Backend implementation (Convex + Effect.ts)
+- **[Ontology.md](./ontology.md)** - 6-dimension data model (source of truth)
+
+### Development Guides
 - **[dsl.md](./dsl.md)** - Technical DSL specification
 - **[dsl-english.md](./dsl-english.md)** - Plain English DSL
 - **[Rules.md](./rules.md)** - Golden rules for AI agents
 - **[Patterns.md](./patterns.md)** - Proven code patterns
-- **[Workflow.md](./workflow.md)** - Ontology-driven development flow
+- **[Workflow.md](../connections/workflow.md)** - Ontology-driven development flow
 - **[CLAUDE.md](../CLAUDE.md)** - Instructions for Claude Code
-- **[one/things/cli.md](./cli.md)** - Implementation details
+
+---
+
+## Summary: The 5-Directory Architecture
+
+Every generated project has exactly **5 core directories**:
+
+```
+my-project/
+├── one/        → 📖 Ontology documentation (AI knowledge base)
+├── frontend/   → 🎨 Backend-agnostic UI (Astro + React + DataProvider)
+├── backend/    → ⚙️ Data & logic (Convex by default, swap to WordPress/Notion/etc)
+├── docs/       → 📚 3rd party docs (Astro, Convex, Effect.ts, React)
+└── import/     → 📥 Data import utilities
+```
+
+**Why This Structure?**
+
+1. **`/one/`** - AI agents read ontology to understand your domain
+2. **`/frontend/`** - Works with ANY backend via DataProvider pattern
+3. **`/backend/`** - Implements 6-dimension schema (organizations, people, things, connections, events, knowledge)
+4. **`/docs/`** - AI agents reference official docs without web fetches
+5. **`/import/`** - Utilities to import existing data
+
+**Result:** Self-contained, portable, AI-ready projects where frontend ↔ backend communication follows the universal 6-dimension ontology API.
 
 ---
 

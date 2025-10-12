@@ -178,7 +178,7 @@ Hono.md → Architecture.md (tech stack)
 ```
 
 ### Multitenant.md (Multi-Tenant Architecture)
-**Purpose:** Multi-organization architecture using 4-table ontology
+**Purpose:** Multi-organization architecture using 6-dimension ontology (organizations, people, things, connections, events, knowledge)
 **Defines:** Organization isolation, RBAC, custom frontends, billing/quotas
 **Referenced by:** Implementation.md, Files.md
 
