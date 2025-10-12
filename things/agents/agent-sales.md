@@ -106,7 +106,7 @@ The sales agent qualifies leads and guides them through org creation:
 
 ```typescript
 // User visits landing page, sales agent engages
-const leadId = await db.insert("entities", {
+const leadId = await db.insert("things", {
   type: "lead",
   name: user.name || "Anonymous Lead",
   properties: {
@@ -119,6 +119,9 @@ const leadId = await db.insert("entities", {
     status: "new",
     score: 0,
     assignedTo: salesAgentId,
+    companyName: user.companyName,
+    bio: user.bio,
+    avatar: user.avatar,
   },
   status: "active",
   createdAt: Date.now(),
@@ -206,7 +209,7 @@ await db.insert("events", {
 ```typescript
 if (score >= 70) {
   // Sales agent books demo
-  const demoId = await db.insert("entities", {
+  const demoId = await db.insert("things", {
     type: "consultation",
     name: `Demo with ${lead.name}`,
     properties: {
@@ -244,48 +247,46 @@ const result = await salesAgent.convertToTrial({
   plan: "pro",
 });
 
-// User creates account + organization
-const userId = await db.insert("entities", {
-  type: "creator",
-  name: lead.name,
-  properties: {
-    role: "org_owner",
-    email: lead.email,
-    // ... creator properties
-  },
-  status: "active",
-  createdAt: Date.now(),
-  updatedAt: Date.now(),
-});
-
-const orgId = await db.insert("entities", {
-  type: "organization",
+// CORRECT: Create organization in organizations table
+const orgId = await db.insert("organizations", {
   name: lead.properties.companyName,
-  properties: {
-    slug: generateSlug(lead.properties.companyName),
-    status: "trial",
-    plan: "pro",
-    limits: { users: 50, storage: 100, inferences: 10000 },
-    usage: { users: 1, storage: 0, inferences: 0 },
-    billing: { cryptoEnabled: true },
-    createdAt: Date.now(),
-    trialEndsAt: Date.now() + 14 * 24 * 60 * 60 * 1000, // 14 days
+  slug: generateSlug(lead.properties.companyName),
+  status: "trial",
+  plan: "pro",
+  limits: {
+    users: 10,
+    storage: 50,
+    apiCalls: 10000,
+    inference: 5000,
   },
-  status: "active",
+  usage: {
+    users: 1,
+    storage: 0,
+    apiCalls: 0,
+    inference: 0,
+  },
+  settings: {
+    allowSignups: true,
+    requireEmailVerification: false,
+    enableTwoFactor: false,
+  },
   createdAt: Date.now(),
   updatedAt: Date.now(),
+  trialEndsAt: Date.now() + 14 * 24 * 60 * 60 * 1000, // 14 days
 });
 
-// Create org_owner membership
-await db.insert("connections", {
-  fromThingId: userId,
-  toThingId: orgId,
-  relationshipType: "member_of",
-  metadata: {
-    role: "org_owner",
-    permissions: ["*"],
-  },
+// CORRECT: Create user in people table (NOT as thing with type: "creator")
+const userId = await db.insert("people", {
+  email: lead.properties.email,
+  username: generateUsername(lead.name),
+  displayName: lead.name,
+  role: "org_owner", // Direct field, not in properties
+  organizationId: orgId,
+  organizations: [orgId],
+  bio: lead.properties.bio,
+  avatar: lead.properties.avatar,
   createdAt: Date.now(),
+  updatedAt: Date.now(),
 });
 
 // Mark lead as converted
@@ -356,9 +357,12 @@ await db.insert("connections", {
 
 ```typescript
 // Sales agent sends personalized email/notification
+// NOTE: userId is now Id<"people"> not Id<"things">
+const user = await db.get(userId); // Fetches from people table
+
 await salesAgent.sendKYCReminder({
   userId,
-  message: `Hi ${user.name}! To activate your organization, please verify your identity by connecting your SUI wallet. It takes just 2 minutes and requires no document uploads.`,
+  message: `Hi ${user.displayName}! To activate your organization, please verify your identity by connecting your SUI wallet. It takes just 2 minutes and requires no document uploads.`,
   ctaLink: "https://one.ie/kyc",
 });
 
@@ -395,10 +399,11 @@ await db.insert("events", {
 });
 
 // Sales agent activates full trial access
+// NOTE: Update organizations table, not things table
 await db.patch(orgId, {
-  properties: {
-    ...org.properties,
-    status: "active", // From "trial" to "active"
+  status: "active", // From "trial" to "active"
+  settings: {
+    ...org.settings,
     kycCompleted: true,
   },
   updatedAt: Date.now(),
@@ -426,16 +431,20 @@ The sales agent monitors trial usage and drives conversion:
 
 ```typescript
 // Sales agent queries trial org activity
+// NOTE: Filter by organizationId for multi-tenant isolation
 const orgEvents = await db
   .query("events")
   .withIndex("type_time", (q) => q.gte("timestamp", trialStartDate))
   .filter((q) => q.eq(q.field("metadata.organizationId"), orgId))
   .collect();
 
+// Get organization from organizations table
+const org = await db.get(orgId);
+
 // Calculate engagement score
 const engagementScore = calculateEngagement({
-  inferencesUsed: org.properties.usage.inferences,
-  usersInvited: org.properties.usage.users,
+  inferencesUsed: org.usage.inference,
+  usersInvited: org.usage.users,
   featuresExplored: countUniqueFeatures(orgEvents),
   daysActive: countActiveDays(orgEvents),
 });
@@ -483,7 +492,7 @@ if (daysUntilExpiry === 3) {
 
 ```typescript
 // User upgrades to paid plan
-const subscriptionId = await db.insert("entities", {
+const subscriptionId = await db.insert("things", {
   type: "subscription",
   name: `${org.name} - Pro Plan`,
   properties: {
@@ -495,6 +504,7 @@ const subscriptionId = await db.insert("entities", {
     currentPeriodStart: Date.now(),
     currentPeriodEnd: Date.now() + 30 * 24 * 60 * 60 * 1000,
     stripeSubscriptionId: "sub_123",
+    organizationId: orgId, // Scoped to organization
   },
   status: "active",
   createdAt: Date.now(),
@@ -512,6 +522,7 @@ await db.insert("connections", {
     currency: "USD",
     interval: "monthly",
     status: "active",
+    organizationId: orgId, // Multi-tenant scoping
   },
   createdAt: Date.now(),
 });
@@ -529,6 +540,7 @@ await db.insert("events", {
     subscriptionId,
     plan: "pro",
     generatedBy: salesAgentId, // Attribution to sales agent
+    organizationId: orgId,
   },
 });
 
@@ -744,9 +756,10 @@ const totalAttributedRevenue = revenueEvents.reduce(
 );
 ```
 
-**Get active leads managed by agent:**
+**Get active leads managed by agent (scoped by organization):**
 
 ```typescript
+// Get all leads managed by this sales agent
 const activeLeads = await db
   .query("connections")
   .withIndex("from_type", (q) =>
@@ -756,6 +769,11 @@ const activeLeads = await db
 
 const leadEntities = await Promise.all(
   activeLeads.map((conn) => db.get(conn.toThingId))
+);
+
+// Filter by organization if needed
+const orgLeads = leadEntities.filter(
+  (lead) => lead.properties.organizationId === orgId
 );
 ```
 
@@ -777,6 +795,22 @@ const kycCompletedCount = converted.filter(async (lead) => {
 }).length;
 
 const kycCompletionRate = (kycCompletedCount / converted.length) * 100;
+```
+
+**Query organizations by status (multi-tenant):**
+
+```typescript
+// Get all trial organizations
+const trialOrgs = await db
+  .query("organizations")
+  .withIndex("by_status", (q) => q.eq("status", "trial"))
+  .collect();
+
+// Get users in a specific organization
+const orgUsers = await db
+  .query("people")
+  .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+  .collect();
 ```
 
 ---
@@ -946,6 +980,33 @@ await salesAgent.qualifyLead({ leadId });
 
 ---
 
+## Multi-Tenant Isolation
+
+**CRITICAL:** All queries must respect organization boundaries:
+
+```typescript
+// WRONG: Query all leads
+const allLeads = await db.query("things")
+  .withIndex("by_type", (q) => q.eq("type", "lead"))
+  .collect();
+
+// CORRECT: Query leads scoped to organization
+const orgLeads = await db.query("things")
+  .withIndex("by_type", (q) => q.eq("type", "lead"))
+  .filter((q) => q.eq(q.field("properties.organizationId"), orgId))
+  .collect();
+
+// CORRECT: Query people in organization
+const orgUsers = await db.query("people")
+  .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
+  .collect();
+
+// CORRECT: Query organization
+const org = await db.get(orgId); // From organizations table
+```
+
+---
+
 ## Notes
 
 - **Sales Agent = Revenue Driver** - Converts leads to paying customers
@@ -956,6 +1017,8 @@ await salesAgent.qualifyLead({ leadId });
 - **100% to Owner** - All revenue flows to platform owner (Anthony)
 - **Multi-Agent** - Collaborates with marketing, service, intelligence agents
 - **Ontology-Native** - Uses connections, events, things for all operations
+- **SEPARATE TABLES** - People in `people` table, organizations in `organizations` table, NOT things
+- **Multi-Tenant Scoping** - All queries filtered by organizationId for data isolation
 
 ---
 

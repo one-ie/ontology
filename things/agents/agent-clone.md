@@ -1,7 +1,7 @@
 # Agent Clone
 Ingestor Agent Specification
 **Role:** Clone me and organise all my information
-**Purpose:** Migrate data and code from one.ie and later bullfm into the new ONE platform structure  
+**Purpose:** Migrate data and code from one.ie and later bullfm into the new ONE platform structure
 **Expertise:** Data transformation, code refactoring, ontology mapping
 
 ---
@@ -60,7 +60,7 @@ Into:
 - [list all flows]
 ```
 
-**Output:** `scripts/migration/inventory-one-ie.md`  
+**Output:** `scripts/migration/inventory-one-ie.md`
 **Output:** `scripts/migration/inventory-bullfm.md`
 
 ### Step 2: Map to New Ontology
@@ -85,7 +85,7 @@ interface User {
 
 ## New Model (ONE Platform)
 
-### Entity
+### Thing (creator entity)
 ```typescript
 {
   type: "creator",
@@ -97,7 +97,8 @@ interface User {
     bio: user.bio,
     totalFollowers: user.followers,
     totalContent: user.posts.length,
-    totalRevenue: 0
+    totalRevenue: 0,
+    role: "org_user"  // or platform_owner, org_owner, customer
   },
   status: "active"
 }
@@ -107,8 +108,8 @@ interface User {
 ```typescript
 // For each userId in user.following:
 {
-  fromEntityId: newUserId,
-  toEntityId: followedUserId,
+  fromThingId: newUserId,
+  toThingId: followedUserId,
   relationshipType: "following",
   createdAt: Date.now()
 }
@@ -118,8 +119,8 @@ interface User {
 ```typescript
 // For each postId in user.posts:
 {
-  fromEntityId: newUserId,
-  toEntityId: newPostId,
+  fromThingId: newUserId,
+  toThingId: newPostId,
   relationshipType: "authored",
   createdAt: Date.now()
 }
@@ -129,10 +130,13 @@ interface User {
 ```typescript
 // Create historical events if available
 {
-  entityId: newUserId,
-  eventType: "creator_created",
+  type: "entity_created",
+  actorId: newUserId,
+  targetId: newUserId,
   timestamp: user.createdAt,
-  actorType: "system"
+  metadata: {
+    entityType: "creator"
+  }
 }
 ```
 ```
@@ -146,7 +150,7 @@ interface User {
 ```
 Users (no dependencies)
   ↓
-Tags (no dependencies)
+Knowledge labels (no dependencies)
   ↓
 Content (depends on Users)
   ↓
@@ -156,9 +160,9 @@ Events (depends on everything)
 ```
 
 **Migration order:**
-1. Users → `creator` and `audience_member` entities
-2. Tags → `tags` table
-3. Content → content entities (`blog_post`, `video`, etc.)
+1. Users → `creator` and `audience_member` things
+2. Knowledge labels → `knowledge` table (type: label)
+3. Content → content things (`blog_post`, `video`, etc.)
 4. Relationships → `connections` table
 5. Activity → `events` table
 
@@ -200,15 +204,15 @@ import { useState, useEffect } from 'react';
 
 export default function UserProfile({ userId }) {
   const [user, setUser] = useState(null);
-  
+
   useEffect(() => {
     fetch(`/api/users/${userId}`)
       .then(r => r.json())
       .then(setUser);
   }, [userId]);
-  
+
   if (!user) return <div>Loading...</div>;
-  
+
   return (
     <div className="profile">
       <h1>{user.name}</h1>
@@ -226,17 +230,17 @@ import { api } from "@/convex/_generated/api";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export function CreatorProfile({ creatorId }: { creatorId: Id<"entities"> }) {
+export function CreatorProfile({ creatorId }: { creatorId: Id<"things"> }) {
   const creator = useQuery(api.creators.get, { id: creatorId });
-  
+
   if (creator === undefined) {
     return <Skeleton className="h-32 w-full" />;
   }
-  
+
   if (creator === null) {
     return <Card><CardContent>Creator not found</CardContent></Card>;
   }
-  
+
   return (
     <Card>
       <CardHeader>
@@ -254,7 +258,7 @@ export function CreatorProfile({ creatorId }: { creatorId: Id<"entities"> }) {
 - ✅ Component name follows conventions (CreatorProfile not UserProfile)
 - ✅ Uses Convex hooks (useQuery) instead of fetch
 - ✅ Uses shadcn/ui components (Card, Skeleton)
-- ✅ Proper TypeScript types (Id<"entities">)
+- ✅ Proper TypeScript types (Id<"things">)
 - ✅ Proper loading states (undefined vs null)
 - ✅ File location follows structure (src/components/features/creators/)
 
@@ -274,14 +278,14 @@ export default async function handler(req, res) {
 ```typescript
 // convex/queries/creators.ts
 export const get = query({
-  args: { id: v.id("entities") },
+  args: { id: v.id("things") },
   handler: async (ctx, args) => {
     const creator = await ctx.db.get(args.id);
-    
+
     if (!creator || creator.type !== "creator") {
       return null;
     }
-    
+
     return creator;
   }
 });
@@ -290,7 +294,7 @@ export const get = query({
 **Transformation checklist:**
 - ✅ API endpoint → Convex query
 - ✅ Validation with Convex validators (v.id)
-- ✅ Type checking (entity.type === "creator")
+- ✅ Type checking (thing.type === "creator")
 - ✅ Returns null for not found (not 404 error)
 - ✅ File location (convex/queries/creators.ts)
 
@@ -310,13 +314,13 @@ const posts = await db.posts.findMany({
 const connections = await ctx.db
   .query("connections")
   .withIndex("from_type", q =>
-    q.eq("fromEntityId", creatorId)
+    q.eq("fromThingId", creatorId)
      .eq("relationshipType", "authored")
   )
   .collect();
 
 const content = await Promise.all(
-  connections.map(conn => ctx.db.get(conn.toEntityId))
+  connections.map(conn => ctx.db.get(conn.toThingId))
 );
 ```
 
@@ -324,7 +328,7 @@ const content = await Promise.all(
 - ✅ Foreign keys → connections table
 - ✅ Direct relationship → explicit relationship type
 - ✅ Uses proper indexes
-- ✅ Hydrates entities from connections
+- ✅ Hydrates things from connections
 
 ---
 
@@ -354,20 +358,20 @@ const convex = new ConvexHttpClient(process.env.CONVEX_URL!);
 
 async function migrateUsers() {
   console.log("📊 Migrating users...");
-  
+
   const oldUsers = await oneIEDatabase.users.findMany();
   console.log(`Found ${oldUsers.length} users to migrate`);
-  
+
   const results = {
     success: 0,
     failed: 0,
     errors: [] as any[]
   };
-  
+
   // Process in batches
   for (let i = 0; i < oldUsers.length; i += BATCH_SIZE) {
     const batch = oldUsers.slice(i, i + BATCH_SIZE);
-    
+
     for (const oldUser of batch) {
       try {
         // Transform to new format
@@ -384,26 +388,27 @@ async function migrateUsers() {
             targetAudience: "",
             totalFollowers: oldUser.followersCount || 0,
             totalContent: 0, // Will update after content migration
-            totalRevenue: 0
+            totalRevenue: 0,
+            role: "org_user"
           },
           status: oldUser.isActive ? "active" : "inactive",
           createdAt: oldUser.createdAt.getTime(),
           updatedAt: Date.now()
         };
-        
+
         if (!DRY_RUN) {
           // Create in Convex
           const newId = await convex.mutation(
             api.creators.create,
             newCreator
           );
-          
+
           // Store mapping for later (old ID → new ID)
           await storeIdMapping("users", oldUser.id, newId);
         }
-        
+
         results.success++;
-        
+
         if (results.success % 100 === 0) {
           console.log(`  ✅ Migrated ${results.success} users...`);
         }
@@ -416,13 +421,13 @@ async function migrateUsers() {
       }
     }
   }
-  
+
   console.log(`✅ Users migration complete: ${results.success} success, ${results.failed} failed`);
-  
+
   if (results.failed > 0) {
     console.log("❌ Errors:", results.errors);
   }
-  
+
   return results;
 }
 
@@ -432,20 +437,20 @@ async function migrateUsers() {
 
 async function migrateContent() {
   console.log("📊 Migrating content...");
-  
+
   const oldPosts = await oneIEDatabase.posts.findMany();
   console.log(`Found ${oldPosts.length} posts to migrate`);
-  
+
   const results = { success: 0, failed: 0, errors: [] };
-  
+
   for (const oldPost of oldPosts) {
     try {
       // Get new creator ID from mapping
       const newCreatorId = await getNewId("users", oldPost.authorId);
-      
+
       // Determine content type
       const contentType = determineContentType(oldPost);
-      
+
       // Transform to new format
       const newContent = {
         type: contentType,
@@ -466,26 +471,26 @@ async function migrateContent() {
         createdAt: oldPost.createdAt.getTime(),
         updatedAt: Date.now()
       };
-      
+
       if (!DRY_RUN) {
-        // Create content entity
+        // Create content thing
         const contentId = await convex.mutation(
           api.content.create,
           newContent
         );
-        
+
         // Create authorship connection
         await convex.mutation(api.connections.create, {
-          fromEntityId: newCreatorId,
-          toEntityId: contentId,
+          fromThingId: newCreatorId,
+          toThingId: contentId,
           relationshipType: "authored",
           createdAt: oldPost.createdAt.getTime()
         });
-        
+
         // Store mapping
         await storeIdMapping("posts", oldPost.id, contentId);
       }
-      
+
       results.success++;
     } catch (error) {
       results.failed++;
@@ -495,9 +500,9 @@ async function migrateContent() {
       });
     }
   }
-  
+
   console.log(`✅ Content migration complete: ${results.success} success, ${results.failed} failed`);
-  
+
   return results;
 }
 
@@ -507,26 +512,26 @@ async function migrateContent() {
 
 async function migrateRelationships() {
   console.log("📊 Migrating relationships...");
-  
+
   const oldFollows = await oneIEDatabase.follows.findMany();
   console.log(`Found ${oldFollows.length} follows to migrate`);
-  
+
   const results = { success: 0, failed: 0, errors: [] };
-  
+
   for (const oldFollow of oldFollows) {
     try {
       const newFollowerId = await getNewId("users", oldFollow.followerId);
       const newFollowedId = await getNewId("users", oldFollow.followedId);
-      
+
       if (!DRY_RUN) {
         await convex.mutation(api.connections.create, {
-          fromEntityId: newFollowerId,
-          toEntityId: newFollowedId,
+          fromThingId: newFollowerId,
+          toThingId: newFollowedId,
           relationshipType: "following",
           createdAt: oldFollow.createdAt.getTime()
         });
       }
-      
+
       results.success++;
     } catch (error) {
       results.failed++;
@@ -536,9 +541,9 @@ async function migrateRelationships() {
       });
     }
   }
-  
+
   console.log(`✅ Relationships migration complete: ${results.success} success, ${results.failed} failed`);
-  
+
   return results;
 }
 
@@ -548,35 +553,37 @@ async function migrateRelationships() {
 
 async function migrateEvents() {
   console.log("📊 Migrating events...");
-  
+
   const oldActivityLog = await oneIEDatabase.activityLog.findMany();
   console.log(`Found ${oldActivityLog.length} activities to migrate`);
-  
+
   const results = { success: 0, failed: 0, errors: [] };
-  
+
   for (const activity of oldActivityLog) {
     try {
-      const newEntityId = await getNewId(
+      const newTargetId = await getNewId(
         activity.entityType,
         activity.entityId
       );
       const newActorId = activity.userId
         ? await getNewId("users", activity.userId)
         : undefined;
-      
+
       const eventType = mapActivityToEventType(activity.action);
-      
+
       if (!DRY_RUN) {
         await convex.mutation(api.events.create, {
-          entityId: newEntityId,
-          eventType,
+          type: eventType,
+          actorId: newActorId || newTargetId, // Default to target if no actor
+          targetId: newTargetId,
           timestamp: activity.createdAt.getTime(),
-          actorType: activity.userId ? "user" : "system",
-          actorId: newActorId,
-          metadata: activity.metadata || {}
+          metadata: {
+            ...activity.metadata,
+            entityType: activity.entityType
+          }
         });
       }
-      
+
       results.success++;
     } catch (error) {
       results.failed++;
@@ -586,9 +593,9 @@ async function migrateEvents() {
       });
     }
   }
-  
+
   console.log(`✅ Events migration complete: ${results.success} success, ${results.failed} failed`);
-  
+
   return results;
 }
 
@@ -620,7 +627,7 @@ async function getNewId(
   return mapping;
 }
 
-function determineContentType(oldPost: any): EntityType {
+function determineContentType(oldPost: any): ThingType {
   if (oldPost.format === "video") return "video";
   if (oldPost.format === "audio") return "podcast";
   return "blog_post";
@@ -628,14 +635,14 @@ function determineContentType(oldPost: any): EntityType {
 
 function mapActivityToEventType(action: string): EventType {
   const mapping: Record<string, EventType> = {
-    "created": "content_created",
-    "published": "content_published",
-    "viewed": "content_viewed",
-    "liked": "content_liked",
-    "shared": "content_shared",
-    "commented": "comment_posted"
+    "created": "entity_created",
+    "published": "content_event", // With metadata.action: "published"
+    "viewed": "content_event", // With metadata.action: "viewed"
+    "liked": "content_event", // With metadata.action: "liked"
+    "shared": "content_event", // With metadata.action: "shared"
+    "commented": "content_event" // With metadata.action: "commented"
   };
-  return mapping[action] || "user_engaged";
+  return mapping[action] || "entity_updated";
 }
 
 // ============================================================================
@@ -646,20 +653,20 @@ async function main() {
   console.log("🚀 Starting ONE Platform Migration");
   console.log(`Mode: ${DRY_RUN ? "DRY RUN" : "LIVE"}`);
   console.log("=" .repeat(60));
-  
+
   try {
     // Step 1: Users
     const userResults = await migrateUsers();
-    
+
     // Step 2: Content
     const contentResults = await migrateContent();
-    
+
     // Step 3: Relationships
     const relationshipResults = await migrateRelationships();
-    
+
     // Step 4: Events
     const eventResults = await migrateEvents();
-    
+
     // Summary
     console.log("\n" + "=".repeat(60));
     console.log("📊 MIGRATION SUMMARY");
@@ -669,7 +676,7 @@ async function main() {
     console.log(`Relationships: ${relationshipResults.success} success, ${relationshipResults.failed} failed`);
     console.log(`Events: ${eventResults.success} success, ${eventResults.failed} failed`);
     console.log("=".repeat(60));
-    
+
     if (DRY_RUN) {
       console.log("\n⚠️  This was a DRY RUN. No data was actually migrated.");
       console.log("Run with DRY_RUN=false to perform actual migration.");
@@ -712,16 +719,16 @@ bun run scripts/migration/verify-migration.ts
 
 async function verify() {
   console.log("🔍 Verifying migration...");
-  
+
   const checks = [
-    verifyEntityCounts(),
+    verifyThingCounts(),
     verifyRelationshipIntegrity(),
     verifyEventChronology(),
     verifyDataQuality(),
   ];
-  
+
   const results = await Promise.all(checks);
-  
+
   // Report
   results.forEach(result => {
     console.log(result.passed ? "✅" : "❌", result.name);
@@ -731,14 +738,14 @@ async function verify() {
   });
 }
 
-async function verifyEntityCounts() {
+async function verifyThingCounts() {
   const oldUserCount = await oneIEDB.users.count();
   const newCreatorCount = await convex.query(
     api.creators.count
   );
-  
+
   return {
-    name: "Entity counts match",
+    name: "Thing counts match",
     passed: oldUserCount === newCreatorCount,
     errors: oldUserCount !== newCreatorCount
       ? [`Expected ${oldUserCount}, got ${newCreatorCount}`]
@@ -747,27 +754,27 @@ async function verifyEntityCounts() {
 }
 
 async function verifyRelationshipIntegrity() {
-  // Check: Every connection points to valid entities
+  // Check: Every connection points to valid things
   const connections = await convex.query(
     api.connections.listAll
   );
-  
+
   const errors = [];
   for (const conn of connections) {
-    const from = await convex.query(api.entities.get, {
-      id: conn.fromEntityId
+    const from = await convex.query(api.things.get, {
+      id: conn.fromThingId
     });
-    const to = await convex.query(api.entities.get, {
-      id: conn.toEntityId
+    const to = await convex.query(api.things.get, {
+      id: conn.toThingId
     });
-    
+
     if (!from || !to) {
       errors.push(
         `Broken connection: ${conn._id} (${from ? "✓" : "✗"} → ${to ? "✓" : "✗"})`
       );
     }
   }
-  
+
   return {
     name: "Relationship integrity",
     passed: errors.length === 0,
@@ -780,7 +787,436 @@ async function verifyRelationshipIntegrity() {
 
 ---
 
-## Phase 5: Rollback Plan
+## Phase 5: AI Clone Creation
+
+### Creating AI Clones from Migrated Creator Data
+
+Once creator data is migrated, you can create AI clones using the creator's knowledge.
+
+#### Step 1: Extract Knowledge from Creator Content
+
+```typescript
+// scripts/migration/create-ai-clones.ts
+
+async function createAICloneForCreator(creatorId: Id<"things">) {
+  console.log(`🤖 Creating AI clone for creator ${creatorId}...`);
+
+  // 1. Get all creator's content
+  const contentConnections = await convex.query(
+    api.connections.getByFromAndType,
+    {
+      fromThingId: creatorId,
+      relationshipType: "authored"
+    }
+  );
+
+  const content = await Promise.all(
+    contentConnections.map(conn =>
+      convex.query(api.things.get, { id: conn.toThingId })
+    )
+  );
+
+  // 2. Create knowledge chunks from content
+  const knowledgeChunks = [];
+  for (const item of content) {
+    if (!item) continue;
+
+    const chunks = await chunkContent(item.properties.body, {
+      maxTokens: 500,
+      overlap: 50
+    });
+
+    for (const [index, chunk] of chunks.entries()) {
+      const embedding = await generateEmbedding(chunk.text);
+
+      const knowledgeId = await convex.mutation(api.knowledge.create, {
+        knowledgeType: "chunk",
+        text: chunk.text,
+        embedding: embedding,
+        embeddingModel: "text-embedding-3-large",
+        embeddingDim: 1536,
+        sourceThingId: item._id,
+        sourceField: "body",
+        chunk: {
+          index: index,
+          start: chunk.start,
+          end: chunk.end,
+          tokenCount: chunk.tokenCount,
+          overlap: 50
+        },
+        labels: ["training_data", `source:${item.type}`],
+        metadata: {
+          contentType: item.type,
+          createdFrom: "migration"
+        }
+      });
+
+      knowledgeChunks.push(knowledgeId);
+    }
+  }
+
+  // 3. Get creator info
+  const creator = await convex.query(api.things.get, { id: creatorId });
+  if (!creator) throw new Error("Creator not found");
+
+  // 4. Create AI clone thing
+  const aiCloneId = await convex.mutation(api.things.create, {
+    type: "ai_clone",
+    name: `${creator.name} AI`,
+    properties: {
+      voiceId: null, // To be cloned later
+      voiceProvider: "elevenlabs",
+      appearanceId: null, // To be cloned later
+      appearanceProvider: "d-id",
+      systemPrompt: generateSystemPrompt(creator),
+      temperature: 0.7,
+      knowledgeBaseSize: knowledgeChunks.length,
+      lastTrainingDate: Date.now(),
+      totalInteractions: 0,
+      satisfactionScore: 0
+    },
+    status: "draft"
+  });
+
+  // 5. Create clone_of connection (AI clone → creator)
+  await convex.mutation(api.connections.create, {
+    fromThingId: aiCloneId,
+    toThingId: creatorId,
+    relationshipType: "clone_of",
+    metadata: {
+      cloneVersion: "1.0",
+      trainingDataSize: knowledgeChunks.length
+    }
+  });
+
+  // 6. Link knowledge to AI clone via thingKnowledge junction
+  for (const knowledgeId of knowledgeChunks) {
+    await convex.mutation(api.thingKnowledge.create, {
+      thingId: aiCloneId,
+      knowledgeId: knowledgeId,
+      role: "chunk_of",
+      metadata: {
+        trainingPhase: "initial",
+        addedAt: Date.now()
+      }
+    });
+
+    // Also create trained_on connection for high-level tracking
+    await convex.mutation(api.connections.create, {
+      fromThingId: aiCloneId,
+      toThingId: knowledgeId,
+      relationshipType: "trained_on",
+      metadata: {
+        chunkCount: knowledgeChunks.length,
+        trainingDate: Date.now()
+      }
+    });
+  }
+
+  // 7. Log creation event
+  await convex.mutation(api.events.create, {
+    type: "clone_created",
+    actorId: creatorId,
+    targetId: aiCloneId,
+    timestamp: Date.now(),
+    metadata: {
+      knowledgeChunks: knowledgeChunks.length,
+      contentSources: content.length,
+      version: "1.0"
+    }
+  });
+
+  console.log(`✅ AI clone created: ${aiCloneId}`);
+  console.log(`   - Knowledge chunks: ${knowledgeChunks.length}`);
+  console.log(`   - Content sources: ${content.length}`);
+
+  return aiCloneId;
+}
+
+function generateSystemPrompt(creator: Doc<"things">): string {
+  return `You are an AI clone of ${creator.name}, a ${creator.properties.niche?.join(", ")} creator.
+
+Your expertise includes: ${creator.properties.expertise?.join(", ")}.
+
+Your target audience is: ${creator.properties.targetAudience}.
+
+Bio: ${creator.properties.bio}
+
+Speak in their voice, share their knowledge, and help their audience as they would.`;
+}
+
+async function chunkContent(text: string, options: {
+  maxTokens: number;
+  overlap: number;
+}): Promise<Array<{
+  text: string;
+  start: number;
+  end: number;
+  tokenCount: number;
+}>> {
+  // Simple sentence-based chunking
+  // In production, use a proper tokenizer
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
+  const chunks = [];
+  let currentChunk = "";
+  let start = 0;
+
+  for (const sentence of sentences) {
+    if ((currentChunk + sentence).length > options.maxTokens * 4) {
+      // Roughly 4 chars per token
+      chunks.push({
+        text: currentChunk.trim(),
+        start: start,
+        end: start + currentChunk.length,
+        tokenCount: Math.ceil(currentChunk.length / 4)
+      });
+
+      // Overlap: include last sentence(s)
+      start = start + currentChunk.length - options.overlap * 4;
+      currentChunk = currentChunk.slice(-options.overlap * 4) + sentence;
+    } else {
+      currentChunk += sentence;
+    }
+  }
+
+  // Add final chunk
+  if (currentChunk.trim()) {
+    chunks.push({
+      text: currentChunk.trim(),
+      start: start,
+      end: start + currentChunk.length,
+      tokenCount: Math.ceil(currentChunk.length / 4)
+    });
+  }
+
+  return chunks;
+}
+
+async function generateEmbedding(text: string): Promise<number[]> {
+  // In production, call OpenAI API
+  // For migration script, you might want to batch these
+  const response = await fetch("https://api.openai.com/v1/embeddings", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "text-embedding-3-large",
+      input: text
+    })
+  });
+
+  const data = await response.json();
+  return data.data[0].embedding;
+}
+```
+
+#### Step 2: Clone Voice and Appearance
+
+```typescript
+async function cloneVoiceAndAppearance(
+  aiCloneId: Id<"things">,
+  creatorId: Id<"things">
+) {
+  const creator = await convex.query(api.things.get, { id: creatorId });
+  if (!creator) throw new Error("Creator not found");
+
+  // 1. Clone voice using ElevenLabs
+  // Requires audio samples from creator's videos/podcasts
+  const voiceId = await cloneVoice({
+    name: `${creator.name} Voice`,
+    samples: await getCreatorAudioSamples(creatorId),
+    provider: "elevenlabs"
+  });
+
+  // 2. Clone appearance using D-ID or HeyGen
+  // Requires photos/video frames of creator
+  const appearanceId = await cloneAppearance({
+    name: `${creator.name} Avatar`,
+    images: await getCreatorImages(creatorId),
+    provider: "d-id"
+  });
+
+  // 3. Update AI clone properties
+  await convex.mutation(api.things.update, {
+    id: aiCloneId,
+    properties: {
+      voiceId: voiceId,
+      voiceProvider: "elevenlabs",
+      appearanceId: appearanceId,
+      appearanceProvider: "d-id"
+    },
+    status: "active" // Now ready for use
+  });
+
+  // 4. Log events
+  await convex.mutation(api.events.create, {
+    type: "voice_cloned",
+    actorId: creatorId,
+    targetId: aiCloneId,
+    timestamp: Date.now(),
+    metadata: {
+      voiceProvider: "elevenlabs",
+      voiceId: voiceId
+    }
+  });
+
+  await convex.mutation(api.events.create, {
+    type: "appearance_cloned",
+    actorId: creatorId,
+    targetId: aiCloneId,
+    timestamp: Date.now(),
+    metadata: {
+      appearanceProvider: "d-id",
+      appearanceId: appearanceId
+    }
+  });
+
+  console.log(`✅ Voice and appearance cloned for AI clone ${aiCloneId}`);
+}
+```
+
+#### Step 3: Link AI Clone to Services
+
+```typescript
+async function linkCloneToServices(
+  aiCloneId: Id<"things">,
+  services: Array<{
+    serviceType: "chatbot" | "email_responder" | "content_generator";
+    config: Record<string, any>;
+  }>
+) {
+  for (const service of services) {
+    // Create service thing
+    const serviceId = await convex.mutation(api.things.create, {
+      type: "external_agent", // Or specific agent type
+      name: `${service.serviceType} powered by AI Clone`,
+      properties: {
+        serviceType: service.serviceType,
+        config: service.config
+      },
+      status: "active"
+    });
+
+    // Create powers connection (AI clone → service)
+    await convex.mutation(api.connections.create, {
+      fromThingId: aiCloneId,
+      toThingId: serviceId,
+      relationshipType: "powers",
+      metadata: {
+        serviceType: service.serviceType,
+        enabledAt: Date.now()
+      }
+    });
+
+    console.log(`✅ AI clone linked to ${service.serviceType}`);
+  }
+}
+```
+
+---
+
+## AI Clone Connection Types (Ontology Integration)
+
+The AI clone feature uses three specialized connection types defined in the ontology:
+
+### 1. clone_of
+**Direction:** AI clone → Creator
+**Purpose:** Links AI clone to its original creator
+**Metadata:**
+```typescript
+{
+  cloneVersion: string;      // e.g., "1.0", "2.0"
+  trainingDataSize: number;  // Number of knowledge chunks
+  accuracy: number?;         // Optional quality metric
+}
+```
+
+**Example:**
+```typescript
+{
+  fromThingId: aiCloneId,
+  toThingId: creatorId,
+  relationshipType: "clone_of",
+  metadata: {
+    cloneVersion: "1.0",
+    trainingDataSize: 1500
+  }
+}
+```
+
+### 2. trained_on
+**Direction:** AI clone → Knowledge
+**Purpose:** Links AI clone to knowledge items used in training
+**Metadata:**
+```typescript
+{
+  chunkCount: number;       // Number of chunks from this knowledge source
+  trainingDate: number;     // When training occurred
+  weight: number?;          // Optional importance weight
+}
+```
+
+**Example:**
+```typescript
+{
+  fromThingId: aiCloneId,
+  toThingId: knowledgeId,
+  relationshipType: "trained_on",
+  metadata: {
+    chunkCount: 50,
+    trainingDate: Date.now(),
+    weight: 1.0
+  }
+}
+```
+
+**Note:** Also use the `thingKnowledge` junction table for granular chunk-level associations:
+```typescript
+{
+  thingId: aiCloneId,
+  knowledgeId: knowledgeChunkId,
+  role: "chunk_of",
+  metadata: {
+    trainingPhase: "initial",
+    addedAt: Date.now()
+  }
+}
+```
+
+### 3. powers
+**Direction:** AI clone → Agent/Service
+**Purpose:** Links AI clone to services it powers
+**Metadata:**
+```typescript
+{
+  serviceType: string;      // e.g., "chatbot", "email_responder"
+  enabledAt: number;        // When connection was established
+  config: Record<string, any>?; // Service-specific config
+}
+```
+
+**Example:**
+```typescript
+{
+  fromThingId: aiCloneId,
+  toThingId: chatbotServiceId,
+  relationshipType: "powers",
+  metadata: {
+    serviceType: "chatbot",
+    enabledAt: Date.now(),
+    config: {
+      responseStyle: "professional",
+      maxLength: 500
+    }
+  }
+}
+```
+
+---
+
+## Phase 6: Rollback Plan
 
 ### Emergency Rollback
 
@@ -802,8 +1238,8 @@ npm run dev
 
 ### Gradual Rollout
 
-**Week 1:** Beta users only (10 users)  
-**Week 2:** Power users (100 users)  
+**Week 1:** Beta users only (10 users)
+**Week 2:** Power users (100 users)
 **Week 3:** General rollout (all users)
 
 ---
@@ -842,6 +1278,8 @@ After migration, you should produce:
 - ✅ Transform code to new patterns
 - ✅ Run verification before declaring success
 - ✅ Document everything
+- ✅ Use correct ontology terminology (things, not entities)
+- ✅ Create AI clones with proper knowledge integration
 
 **You MUST NOT:**
 - ❌ Lose any user data
@@ -849,6 +1287,7 @@ After migration, you should produce:
 - ❌ Skip verification steps
 - ❌ Migrate without backup
 - ❌ Ignore transformation rules
+- ❌ Use "entities" terminology (use "things")
 
 ---
 
@@ -861,6 +1300,8 @@ Migration is complete when:
 4. ✅ No broken relationships or orphaned data
 5. ✅ Old sites can be decommissioned
 6. ✅ Documentation updated
+7. ✅ AI clones created with knowledge integration
+8. ✅ All terminology uses "things" not "entities"
 
 ---
 
