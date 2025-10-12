@@ -9,6 +9,7 @@
 ### Asset #1: The Ontology (`/one`)
 
 **What you have:**
+
 - 6-dimension data model (organizations, people, things, connections, events, knowledge)
 - 66 thing types (course, product, post, lesson, etc.)
 - 25 connection types (owns, enrolled_in, purchased, etc.)
@@ -16,6 +17,7 @@
 - Universal, backend-agnostic specification
 
 **Strengths:**
+
 - ✅ Well-designed, comprehensive
 - ✅ Works with ANY backend
 - ✅ Real-world tested (working frontend uses it)
@@ -23,6 +25,7 @@
 - ✅ Can become an industry standard
 
 **Current Gap:**
+
 - ⚠️ Missing frontend/UI metadata
 - ⚠️ No component mapping guidance
 - ⚠️ Doesn't tell developers HOW to render things
@@ -31,6 +34,7 @@
 ### Asset #2: The Frontend (`/frontend`)
 
 **What you have:**
+
 - Working Astro + React application
 - Connected to Convex backend
 - Auth system (Better Auth, 6 methods)
@@ -38,12 +42,14 @@
 - Component library
 
 **Strengths:**
+
 - ✅ Proven, working implementation
 - ✅ Fast (Astro Islands)
 - ✅ Modern stack (React 19, TypeScript)
 - ✅ Real auth tests passing
 
 **Current Gap:**
+
 - ⚠️ Tightly coupled to Convex
 - ⚠️ Components hardcoded for specific types
 - ⚠️ Not easily configurable/customizable
@@ -97,6 +103,7 @@ how to render each thing type from scratch.
 ```
 
 **Benefits:**
+
 - ✅ Add new thing type → UI updates automatically
 - ✅ Frontend is just a renderer (no business logic)
 - ✅ Ontology is single source of truth
@@ -110,7 +117,7 @@ how to render each thing type from scratch.
 ### Current Thing Type Definition
 
 ```typescript
-// one/connections/ontology.md
+// one/knowledge/ontology.md
 {
   type: "course",
   description: "Educational course or training program",
@@ -133,7 +140,7 @@ how to render each thing type from scratch.
 ### Refined Thing Type Definition (Frontend-Complete)
 
 ```typescript
-// one/connections/ontology-ui.md (NEW FILE)
+// one/knowledge/ontology-ui.md (NEW FILE)
 {
   type: "course",
   description: "Educational course or training program",
@@ -271,7 +278,7 @@ export function CourseCard({ course }) {
       <p>{course.properties.description}</p>
       <span>${course.properties.price}</span>
     </div>
-  )
+  );
 }
 
 // frontend/src/components/ProductCard.tsx
@@ -284,7 +291,7 @@ export function ProductCard({ product }) {
       <p>{product.properties.description}</p>
       <span>${product.properties.price}</span>
     </div>
-  )
+  );
 }
 
 // ... 64 more type-specific components 😱
@@ -297,15 +304,15 @@ export function ProductCard({ product }) {
 ```tsx
 // frontend/src/components/Card.tsx
 // ✅ Works for ANY thing type
-import { useThingConfig } from '@/ontology/hooks'
+import { useThingConfig } from "@/ontology/hooks";
 
 export function Card({ thing }) {
   // Get UI config from ontology
-  const config = useThingConfig(thing.type)
+  const config = useThingConfig(thing.type);
 
   return (
     <Card layout={config.ui.layouts.grid}>
-      {config.ui.views.card.fields.map(fieldName => (
+      {config.ui.views.card.fields.map((fieldName) => (
         <Field
           key={fieldName}
           name={fieldName}
@@ -320,13 +327,14 @@ export function Card({ thing }) {
         thingId={thing._id}
       />
     </Card>
-  )
+  );
 }
 
 // ONE component renders all 66 types! 🎉
 ```
 
 **Usage:**
+
 ```tsx
 // frontend/src/pages/courses/[id].astro
 <Card thing={course} />  // Renders as course card
@@ -379,6 +387,7 @@ const config = getThingConfig(type)
 ```
 
 **Now:**
+
 - `/courses/123` works ✅
 - `/products/456` works ✅
 - `/posts/789` works ✅
@@ -394,7 +403,7 @@ const config = getThingConfig(type)
 ```typescript
 // frontend/astro.config.ts
 
-const useOneBackend = import.meta.env.USE_ONE_BACKEND === 'true'
+const useOneBackend = import.meta.env.USE_ONE_BACKEND === "true";
 
 export default defineConfig({
   integrations: [
@@ -403,21 +412,21 @@ export default defineConfig({
       provider: useOneBackend
         ? oneBackendProvider({
             apiKey: import.meta.env.PUBLIC_ONE_API_KEY,
-            organizationId: import.meta.env.PUBLIC_ONE_ORG_ID
+            organizationId: import.meta.env.PUBLIC_ONE_ORG_ID,
           })
-
-      // Option 2: Self-hosted (any backend)
-        : convexProvider({
-            url: import.meta.env.PUBLIC_CONVEX_URL
-          })
-    })
-  ]
-})
+        : // Option 2: Self-hosted (any backend)
+          convexProvider({
+            url: import.meta.env.PUBLIC_CONVEX_URL,
+          }),
+    }),
+  ],
+});
 ```
 
 **User experience:**
 
 **Path A: Use ONE Backend (Zero Config)**
+
 ```bash
 # 1. Sign up at one.ie → Get API key
 # 2. Configure
@@ -434,6 +443,7 @@ npm run dev
 ```
 
 **Path B: Self-Hosted Backend**
+
 ```bash
 # 1. Choose backend (Convex, Supabase, etc.)
 # 2. Configure
@@ -458,12 +468,14 @@ npm run dev
 **What's Open Source (MIT License):**
 
 1. **`@oneie/ontology`** - The 6-dimension specification
+
    - Data model
    - UI metadata
    - TypeScript types
    - Anyone can implement it
 
 2. **`@oneie/frontend`** - Reference implementation
+
    - Generic components
    - Ontology-driven rendering
    - Works with any backend
@@ -484,6 +496,7 @@ npm run dev
    - Pricing: Free → $29/mo → Enterprise
 
 **Business Model:**
+
 ```
 Open Source Ontology → Adoption → Ecosystem → BaaS Revenue
 
@@ -494,12 +507,14 @@ Just like:
 ```
 
 **Revenue Streams:**
+
 1. ONE Backend subscriptions ($0 → $29 → $99 → custom)
 2. Enterprise support (SLAs, dedicated)
 3. Premium providers (verified, optimized)
 4. Consulting (implementation help)
 
 **Why this works:**
+
 - ✅ Open source → wide adoption
 - ✅ BaaS → easy path for users
 - ✅ Not forced → community trust
@@ -511,9 +526,10 @@ Just like:
 
 ### Phase 1: Refine Ontology (Week 1-2)
 
-**Create: `one/connections/ontology-ui.md`**
+**Create: `one/knowledge/ontology-ui.md`**
 
 For each of the 66 thing types, add:
+
 ```typescript
 {
   type: "thing_type",
@@ -531,6 +547,7 @@ For each of the 66 thing types, add:
 ```
 
 **Start with top 10 most-used types:**
+
 1. course
 2. lesson
 3. person (creator)
@@ -543,6 +560,7 @@ For each of the 66 thing types, add:
 10. token
 
 **Checklist:**
+
 - [ ] Define UI schema structure
 - [ ] Add UI metadata for top 10 types
 - [ ] Document field component types
@@ -567,27 +585,28 @@ frontend/src/components/generic/
 ```
 
 **Generic Field Component:**
+
 ```tsx
 // frontend/src/components/generic/Field.tsx
 export function Field({ name, value, config }) {
   switch (config.component) {
-    case 'Heading':
-      return <Heading size={config.size}>{value}</Heading>
+    case "Heading":
+      return <Heading size={config.size}>{value}</Heading>;
 
-    case 'Text':
-      return <Text lines={config.lines}>{value}</Text>
+    case "Text":
+      return <Text lines={config.lines}>{value}</Text>;
 
-    case 'Price':
-      return <Price value={value} currency={config.currency} />
+    case "Price":
+      return <Price value={value} currency={config.currency} />;
 
-    case 'Image':
-      return <Image src={value} aspect={config.aspect} />
+    case "Image":
+      return <Image src={value} aspect={config.aspect} />;
 
-    case 'Badge':
-      return <Badge color={config.colors[value]}>{value}</Badge>
+    case "Badge":
+      return <Badge color={config.colors[value]}>{value}</Badge>;
 
-    case 'TagList':
-      return <TagList tags={value} max={config.max} />
+    case "TagList":
+      return <TagList tags={value} max={config.max} />;
 
     // ... all field types
   }
@@ -595,6 +614,7 @@ export function Field({ name, value, config }) {
 ```
 
 **Checklist:**
+
 - [ ] Build generic Card
 - [ ] Build generic ThingList
 - [ ] Build generic ThingDetail
@@ -634,6 +654,7 @@ const config = getThingConfig(type)
 ```
 
 **Checklist:**
+
 - [ ] Create dynamic `[type]/[id].astro` route
 - [ ] Add ontology config loader
 - [ ] Test all thing types work
@@ -649,31 +670,35 @@ const config = getThingConfig(type)
 
 ```typescript
 // packages/baas-sdk/src/OneBackendProvider.ts
-import { DataProvider } from '@oneie/core'
+import { DataProvider } from "@oneie/core";
 
 export class OneBackendProvider implements DataProvider {
-  constructor(private config: {
-    apiKey: string
-    organizationId: string
-    apiUrl?: string  // default: https://api.one.ie
-  }) {}
+  constructor(
+    private config: {
+      apiKey: string;
+      organizationId: string;
+      apiUrl?: string; // default: https://api.one.ie
+    }
+  ) {}
 
   things = {
     get: (id) =>
       fetch(`${this.apiUrl}/things/${id}`, {
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'X-Organization-ID': this.organizationId
-        }
+          Authorization: `Bearer ${this.apiKey}`,
+          "X-Organization-ID": this.organizationId,
+        },
       }),
 
     list: (params) =>
       fetch(`${this.apiUrl}/things?type=${params.type}`, {
-        headers: { /* ... */ }
+        headers: {
+          /* ... */
+        },
       }),
 
     // ... all DataProvider methods
-  }
+  };
 
   // ... connections, events, knowledge
 }
@@ -682,10 +707,10 @@ export class OneBackendProvider implements DataProvider {
 **Update: `frontend/astro.config.ts`**
 
 ```typescript
-import { oneBackendProvider } from '@oneie/baas-sdk'
-import { convexProvider } from '@oneie/provider-convex'
+import { oneBackendProvider } from "@oneie/baas-sdk";
+import { convexProvider } from "@oneie/provider-convex";
 
-const useOneBackend = import.meta.env.USE_ONE_BACKEND === 'true'
+const useOneBackend = import.meta.env.USE_ONE_BACKEND === "true";
 
 export default defineConfig({
   integrations: [
@@ -693,17 +718,18 @@ export default defineConfig({
       provider: useOneBackend
         ? oneBackendProvider({
             apiKey: import.meta.env.PUBLIC_ONE_API_KEY,
-            organizationId: import.meta.env.PUBLIC_ONE_ORG_ID
+            organizationId: import.meta.env.PUBLIC_ONE_ORG_ID,
           })
         : convexProvider({
-            url: import.meta.env.PUBLIC_CONVEX_URL
-          })
-    })
-  ]
-})
+            url: import.meta.env.PUBLIC_CONVEX_URL,
+          }),
+    }),
+  ],
+});
 ```
 
 **Checklist:**
+
 - [ ] Build OneBackendProvider
 - [ ] Add API key validation
 - [ ] Add rate limiting
@@ -717,24 +743,28 @@ export default defineConfig({
 ## Success Metrics
 
 **Ontology Refinement:**
+
 - [ ] All 66 thing types have UI metadata
 - [ ] Generic components render all types correctly
 - [ ] No type-specific components needed
 - [ ] Adding new type takes < 5 minutes
 
 **Frontend:**
+
 - [ ] 90% code reduction (generic vs specific)
 - [ ] Works with 3+ different backends
 - [ ] All auth tests still pass
 - [ ] Performance unchanged (Astro Islands)
 
 **ONE Backend:**
+
 - [ ] Signup flow works
 - [ ] API key generation works
 - [ ] 10 beta users signed up
 - [ ] 3 live apps using ONE Backend
 
 **Open Source:**
+
 - [ ] Ontology published to npm
 - [ ] Frontend reference implementation public
 - [ ] Providers published (Convex, Supabase, WordPress)
@@ -748,16 +778,19 @@ export default defineConfig({
 ### Your Unique Value Proposition
 
 **You're not building:**
+
 - ❌ Another backend (there are many)
 - ❌ Another frontend framework (there are many)
 - ❌ Another database (there are many)
 
 **You're building:**
+
 - ✅ **A universal ontology** (the standard for data + UI)
 - ✅ **A reference frontend** (shows how to implement the standard)
 - ✅ **A managed backend** (easiest way to use the standard)
 
 **Analogies:**
+
 - **Like HTML**: Standard for content, anyone can implement, works everywhere
 - **Like Stripe**: Payment API standard, with managed service option
 - **Like PostgreSQL**: Open database standard, with hosted options (Supabase, Neon)
@@ -765,12 +798,15 @@ export default defineConfig({
 ### Market Position
 
 **Primary Message:**
+
 > "ONE is the universal standard for connecting frontends to backends. Use our ontology, build with any tech stack, deploy anywhere."
 
 **Secondary Message:**
+
 > "Can't build a backend? Use ONE Backend - managed service with auth, database, and real-time included. Free tier available."
 
 **Target Audiences:**
+
 1. **Frontend developers** → "Build apps without backend knowledge"
 2. **Full-stack developers** → "Stop reinventing data models"
 3. **Agencies** → "Deliver faster with reusable ontology"
@@ -781,23 +817,27 @@ export default defineConfig({
 ## Next Steps (This Week)
 
 ### Day 1-2: Ontology Refinement
-- [ ] Create `one/connections/ontology-ui.md`
+
+- [ ] Create `one/knowledge/ontology-ui.md`
 - [ ] Define UI metadata schema
 - [ ] Add UI metadata for top 5 types (course, lesson, product, post, person)
 
 ### Day 3-4: Generic Components
+
 - [ ] Build `Card` component
 - [ ] Build `Field` component
 - [ ] Test with 3 different thing types
 - [ ] Refactor one existing page to use generic components
 
 ### Day 5: Documentation
+
 - [ ] Document ontology UI schema
 - [ ] Write guide: "How to add UI metadata"
 - [ ] Write guide: "Building with generic components"
 - [ ] Update `separate.md` with ontology-driven approach
 
 ### Weekend: Publish Plan
+
 - [ ] Share this document with team
 - [ ] Get feedback on ontology refinement
 - [ ] Prioritize which types to refine first
@@ -814,6 +854,7 @@ export default defineConfig({
 3. **ONE Backend = Convenience** (like Netlify hosts websites)
 
 This positions you as:
+
 - ✅ **Standard-setter** (control the definition)
 - ✅ **Ecosystem-builder** (others can implement)
 - ✅ **Service-provider** (revenue without forcing)

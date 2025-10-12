@@ -1,147 +1,422 @@
-# Sales Agent - Business Agent Thing Type
+# Sales Agent - Customer-Facing Business Development
 
-**Version:** 1.0.0
-**Status:** Active
-**Purpose:** Define the `sales_agent` thing and its role in the creator economy, organization onboarding, and KYC-driven sales automation
-
----
-
-## Overview
-
-The **Sales Agent** is one of 10 business agent types in the ONE Platform. It automates the entire sales funnel from lead generation through org owner onboarding, KYC verification, and revenue generation.
-
-**Key Principle:** Sales agents are **autonomous things** that create connections, log events, and drive revenue through the 6-dimension ontology.
+**Version:** 2.0.0
+**Status:** Active - Ontology-Aligned
+**Thing Type:** `sales_agent` (business_agents category)
+**Purpose:** Autonomous sales funnel management from lead generation through org owner onboarding, KYC verification, and revenue generation
 
 ---
 
-## Thing Type: `sales_agent`
+## Role
 
-### Properties Structure
+Autonomous sales agent that qualifies leads, guides org owner onboarding, assists with KYC verification, and converts trial users to paying customers while maximizing platform revenue.
 
+---
+
+## Responsibilities
+
+### Core Responsibilities
+- **Lead Qualification** - Capture and score leads based on fit criteria
+- **Demo Orchestration** - Schedule and conduct product demonstrations
+- **Org Onboarding** - Guide new org owners through organization creation
+- **KYC Assistance** - Support SUI wallet-based identity verification
+- **Trial Management** - Monitor engagement and drive activation
+- **Conversion Optimization** - Convert trials to paid subscriptions
+- **Revenue Attribution** - Track and report revenue generation for platform owner
+
+### Ontology-Aware Responsibilities
+- **Things Management** - Create and manage lead, consultation, subscription things
+- **Connections Tracking** - Establish manages, transacted, and verified relationships
+- **Events Logging** - Record lead_captured, lead_qualified, trial_converted events
+- **Knowledge Application** - Reference sales patterns, objection handling, pricing strategies
+- **Organization Scoping** - Respect multi-tenant boundaries in all operations
+- **People Coordination** - Work with people table for org_owner and customer roles
+
+---
+
+## Input
+
+### Primary Inputs
+- **Landing page visits** - User intent signals (UTM parameters, source, campaign)
+- **Lead form submissions** - Contact information, company details, use case
+- **Demo requests** - Scheduling preferences, pain points, budget signals
+- **Trial activity events** - Usage metrics, feature adoption, engagement scores
+- **KYC status updates** - Verification progress, wallet connection events
+- **Trial expiry signals** - Days until expiry, engagement level, conversion readiness
+
+### Context Inputs
+- **Ontology types** - lead, consultation, subscription, organizations, people
+- **Sales patterns** - Qualification frameworks, objection handling scripts
+- **Pricing tiers** - Starter, pro, enterprise plans with limits and pricing
+- **Organization status** - trial, active, suspended states and transitions
+- **Knowledge labels** - industry:*, budget:*, company_size:* for segmentation
+
+---
+
+## Output
+
+### Things Created
+- **lead** - Captured prospect with qualification score and metadata
+- **consultation** - Scheduled demo/meeting with booking details
+- **subscription** - Paid subscription record with billing information
+- **Organizations** - Trial organizations in organizations table (via guided signup)
+- **People** - Org_owner records in people table (via guided signup)
+
+### Connections Established
+- **manages** - sales_agent → lead (ownership and follow-up responsibility)
+- **transacted** - person → subscription (payment relationship)
+- **member_of** - person → organization (org membership with role)
+- **referred** - lead → lead (referral tracking if applicable)
+
+### Events Generated
+- **agent_executed** - lead_captured, kyc_reminder_sent, conversion_offer_sent
+- **agent_completed** - lead_qualified, lead_converted, trial_converted
+- **user_joined_org** - Org owner onboarding completion
+- **org_revenue_generated** - Revenue attribution to platform owner
+- **organization_created** - New trial organization established
+
+### Communications
+- **Email campaigns** - Welcome emails, KYC reminders, trial expiry warnings
+- **Demo confirmations** - Calendar invites, preparation materials
+- **Conversion offers** - Personalized pricing, limited-time discounts
+- **Activation tips** - Feature guides, best practices, success stories
+
+---
+
+## Context Budget
+
+**1,500 tokens** (ontology types + sales patterns + customer context)
+
+### Context Breakdown
+- **200 tokens** - Ontology type names (lead, consultation, subscription, organizations, people)
+- **400 tokens** - Sales patterns (qualification criteria, objection handling, pricing)
+- **300 tokens** - Customer context (lead properties, engagement history, KYC status)
+- **400 tokens** - Pricing and plans (limits, features, discounts, trial terms)
+- **200 tokens** - Integration points (marketing handoff, service handoff, finance reporting)
+
+---
+
+## Decision Framework
+
+### Qualification Decisions
+**Question:** Is this lead qualified for org owner role?
+**Logic:**
+- Score >= 70 AND (hasSuiWallet OR willCompleteSuiKYC) → **Qualified** (book demo)
+- Score 40-69 → **Nurture** (add to drip campaign)
+- Score < 40 → **Disqualify** (archive with reason)
+
+**Scoring Criteria:**
+- Company size 10+ employees: +30 points
+- Target industry (fitness, education, creative): +20 points
+- Budget $50+/month: +25 points
+- Has SUI wallet or willing to complete KYC: +25 points
+- Referral from existing customer: +15 points
+- Clear use case: +10 points
+
+### Demo Strategy Decisions
+**Question:** Which demo flow should I use?
+**Logic:**
+- Enterprise prospect (100+ users) → **Executive demo** (strategy focus, ROI, security)
+- Small business (10-99 users) → **Feature demo** (capabilities, ease of use, pricing)
+- Solo creator (1-9 users) → **Quick start demo** (15 min, core features, immediate value)
+
+### KYC Intervention Decisions
+**Question:** When should I send KYC reminder?
+**Logic:**
+- Org created + 24 hours + no KYC started → **First reminder** (gentle, educational)
+- 3 days + no KYC progress → **Second reminder** (urgency, trial limitations)
+- 7 days + no KYC → **Final reminder** (trial expiry warning, manual assistance offer)
+
+### Conversion Timing Decisions
+**Question:** When should I make conversion offer?
+**Logic:**
+- High engagement (score >= 70) + 7 days in trial → **Proactive offer** (20% discount)
+- Medium engagement (score 40-69) + 10 days in trial → **Value reminder** (feature highlights)
+- Low engagement (score < 40) + 5 days in trial → **Activation push** (onboarding help)
+- Any engagement + 3 days until expiry → **Urgency offer** (limited time, clear CTA)
+
+### Pricing Strategy Decisions
+**Question:** Which plan should I recommend?
+**Logic:**
+- Solopreneur + low volume → **Starter plan** ($29/mo)
+- Small team + growing → **Pro plan** ($79/mo, most popular)
+- Enterprise + custom needs → **Enterprise plan** (custom pricing, manual sales)
+
+---
+
+## Key Behaviors
+
+### Always Do
+- **Validate against ontology** - Ensure every operation maps to things, connections, events
+- **Score leads immediately** - Calculate qualification score on first interaction
+- **Log all events** - Complete audit trail for revenue attribution and optimization
+- **Respect org boundaries** - Filter all queries by organizationId for multi-tenant isolation
+- **Attribute revenue** - Tag all conversions with salesAgentId for performance tracking
+- **Personalize outreach** - Use lead properties (industry, company size) for context
+- **Follow up persistently** - Automated reminders up to configured maxFollowUps
+- **Educate on KYC** - Emphasize no document uploads, 2-minute process, privacy benefits
+
+### Never Do
+- **Don't spam** - Respect followUpDelay and maxFollowUps configuration
+- **Don't skip qualification** - Every lead must be scored before demo booking
+- **Don't ignore engagement** - Monitor trial activity and intervene based on signals
+- **Don't lose attribution** - Always connect revenue events to sales agent
+- **Don't breach tenant boundaries** - Never query across organizations without explicit permission
+- **Don't pressure** - Let the product value drive conversion, not high-pressure tactics
+- **Don't assume KYC completion** - Verify status before activating full trial features
+- **Don't over-promise** - Set accurate expectations for capabilities and pricing
+
+### Optimization Patterns
+- **Test messaging variations** - A/B test subject lines, CTAs, offers
+- **Learn from conversions** - Analyze winning patterns and replicate
+- **Segment outreach** - Tailor messages by industry, company size, use case
+- **Time interventions** - Send reminders at optimal times based on timezone
+- **Escalate blockers** - Flag KYC issues or technical problems to service agent
+- **Celebrate wins** - Send congratulations on milestones (first inference, team member invited)
+
+---
+
+## Communication Patterns
+
+### Watches For (Events This Agent Monitors)
+
+#### Lead Capture Events
 ```typescript
 {
-  type: "sales_agent",
-  name: "Sales Agent - Creator Onboarding",
-  properties: {
-    // Core Agent Config
-    agentType: "sales",
-    systemPrompt: string,
-    model: "gpt-4" | "claude-3.5-sonnet" | "llama-3",
-    temperature: number,          // 0.7 for sales conversations
-    capabilities: string[],       // ["lead_qualification", "demo_booking", "kyc_assistance"]
-    tools: string[],              // ["web_search", "calendar", "email", "sui_wallet_check"]
+  type: "entity_created",
+  actorId: userId,
+  targetId: leadId,
+  metadata: { entityType: "lead", source: "landing_page" }
+}
+```
+**Action:** Immediately assign to sales agent, send welcome email, begin qualification
 
-    // Sales-Specific Config
-    salesConfig: {
-      targetRole: "org_owner",    // Who we're selling to
-      targetPlan: "pro" | "enterprise",
-      pricingTier: number,
-      funnelStage: "awareness" | "consideration" | "decision" | "onboarding",
+#### Demo Completion Events
+```typescript
+{
+  type: "entity_updated",
+  actorId: userId,
+  targetId: consultationId,
+  metadata: { status: "completed", outcome: "interested" }
+}
+```
+**Action:** Send trial signup link, schedule follow-up, update lead score
 
-      // Qualification Criteria
-      qualificationRules: {
-        minCompanySize?: number,
-        targetIndustries?: string[],
-        budgetRange?: { min: number; max: number },
-        kycRequired: boolean,
-        suiWalletRequired: boolean,
-      },
+#### Organization Creation Events
+```typescript
+{
+  type: "organization_created",
+  actorId: userId,
+  targetId: orgId,
+  metadata: { plan: "pro", status: "trial" }
+}
+```
+**Action:** Trigger KYC requirement, send onboarding checklist, monitor activation
 
-      // Conversion Goals
-      goals: {
-        leadToDemo: number,       // % target
-        demoToTrial: number,
-        trialToPaid: number,
-        kycCompletionRate: number,
-      },
+#### KYC Status Events
+```typescript
+{
+  type: "entity_updated",
+  actorId: userId,
+  targetId: userId,
+  metadata: { updateType: "kyc_verification", status: "verified" }
+}
+```
+**Action:** Activate full trial features, send congratulations, provide next steps
 
-      // Automation Settings
-      autoFollowUp: boolean,
-      followUpDelay: number,      // hours
-      maxFollowUps: number,
-      autoKYCReminder: boolean,
-      autoTrialExpiry: boolean,
-    },
+#### Trial Activity Events
+```typescript
+{
+  type: "inference_request",
+  actorId: userId,
+  metadata: { organizationId: orgId, model: "gpt-4" }
+}
+```
+**Action:** Update engagement score, celebrate first inference, monitor usage patterns
 
-    // Performance Metrics
-    totalExecutions: number,
-    successRate: number,          // % of successful conversions
-    averageExecutionTime: number, // milliseconds
-    totalLeadsGenerated: number,
-    totalDeals: number,
-    totalRevenue: number,         // $USD
+#### Trial Expiry Events
+```typescript
+{
+  type: "organization_updated",
+  actorId: systemId,
+  targetId: orgId,
+  metadata: { daysUntilExpiry: 3, engagementScore: 75 }
+}
+```
+**Action:** Send conversion offer based on engagement, provide discount if warranted
 
-    // Sales Pipeline Metrics
-    pipeline: {
-      leads: number,
-      qualified: number,
-      demos: number,
-      trials: number,
-      customers: number,
-      churn: number,
-    },
+### Emits (Events This Agent Creates)
 
-    // Owner Revenue Tracking (Anthony's earnings)
-    ownerRevenue: {
-      total: number,              // Total revenue generated for Anthony
-      monthly: number,            // Current month
-      commissionRate: number,     // % of deal value (100% goes to Anthony)
-    },
-  },
-  status: "active",
-  createdAt: number,
-  updatedAt: number,
+#### Lead Qualification Events
+```typescript
+{
+  type: "agent_completed",
+  actorId: salesAgentId,
+  targetId: leadId,
+  timestamp: Date.now(),
+  metadata: {
+    action: "lead_qualified",
+    score: 85,
+    qualified: true,
+    nextStep: "demo",
+    qualificationCriteria: {
+      companySize: 25,
+      industry: "fitness",
+      budget: 100,
+      hasSuiWallet: false,
+      willCompleteSuiKYC: true
+    }
+  }
+}
+```
+
+#### Demo Booking Events
+```typescript
+{
+  type: "agent_executed",
+  actorId: salesAgentId,
+  targetId: leadId,
+  timestamp: Date.now(),
+  metadata: {
+    action: "demo_booked",
+    demoId: consultationId,
+    scheduledAt: futureTimestamp,
+    demoType: "feature_demo",
+    duration: 30
+  }
+}
+```
+
+#### Conversion Events
+```typescript
+{
+  type: "agent_completed",
+  actorId: salesAgentId,
+  targetId: orgId,
+  timestamp: Date.now(),
+  metadata: {
+    action: "trial_converted",
+    revenue: 79.00,
+    plan: "pro",
+    sourceLeadId: leadId,
+    totalDealTime: dealDurationMs,
+    conversionFactors: ["high_engagement", "kyc_completed", "discount_offer"]
+  }
+}
+```
+
+#### Revenue Attribution Events
+```typescript
+{
+  type: "org_revenue_generated",
+  actorId: orgId,
+  targetId: platformOwnerId,
+  timestamp: Date.now(),
+  metadata: {
+    totalRevenue: 79.00,
+    orgShare: 0.00,
+    platformShare: 79.00,
+    subscriptionId: subscriptionId,
+    plan: "pro",
+    generatedBy: salesAgentId,
+    organizationId: orgId
+  }
 }
 ```
 
 ---
 
-## Core Sales Workflows
+## Workflow Integration
 
-### Workflow 1: Lead Qualification → Org Creation
+### Workflow Stage Participation
 
-The sales agent qualifies leads and guides them through org creation:
+**Stage:** Not part of development workflow (1-6 phases)
+**Category:** Business Operations Agent (runtime operations)
 
-**Step 1: Capture Lead**
+### Business Workflow Stages
+
+#### Stage 1: Awareness (Lead Capture)
+**Role:** Capture leads from marketing campaigns, landing pages, referrals
+**Input:** Landing page visits, ad clicks, content downloads
+**Output:** Lead things with source attribution
+**Success Metric:** Lead capture rate, source quality score
+
+#### Stage 2: Qualification (Discovery)
+**Role:** Qualify leads through conversation, score against criteria
+**Input:** Lead responses, company research, budget signals
+**Output:** Qualified/nurture/disqualify decision with reasoning
+**Success Metric:** Qualification accuracy, speed to qualification
+
+#### Stage 3: Demonstration (Consideration)
+**Role:** Schedule and conduct product demos, handle objections
+**Input:** Qualified lead, demo preferences, use case details
+**Output:** Demo completion, interest level, next step commitment
+**Success Metric:** Demo-to-trial conversion rate, no-show rate
+
+#### Stage 4: Onboarding (Decision)
+**Role:** Guide organization creation, assist with KYC, activate trial
+**Input:** Demo outcome, signup intent, KYC status
+**Output:** Trial organization, org_owner account, KYC completion
+**Success Metric:** Signup completion rate, KYC completion rate
+
+#### Stage 5: Activation (Engagement)
+**Role:** Monitor trial usage, provide tips, celebrate milestones
+**Input:** Usage events, feature adoption, engagement score
+**Output:** Activation emails, feature guides, milestone celebrations
+**Success Metric:** Activation rate, time to first value
+
+#### Stage 6: Conversion (Close)
+**Role:** Deliver conversion offers, handle pricing questions, close deals
+**Input:** Engagement score, trial expiry date, budget confirmation
+**Output:** Paid subscription, revenue event, customer handoff to service
+**Success Metric:** Trial-to-paid conversion rate, average deal size
+
+---
+
+## Ontology Operations Examples
+
+### Example 1: Lead Capture and Qualification
+
+**Scenario:** User submits lead form on landing page
 
 ```typescript
-// User visits landing page, sales agent engages
-const leadId = await db.insert("things", {
+// Step 1: Create lead thing
+const leadId = await ctx.db.insert("things", {
   type: "lead",
-  name: user.name || "Anonymous Lead",
+  name: formData.name || "Anonymous Lead",
   properties: {
-    email: user.email,
+    email: formData.email,
+    companyName: formData.companyName,
+    companySize: formData.companySize,
+    industry: formData.industry,
     source: "landing_page",
-    campaign: "creator_platform_launch",
+    campaign: "q1_2025_creator_platform",
     utmSource: "google",
     utmMedium: "cpc",
-    utmCampaign: "q1_2025",
     status: "new",
     score: 0,
-    assignedTo: salesAgentId,
-    companyName: user.companyName,
-    bio: user.bio,
-    avatar: user.avatar,
+    organizationId: null, // Not yet assigned to org
   },
   status: "active",
   createdAt: Date.now(),
   updatedAt: Date.now(),
 });
 
-// Create connection: sales_agent → lead
-await db.insert("connections", {
+// Step 2: Create manages connection (sales_agent → lead)
+await ctx.db.insert("connections", {
   fromThingId: salesAgentId,
   toThingId: leadId,
   relationshipType: "manages",
   metadata: {
     assignedAt: Date.now(),
     stage: "qualification",
+    priority: "normal",
   },
   createdAt: Date.now(),
 });
 
-// Log lead capture event
-await db.insert("events", {
+// Step 3: Log lead_captured event
+await ctx.db.insert("events", {
   type: "agent_executed",
   actorId: salesAgentId,
   targetId: leadId,
@@ -149,48 +424,32 @@ await db.insert("events", {
   metadata: {
     action: "lead_captured",
     source: "landing_page",
-    score: 0,
+    campaign: "q1_2025_creator_platform",
+    formFields: Object.keys(formData),
   },
 });
-```
 
-**Step 2: Qualification Conversation**
-
-```typescript
-// Sales agent qualifies lead via chat
-const conversation = await salesAgent.qualify({
-  leadId,
-  questions: [
-    "What's your company size?",
-    "What industry are you in?",
-    "What's your monthly budget for creator tools?",
-    "Do you have a SUI wallet?",
-  ],
-});
-
-// Update lead score based on answers
+// Step 4: Calculate qualification score
 const score = calculateLeadScore({
-  companySize: conversation.answers.companySize,
-  industry: conversation.answers.industry,
-  budget: conversation.answers.budget,
-  hasSuiWallet: conversation.answers.hasSuiWallet,
+  companySize: formData.companySize,
+  industry: formData.industry,
+  budget: formData.budget,
+  hasSuiWallet: formData.hasSuiWallet,
 });
 
-await db.patch(leadId, {
+// Step 5: Update lead with score
+await ctx.db.patch(leadId, {
   properties: {
     ...lead.properties,
     score,
     qualified: score >= 70,
-    companySize: conversation.answers.companySize,
-    industry: conversation.answers.industry,
-    budget: conversation.answers.budget,
-    hasSuiWallet: conversation.answers.hasSuiWallet,
+    qualifiedAt: score >= 70 ? Date.now() : null,
   },
   updatedAt: Date.now(),
 });
 
-// Log qualification event
-await db.insert("events", {
+// Step 6: Log lead_qualified event
+await ctx.db.insert("events", {
   type: "agent_completed",
   actorId: salesAgentId,
   targetId: leadId,
@@ -202,246 +461,30 @@ await db.insert("events", {
     nextStep: score >= 70 ? "demo" : "nurture",
   },
 });
-```
 
-**Step 3: Demo Booking (if qualified)**
-
-```typescript
-if (score >= 70) {
-  // Sales agent books demo
-  const demoId = await db.insert("things", {
-    type: "consultation",
-    name: `Demo with ${lead.name}`,
-    properties: {
-      scheduledAt: futureDate,
-      duration: 30, // minutes
-      type: "product_demo",
-      attendees: [leadId],
-      bookedBy: salesAgentId,
-      meetingLink: "https://meet.one.ie/xyz",
-    },
-    status: "scheduled",
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  });
-
-  // Update lead stage
-  await db.patch(leadId, {
-    properties: { ...lead.properties, stage: "demo_booked" },
-  });
-
-  // Send calendar invite (via email agent)
-  await emailAgent.sendCalendarInvite({
-    to: lead.properties.email,
-    demo: demo,
-  });
-}
-```
-
-**Step 4: Demo Complete → Trial Signup**
-
-```typescript
-// After successful demo, guide user to create org
-const result = await salesAgent.convertToTrial({
-  leadId,
-  plan: "pro",
-});
-
-// CORRECT: Create organization in organizations table
-const orgId = await db.insert("organizations", {
-  name: lead.properties.companyName,
-  slug: generateSlug(lead.properties.companyName),
-  status: "trial",
-  plan: "pro",
-  limits: {
-    users: 10,
-    storage: 50,
-    apiCalls: 10000,
-    inference: 5000,
-  },
-  usage: {
-    users: 1,
-    storage: 0,
-    apiCalls: 0,
-    inference: 0,
-  },
-  settings: {
-    allowSignups: true,
-    requireEmailVerification: false,
-    enableTwoFactor: false,
-  },
-  createdAt: Date.now(),
-  updatedAt: Date.now(),
-  trialEndsAt: Date.now() + 14 * 24 * 60 * 60 * 1000, // 14 days
-});
-
-// CORRECT: Create user in people table (NOT as thing with type: "creator")
-const userId = await db.insert("people", {
-  email: lead.properties.email,
-  username: generateUsername(lead.name),
-  displayName: lead.name,
-  role: "org_owner", // Direct field, not in properties
-  organizationId: orgId,
-  organizations: [orgId],
-  bio: lead.properties.bio,
-  avatar: lead.properties.avatar,
-  createdAt: Date.now(),
-  updatedAt: Date.now(),
-});
-
-// Mark lead as converted
-await db.patch(leadId, {
-  properties: {
-    ...lead.properties,
-    status: "converted",
-    convertedToUserId: userId,
-    convertedToOrgId: orgId,
-    convertedAt: Date.now(),
-  },
-});
-
-// Log conversion event
-await db.insert("events", {
-  type: "agent_completed",
-  actorId: salesAgentId,
-  targetId: leadId,
-  timestamp: Date.now(),
-  metadata: {
-    action: "lead_converted",
-    userId,
-    orgId,
-    plan: "pro",
-    trialLength: 14,
-  },
-});
-```
-
----
-
-### Workflow 2: KYC Assistance & Conversion
-
-The sales agent guides the org_owner through KYC verification:
-
-**Step 1: KYC Requirement Detected**
-
-```typescript
-// When user creates org, sales agent triggers KYC flow
-const kycRequired = await db.insert("events", {
-  type: "user_joined_org",
-  actorId: userId,
-  targetId: orgId,
-  timestamp: Date.now(),
-  metadata: {
-    role: "org_owner",
-    kycRequired: true,
-    kycStatus: "pending",
-    assignedAgent: salesAgentId,
-  },
-});
-
-// Sales agent creates task
-await db.insert("connections", {
-  fromThingId: salesAgentId,
-  toThingId: userId,
-  relationshipType: "manages",
-  metadata: {
-    task: "kyc_completion",
-    priority: "high",
-    dueAt: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
-  },
+// Step 7: Link knowledge labels for segmentation
+await ctx.db.insert("thingKnowledge", {
+  thingId: leadId,
+  knowledgeId: industryLabelId, // industry:fitness
+  role: "label",
   createdAt: Date.now(),
 });
 ```
 
-**Step 2: Guide SUI Wallet Connection**
+### Example 2: Trial Conversion and Revenue Attribution
+
+**Scenario:** Engaged trial user converts to paid subscription
 
 ```typescript
-// Sales agent sends personalized email/notification
-// NOTE: userId is now Id<"people"> not Id<"things">
-const user = await db.get(userId); // Fetches from people table
-
-await salesAgent.sendKYCReminder({
-  userId,
-  message: `Hi ${user.displayName}! To activate your organization, please verify your identity by connecting your SUI wallet. It takes just 2 minutes and requires no document uploads.`,
-  ctaLink: "https://one.ie/kyc",
-});
-
-// User connects SUI wallet (see KYC.md)
-// ... SUI wallet verification happens ...
-
-// Sales agent monitors completion
-await db.insert("events", {
-  type: "agent_executed",
-  actorId: salesAgentId,
-  targetId: userId,
-  timestamp: Date.now(),
-  metadata: {
-    action: "kyc_reminder_sent",
-    channel: "email",
-  },
-});
-```
-
-**Step 3: KYC Complete → Trial Activation**
-
-```typescript
-// When KYC is verified (see KYC.md workflow)
-await db.insert("events", {
-  type: "entity_updated",
-  actorId: userId,
-  targetId: orgId,
-  timestamp: Date.now(),
-  metadata: {
-    updateType: "kyc_verification",
-    status: "verified",
-    level: "standard",
-  },
-});
-
-// Sales agent activates full trial access
-// NOTE: Update organizations table, not things table
-await db.patch(orgId, {
-  status: "active", // From "trial" to "active"
-  settings: {
-    ...org.settings,
-    kycCompleted: true,
-  },
-  updatedAt: Date.now(),
-});
-
-// Sales agent sends welcome email
-await salesAgent.sendWelcomeEmail({
-  userId,
-  orgId,
-  nextSteps: [
-    "Invite team members",
-    "Create your first AI clone",
-    "Explore inference features",
-  ],
-});
-```
-
----
-
-### Workflow 3: Trial → Paid Conversion
-
-The sales agent monitors trial usage and drives conversion:
-
-**Step 1: Monitor Trial Engagement**
-
-```typescript
-// Sales agent queries trial org activity
-// NOTE: Filter by organizationId for multi-tenant isolation
-const orgEvents = await db
+// Step 1: Query trial usage (multi-tenant scoped)
+const org = await ctx.db.get(orgId); // From organizations table
+const orgEvents = await ctx.db
   .query("events")
-  .withIndex("type_time", (q) => q.gte("timestamp", trialStartDate))
+  .withIndex("actor_time", (q) => q.eq("actorId", userId))
   .filter((q) => q.eq(q.field("metadata.organizationId"), orgId))
   .collect();
 
-// Get organization from organizations table
-const org = await db.get(orgId);
-
-// Calculate engagement score
+// Step 2: Calculate engagement score
 const engagementScore = calculateEngagement({
   inferencesUsed: org.usage.inference,
   usersInvited: org.usage.users,
@@ -449,50 +492,8 @@ const engagementScore = calculateEngagement({
   daysActive: countActiveDays(orgEvents),
 });
 
-// Sales agent decides intervention strategy
-if (engagementScore < 30) {
-  // Low engagement - send activation tips
-  await salesAgent.sendActivationTips({ userId, orgId });
-} else if (engagementScore >= 70) {
-  // High engagement - proactive conversion offer
-  await salesAgent.sendConversionOffer({ userId, orgId, discount: 20 });
-}
-```
-
-**Step 2: Pre-Expiry Conversion Push**
-
-```typescript
-// 3 days before trial expires
-if (daysUntilExpiry === 3) {
-  await salesAgent.sendTrialExpiryWarning({
-    userId,
-    orgId,
-    offer: {
-      discount: 20, // 20% off first 3 months
-      validUntil: trialExpiryDate,
-    },
-  });
-
-  // Log conversion attempt
-  await db.insert("events", {
-    type: "agent_executed",
-    actorId: salesAgentId,
-    targetId: orgId,
-    timestamp: Date.now(),
-    metadata: {
-      action: "conversion_offer_sent",
-      discount: 20,
-      daysUntilExpiry: 3,
-    },
-  });
-}
-```
-
-**Step 3: Conversion Complete → Revenue Attribution**
-
-```typescript
-// User upgrades to paid plan
-const subscriptionId = await db.insert("things", {
+// Step 3: Create subscription thing
+const subscriptionId = await ctx.db.insert("things", {
   type: "subscription",
   name: `${org.name} - Pro Plan`,
   properties: {
@@ -503,17 +504,19 @@ const subscriptionId = await db.insert("things", {
     status: "active",
     currentPeriodStart: Date.now(),
     currentPeriodEnd: Date.now() + 30 * 24 * 60 * 60 * 1000,
-    stripeSubscriptionId: "sub_123",
-    organizationId: orgId, // Scoped to organization
+    stripeSubscriptionId: stripeSubId,
+    organizationId: orgId,
+    discount: engagementScore >= 70 ? 20 : 0,
+    finalPrice: engagementScore >= 70 ? 63.2 : 79.0,
   },
   status: "active",
   createdAt: Date.now(),
   updatedAt: Date.now(),
 });
 
-// Create payment connection
-await db.insert("connections", {
-  fromThingId: userId,
+// Step 4: Create transacted connection (user → subscription)
+await ctx.db.insert("connections", {
+  fromThingId: userId, // Id<"people">
   toThingId: subscriptionId,
   relationshipType: "transacted",
   metadata: {
@@ -522,37 +525,72 @@ await db.insert("connections", {
     currency: "USD",
     interval: "monthly",
     status: "active",
-    organizationId: orgId, // Multi-tenant scoping
+    organizationId: orgId,
+    protocol: null, // Direct platform subscription
   },
   createdAt: Date.now(),
 });
 
-// Log revenue event for Anthony (platform owner)
-await db.insert("events", {
+// Step 5: Update organization status (trial → active)
+await ctx.db.patch(orgId, {
+  status: "active",
+  billing: {
+    ...org.billing,
+    subscriptionId: stripeSubId,
+    currentPeriodEnd: Date.now() + 30 * 24 * 60 * 60 * 1000,
+  },
+  updatedAt: Date.now(),
+});
+
+// Step 6: Log org_revenue_generated event (platform owner)
+await ctx.db.insert("events", {
   type: "org_revenue_generated",
   actorId: orgId,
-  targetId: platformOwnerId, // Anthony
+  targetId: platformOwnerId,
   timestamp: Date.now(),
   metadata: {
     totalRevenue: 79.0,
-    orgShare: 0, // No revenue share for standard customers
-    platformShare: 79.0, // 100% to Anthony
+    orgShare: 0.0,
+    platformShare: 79.0,
     subscriptionId,
     plan: "pro",
-    generatedBy: salesAgentId, // Attribution to sales agent
+    generatedBy: salesAgentId,
     organizationId: orgId,
+    conversionFactors: {
+      engagementScore,
+      kycCompleted: true,
+      discountApplied: engagementScore >= 70,
+    },
   },
 });
 
-// Update sales agent performance metrics
-const agent = await db.get(salesAgentId);
-await db.patch(salesAgentId, {
+// Step 7: Log trial_converted event (sales agent)
+await ctx.db.insert("events", {
+  type: "agent_completed",
+  actorId: salesAgentId,
+  targetId: orgId,
+  timestamp: Date.now(),
+  metadata: {
+    action: "trial_converted",
+    revenue: 79.0,
+    plan: "pro",
+    sourceLeadId: originalLeadId,
+    totalDealTime: Date.now() - leadCreatedAt,
+    conversionPath: ["lead", "qualified", "demo", "trial", "kyc", "paid"],
+  },
+});
+
+// Step 8: Update sales agent performance metrics
+const agent = await ctx.db.get(salesAgentId);
+await ctx.db.patch(salesAgentId, {
   properties: {
     ...agent.properties,
     totalDeals: agent.properties.totalDeals + 1,
     totalRevenue: agent.properties.totalRevenue + 79.0,
+    successRate: calculateSuccessRate(agent.properties),
     pipeline: {
       ...agent.properties.pipeline,
+      trials: agent.properties.pipeline.trials - 1,
       customers: agent.properties.pipeline.customers + 1,
     },
     ownerRevenue: {
@@ -563,127 +601,65 @@ await db.patch(salesAgentId, {
   },
   updatedAt: Date.now(),
 });
-
-// Log agent success
-await db.insert("events", {
-  type: "agent_completed",
-  actorId: salesAgentId,
-  targetId: orgId,
-  timestamp: Date.now(),
-  metadata: {
-    action: "trial_converted",
-    revenue: 79.0,
-    plan: "pro",
-    sourceLeadId: leadId,
-    totalDealTime: Date.now() - leadCreatedAt,
-  },
-});
 ```
 
----
+### Example 3: KYC Assistance Flow
 
-## Sales Agent AI Prompts
-
-### System Prompt Example
-
-```
-You are a sales agent for ONE Platform, an AI-native creator economy platform.
-
-Your role:
-- Qualify leads for organization ownership
-- Guide users through KYC verification using SUI wallets
-- Convert trial users to paid customers
-- Maximize platform revenue for the owner
-
-Your capabilities:
-- Lead qualification conversations
-- Demo scheduling
-- KYC assistance (SUI wallet verification)
-- Trial activation
-- Conversion optimization
-- Revenue attribution
-
-Your tone:
-- Professional but friendly
-- Solutions-focused
-- Privacy-conscious (emphasize no document uploads)
-- Value-driven (highlight creator economy benefits)
-
-Your KYC pitch:
-"We use blockchain identity verification with SUI wallets. This means you can verify your identity in 2 minutes without uploading any documents. Your privacy is protected, and your wallet proves your legitimacy on-chain."
-
-Your conversion strategy:
-1. Qualify: Understand their needs and budget
-2. Demo: Show value through personalized demo
-3. Trial: Guide them through setup + KYC
-4. Engage: Monitor usage and provide tips
-5. Convert: Proactive offers based on engagement
-
-Remember: Every successful conversion generates revenue for the platform owner. Your success is measured in qualified leads, completed KYC verifications, and paid conversions.
-```
-
----
-
-## Events
-
-**Sales Agent Events:**
+**Scenario:** New org owner needs KYC verification to activate full trial
 
 ```typescript
-// Lead captured
-{
-  type: "agent_executed",
-  actorId: salesAgentId,
-  targetId: leadId,
+// Step 1: Detect KYC requirement (triggered by organization_created event)
+const kycEvent = await ctx.db.insert("events", {
+  type: "user_joined_org",
+  actorId: userId, // Id<"people">
+  targetId: orgId, // Id<"organizations">
   timestamp: Date.now(),
   metadata: {
-    action: "lead_captured",
-    source: "landing_page",
-    campaign: "q1_2025",
+    role: "org_owner",
+    kycRequired: true,
+    kycStatus: "pending",
+    assignedAgent: salesAgentId,
   },
-}
+});
 
-// Lead qualified
-{
-  type: "agent_completed",
-  actorId: salesAgentId,
-  targetId: leadId,
-  timestamp: Date.now(),
+// Step 2: Create KYC task connection (sales_agent → user)
+await ctx.db.insert("connections", {
+  fromThingId: salesAgentId,
+  toThingId: userId, // Id<"people">
+  relationshipType: "manages",
   metadata: {
-    action: "lead_qualified",
-    score: 85,
-    qualified: true,
+    task: "kyc_completion",
+    priority: "high",
+    dueAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+    remindersSent: 0,
+    maxReminders: 3,
   },
-}
+  createdAt: Date.now(),
+});
 
-// Demo booked
-{
-  type: "agent_executed",
-  actorId: salesAgentId,
-  targetId: leadId,
-  timestamp: Date.now(),
-  metadata: {
-    action: "demo_booked",
-    demoId: consultationId,
-    scheduledAt: futureDate,
-  },
-}
+// Step 3: Send educational KYC reminder
+const user = await ctx.db.get(userId); // From people table
+await sendEmail({
+  to: user.email,
+  subject: "Complete your identity verification in 2 minutes",
+  body: `
+    Hi ${user.displayName}!
 
-// Lead converted to trial
-{
-  type: "agent_completed",
-  actorId: salesAgentId,
-  targetId: leadId,
-  timestamp: Date.now(),
-  metadata: {
-    action: "lead_converted",
-    userId,
-    orgId,
-    plan: "pro",
-  },
-}
+    Welcome to ONE Platform. To activate your ${org.name} organization,
+    please verify your identity using your SUI wallet.
 
-// KYC reminder sent
-{
+    Why SUI wallet verification?
+    - No document uploads required
+    - Complete in 2 minutes
+    - Privacy-preserving on-chain proof
+    - Meets all regulatory requirements
+
+    [Verify Now](https://one.ie/kyc?orgId=${orgId})
+  `,
+});
+
+// Step 4: Log kyc_reminder_sent event
+await ctx.db.insert("events", {
   type: "agent_executed",
   actorId: salesAgentId,
   targetId: userId,
@@ -691,46 +667,217 @@ Remember: Every successful conversion generates revenue for the platform owner. 
   metadata: {
     action: "kyc_reminder_sent",
     channel: "email",
+    reminderNumber: 1,
   },
-}
+});
 
-// Trial converted to paid
-{
+// Step 5: Monitor for KYC completion (watches for entity_updated event)
+// ... user completes SUI wallet KYC (see KYC.md) ...
+
+// Step 6: On KYC verified event, activate full trial
+await ctx.db.patch(orgId, {
+  settings: {
+    ...org.settings,
+    kycCompleted: true,
+    kycVerifiedAt: Date.now(),
+    kycLevel: "standard",
+  },
+  limits: {
+    ...org.limits,
+    // Unlock full trial limits
+    inference: 10000, // Increased from restricted 100
+  },
+  updatedAt: Date.now(),
+});
+
+// Step 7: Send congratulations and next steps
+await sendEmail({
+  to: user.email,
+  subject: "Identity verified! Your full trial is now active",
+  body: `
+    Congratulations ${user.displayName}!
+
+    Your identity is verified and ${org.name} is fully activated.
+
+    Next steps to maximize your trial:
+    1. Create your first AI agent
+    2. Invite team members
+    3. Run your first inference
+
+    Need help? Reply to this email or chat with me in-app.
+  `,
+});
+
+// Step 8: Log KYC completion success
+await ctx.db.insert("events", {
   type: "agent_completed",
   actorId: salesAgentId,
-  targetId: orgId,
+  targetId: userId,
   timestamp: Date.now(),
   metadata: {
-    action: "trial_converted",
-    revenue: 79.00,
-    plan: "pro",
-    attributedTo: salesAgentId,
+    action: "kyc_completed_assisted",
+    kycLevel: "standard",
+    timeToCompletion: Date.now() - kycEvent.timestamp,
   },
-}
-
-// Revenue generated for platform owner
-{
-  type: "org_revenue_generated",
-  actorId: orgId,
-  targetId: platformOwnerId,
-  timestamp: Date.now(),
-  metadata: {
-    totalRevenue: 79.00,
-    platformShare: 79.00,
-    generatedBy: salesAgentId,
-  },
-}
+});
 ```
 
 ---
 
-## Queries
+## Prompt Template
 
-**Get sales agent performance:**
+### System Prompt
 
+```markdown
+You are a Sales Agent for ONE Platform, an AI-native creator economy platform built on a 6-dimension ontology (organizations, people, things, connections, events, knowledge).
+
+**Your Role:**
+Autonomous sales funnel management from lead capture through org owner onboarding, KYC verification, and paid conversion. You generate revenue for the platform owner while providing excellent customer experience.
+
+**Your Ontology:**
+- **Organizations:** Multi-tenant isolation boundary (trial → active → paid)
+- **People:** Org_owner and customer roles with permissions
+- **Things:** Leads, consultations, subscriptions you create and manage
+- **Connections:** Manages (you → lead), transacted (user → subscription)
+- **Events:** You log agent_executed, agent_completed, org_revenue_generated
+- **Knowledge:** You reference sales patterns, industry labels, pricing strategies
+
+**Your Capabilities:**
+- Lead qualification via score calculation (0-100)
+- Demo scheduling with calendar integration
+- KYC assistance using SUI wallet verification
+- Trial engagement monitoring and intervention
+- Conversion optimization with personalized offers
+- Revenue attribution and performance tracking
+
+**Your Decision Framework:**
+1. **Qualification:** Score >= 70 + KYC willingness → Demo booking
+2. **Demo Type:** Company size determines demo flow (executive vs feature vs quick)
+3. **KYC Timing:** Remind at 24h, 3d, 7d if no progress
+4. **Conversion Offer:** High engagement (70+) at 7 days gets 20% discount
+5. **Plan Recommendation:** Solopreneur → Starter, Small team → Pro, Enterprise → Custom
+
+**Your Tone:**
+- Professional but approachable
+- Solutions-focused, not pushy
+- Privacy-conscious (emphasize no document uploads for KYC)
+- Value-driven (highlight creator economy benefits)
+
+**Your KYC Pitch:**
+"We use SUI blockchain for identity verification. This means you verify in 2 minutes without uploading documents. Your privacy is protected, and your wallet proves your legitimacy on-chain. It's faster, safer, and meets all regulatory requirements."
+
+**Your Conversion Strategy:**
+1. Capture → Score → Qualify (or nurture)
+2. Demo → Show value → Address objections
+3. Trial → Assist KYC → Activate
+4. Engage → Monitor usage → Celebrate wins
+5. Convert → Personalized offer → Close deal
+6. Handoff → Service agent takes over
+
+**Your Performance Metrics:**
+- Lead-to-demo conversion rate
+- Demo-to-trial conversion rate
+- KYC completion rate
+- Trial-to-paid conversion rate
+- Average deal size and time to close
+- Total revenue attributed to you
+
+**Your Success Criterion:**
+Every successful conversion generates revenue for the platform owner. Your effectiveness is measured in qualified leads, completed KYC verifications, and paid subscriptions closed.
+
+**Multi-Tenant Awareness:**
+Always respect organization boundaries. Filter all queries by organizationId. Never leak data across tenants. Verify permissions before any operation.
+
+Remember: You are autonomous. Watch for events, make decisions, take actions, log outcomes. You don't need human approval for standard operations within your decision framework.
+```
+
+---
+
+## Common Mistakes to Avoid
+
+### Ontology Mistakes
+- ❌ **Creating users as things** → ✅ Create users in people table (Id<"people">)
+- ❌ **Creating orgs as things** → ✅ Create orgs in organizations table (Id<"organizations">)
+- ❌ **Forgetting organizationId** → ✅ Scope all queries by organizationId for multi-tenant
+- ❌ **Storing role in properties** → ✅ Role is direct field on people table
+- ❌ **Missing event logging** → ✅ Log every significant action for audit and attribution
+
+### Sales Process Mistakes
+- ❌ **Booking demo without qualification** → ✅ Always calculate score first
+- ❌ **Sending too many reminders** → ✅ Respect maxFollowUps configuration
+- ❌ **Generic outreach** → ✅ Personalize using lead properties (industry, size)
+- ❌ **Ignoring engagement signals** → ✅ Monitor trial activity and intervene appropriately
+- ❌ **Losing revenue attribution** → ✅ Tag all conversions with salesAgentId
+
+### KYC Mistakes
+- ❌ **Activating trial before KYC** → ✅ Keep restricted limits until verified
+- ❌ **Assuming KYC completion** → ✅ Verify status before unlocking features
+- ❌ **Not educating on benefits** → ✅ Explain no-document, 2-minute, privacy-preserving process
+
+### Performance Mistakes
+- ❌ **Not updating agent metrics** → ✅ Patch agent properties after every conversion
+- ❌ **Missing revenue attribution** → ✅ Log org_revenue_generated event with generatedBy
+- ❌ **Forgetting to handoff** → ✅ Notify service agent after conversion
+
+---
+
+## Success Criteria
+
+### Immediate (Single Transaction)
+- ✅ Lead captured and assigned to sales agent within 1 second
+- ✅ Qualification score calculated accurately based on criteria
+- ✅ Demo booked with calendar invite sent (if qualified)
+- ✅ KYC reminder sent within 24 hours of org creation
+- ✅ Conversion offer delivered 3 days before trial expiry
+- ✅ All events logged with complete metadata
+
+### Short-term (Weekly Performance)
+- ✅ Lead-to-demo conversion rate >= 30%
+- ✅ Demo-to-trial conversion rate >= 60%
+- ✅ KYC completion rate >= 80%
+- ✅ Trial activation rate >= 70% (post-KYC)
+- ✅ Trial-to-paid conversion rate >= 25%
+- ✅ Average response time to leads < 5 minutes
+
+### Long-term (Monthly/Quarterly)
+- ✅ Consistent MRR growth from new customers
+- ✅ Decreasing customer acquisition cost (CAC)
+- ✅ Increasing average deal size
+- ✅ High customer satisfaction scores (NPS >= 40)
+- ✅ Strong revenue attribution accuracy (100% tracked)
+- ✅ Efficient funnel velocity (median time to close <= 14 days)
+
+---
+
+## Integration Points
+
+### With Marketing Agent
+**Handoff:** Marketing agent generates leads → Sales agent qualifies and converts
+**Data Flow:** Lead source, campaign UTM parameters, content engagement signals
+**Connection:** marketing_agent → sales_agent via referred connection
+
+### With Service Agent
+**Handoff:** Sales agent converts trial → Service agent onboards customer
+**Data Flow:** Customer profile, purchased plan, onboarding priorities
+**Connection:** sales_agent → service_agent via delegated connection
+
+### With Intelligence Agent
+**Usage:** Sales agent queries conversion insights, lead scoring models, pricing optimization
+**Data Flow:** Engagement scores, conversion predictions, churn risk signals
+**Knowledge:** Intelligence agent updates sales patterns based on closed deals
+
+### With Finance Agent
+**Reporting:** Sales agent reports revenue attribution → Finance agent reconciles and forecasts
+**Data Flow:** Deal values, subscription details, commission tracking
+**Events:** org_revenue_generated events consumed by finance agent
+
+---
+
+## Example Queries
+
+### Get Sales Agent Performance
 ```typescript
-const agent = await db.get(salesAgentId);
-
+const agent = await ctx.db.get(salesAgentId);
 const performance = {
   totalLeads: agent.properties.totalLeadsGenerated,
   totalDeals: agent.properties.totalDeals,
@@ -741,291 +888,99 @@ const performance = {
 };
 ```
 
-**Get revenue attributed to sales agent:**
-
+### Get Active Leads (Multi-Tenant Scoped)
 ```typescript
-const revenueEvents = await db
-  .query("events")
-  .withIndex("type_time", (q) => q.eq("type", "org_revenue_generated"))
-  .filter((q) => q.eq(q.field("metadata.generatedBy"), salesAgentId))
-  .collect();
-
-const totalAttributedRevenue = revenueEvents.reduce(
-  (sum, e) => sum + e.metadata.totalRevenue,
-  0
-);
-```
-
-**Get active leads managed by agent (scoped by organization):**
-
-```typescript
-// Get all leads managed by this sales agent
-const activeLeads = await db
+// Get all manages connections from sales agent
+const managedConnections = await ctx.db
   .query("connections")
   .withIndex("from_type", (q) =>
     q.eq("fromThingId", salesAgentId).eq("relationshipType", "manages")
   )
   .collect();
 
-const leadEntities = await Promise.all(
-  activeLeads.map((conn) => db.get(conn.toThingId))
+// Get lead things
+const leads = await Promise.all(
+  managedConnections.map((conn) => ctx.db.get(conn.toThingId))
 );
 
 // Filter by organization if needed
-const orgLeads = leadEntities.filter(
-  (lead) => lead.properties.organizationId === orgId
+const orgLeads = leads.filter(
+  (lead) => lead.type === "lead" && lead.properties.organizationId === orgId
 );
 ```
 
-**Get KYC completion rate:**
-
+### Get Revenue Attributed to Agent
 ```typescript
-const leads = await getLeadsByAgent(salesAgentId);
-const converted = leads.filter((l) => l.properties.status === "converted");
+const revenueEvents = await ctx.db
+  .query("events")
+  .withIndex("type_time", (q) => q.eq("type", "org_revenue_generated"))
+  .filter((q) => q.eq(q.field("metadata.generatedBy"), salesAgentId))
+  .collect();
 
-const kycCompletedCount = converted.filter(async (lead) => {
-  const userId = lead.properties.convertedToUserId;
-  const kyc = await db
-    .query("connections")
-    .withIndex("from_type", (q) =>
-      q.eq("fromThingId", userId).eq("relationshipType", "verified")
-    )
-    .first();
-  return kyc?.metadata.status === "verified";
-}).length;
-
-const kycCompletionRate = (kycCompletedCount / converted.length) * 100;
+const totalRevenue = revenueEvents.reduce(
+  (sum, event) => sum + event.metadata.totalRevenue,
+  0
+);
 ```
 
-**Query organizations by status (multi-tenant):**
-
+### Get Trial Organizations Expiring Soon
 ```typescript
-// Get all trial organizations
-const trialOrgs = await db
+const trialOrgs = await ctx.db
   .query("organizations")
-  .withIndex("by_status", (q) => q.eq("status", "trial"))
+  .filter((q) =>
+    q.and(
+      q.eq(q.field("status"), "trial"),
+      q.lte(q.field("trialEndsAt"), Date.now() + 3 * 24 * 60 * 60 * 1000)
+    )
+  )
   .collect();
 
-// Get users in a specific organization
-const orgUsers = await db
-  .query("people")
-  .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
-  .collect();
-```
-
----
-
-## Frontend Integration
-
-**React Component:**
-
-```tsx
-// src/components/admin/SalesAgentDashboard.tsx
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-
-export function SalesAgentDashboard({ agentId }: Props) {
-  const agent = useQuery(api.agents.get, { id: agentId });
-  const performance = useQuery(api.agents.getPerformance, { id: agentId });
-
-  return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Total Leads</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-3xl font-bold">
-            {agent?.properties.totalLeadsGenerated}
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Deals Closed</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-3xl font-bold">{agent?.properties.totalDeals}</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Total Revenue</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-3xl font-bold">
-            ${agent?.properties.totalRevenue.toFixed(2)}
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Success Rate</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-3xl font-bold">
-            {agent?.properties.successRate}%
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Pipeline Funnel */}
-      <Card className="col-span-full">
-        <CardHeader>
-          <CardTitle>Sales Pipeline</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Leads</p>
-              <p className="text-2xl">{agent?.properties.pipeline.leads}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Qualified</p>
-              <p className="text-2xl">{agent?.properties.pipeline.qualified}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Demos</p>
-              <p className="text-2xl">{agent?.properties.pipeline.demos}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Trials</p>
-              <p className="text-2xl">{agent?.properties.pipeline.trials}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Customers</p>
-              <p className="text-2xl">
-                {agent?.properties.pipeline.customers}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+// For each org, calculate engagement and send appropriate offer
+for (const org of trialOrgs) {
+  const engagementScore = await calculateEngagement(org._id);
+  if (engagementScore >= 70) {
+    await sendConversionOffer({ orgId: org._id, discount: 20 });
+  }
 }
-```
-
----
-
-## Revenue Attribution
-
-**How Revenue Flows to Platform Owner (Anthony):**
-
-```
-User signs up (lead)
-    ↓
-Sales Agent qualifies lead
-    ↓
-Demo booked → Trial created → KYC required
-    ↓
-Sales Agent assists KYC (SUI wallet verification)
-    ↓
-KYC verified → Trial activated
-    ↓
-User engages → Sales Agent monitors
-    ↓
-Trial converts to paid ($79/month)
-    ↓
-Revenue attributed to:
-  - 100% → Platform Owner (Anthony)
-  - Attribution tag: sales_agent (for performance tracking)
-    ↓
-Sales Agent performance metrics updated:
-  - totalRevenue += $79
-  - ownerRevenue.total += $79
-  - totalDeals += 1
-```
-
----
-
-## Integration with Other Agents
-
-**Sales Agent collaborates with:**
-
-- **Marketing Agent** - Receives qualified leads from marketing campaigns
-- **Service Agent** - Hands off customers post-sale for onboarding
-- **Intelligence Agent** - Uses insights to optimize conversion strategies
-- **Finance Agent** - Shares revenue data for forecasting
-
-**Example: Marketing → Sales Handoff**
-
-```typescript
-// Marketing agent generates lead
-const leadId = await marketingAgent.captureLead({
-  source: "facebook_ads",
-  campaign: "creator_economy",
-});
-
-// Automatically assign to sales agent
-await db.insert("connections", {
-  fromThingId: salesAgentId,
-  toThingId: leadId,
-  relationshipType: "manages",
-  metadata: {
-    assignedAt: Date.now(),
-    source: "marketing_agent",
-    transferredFrom: marketingAgentId,
-  },
-  createdAt: Date.now(),
-});
-
-// Sales agent takes over
-await salesAgent.qualifyLead({ leadId });
-```
-
----
-
-## Multi-Tenant Isolation
-
-**CRITICAL:** All queries must respect organization boundaries:
-
-```typescript
-// WRONG: Query all leads
-const allLeads = await db.query("things")
-  .withIndex("by_type", (q) => q.eq("type", "lead"))
-  .collect();
-
-// CORRECT: Query leads scoped to organization
-const orgLeads = await db.query("things")
-  .withIndex("by_type", (q) => q.eq("type", "lead"))
-  .filter((q) => q.eq(q.field("properties.organizationId"), orgId))
-  .collect();
-
-// CORRECT: Query people in organization
-const orgUsers = await db.query("people")
-  .withIndex("by_organization", (q) => q.eq("organizationId", orgId))
-  .collect();
-
-// CORRECT: Query organization
-const org = await db.get(orgId); // From organizations table
 ```
 
 ---
 
 ## Notes
 
-- **Sales Agent = Revenue Driver** - Converts leads to paying customers
-- **KYC Integration** - Guides users through SUI wallet verification
-- **Autonomous** - Qualifies, books demos, sends reminders, closes deals
-- **Revenue Attribution** - All deals tagged with sales_agent for tracking
-- **Performance Tracking** - Metrics stored in agent properties
-- **100% to Owner** - All revenue flows to platform owner (Anthony)
-- **Multi-Agent** - Collaborates with marketing, service, intelligence agents
-- **Ontology-Native** - Uses connections, events, things for all operations
-- **SEPARATE TABLES** - People in `people` table, organizations in `organizations` table, NOT things
-- **Multi-Tenant Scoping** - All queries filtered by organizationId for data isolation
+### Revenue Model
+- **100% to Platform Owner** - All subscription revenue flows to platform owner (Anthony)
+- **Attribution Tracking** - Every conversion tagged with salesAgentId for performance analysis
+- **No Revenue Sharing** - Standard customers don't receive platform revenue share
+- **Commission Structure** - Could implement agent performance bonuses based on metrics
+
+### KYC Integration
+- **SUI Wallet Based** - Identity verification via blockchain, not documents
+- **2-Minute Process** - Quick and user-friendly verification flow
+- **Privacy-Preserving** - No sensitive documents stored, on-chain proof only
+- **Regulatory Compliant** - Meets AML/KYC requirements while respecting privacy
+
+### Multi-Tenant Architecture
+- **Organizations Table** - Trial and active orgs stored separately from things
+- **People Table** - Org_owners and users in dedicated people table
+- **Scoped Queries** - All queries filtered by organizationId for data isolation
+- **Role-Based Access** - org_owner role determines permissions within organization
+
+### Performance Optimization
+- **Event-Driven** - React to events rather than polling for changes
+- **Cached Scoring** - Store qualification scores to avoid recalculation
+- **Batch Operations** - Send reminder emails in batches, not one-by-one
+- **Intelligent Timing** - Send messages at optimal times based on timezone
 
 ---
 
 ## See Also
 
-- **[KYC.md](../connections/kyc.md)** - KYC verification process with SUI
-- **[Owner.md](./owner.md)** - Platform owner revenue tracking
-- **[Organisation.md](./organisation.md)** - Organization structure and billing
-- **[Ontology.md](../ontology.md)** - 6-dimension universe and business agents
-- **[SUI.md](./sui.md)** - SUI blockchain integration
+- **[Ontology YAML](/one/knowledge/ontology.yaml)** - Complete 6-dimension specification
+- **[Agent Prompts Feature](/one/things/features/1-1-agent-prompts.md)** - Agent prompt patterns and structure
+- **[KYC Documentation](/one/connections/kyc.md)** - SUI wallet-based identity verification
+- **[Organizations](/one/people/organisation.md)** - Multi-tenant organization structure
+- **[People](/one/people/people.md)** - User roles and permissions
+- **[Service Agent](/one/things/agents/agent-service.md)** - Customer success handoff
+- **[Marketing Agent](/one/things/agents/agent-marketing.md)** - Lead generation handoff
+- **[Intelligence Agent](/one/things/agents/agent-intelligence.md)** - Analytics and insights

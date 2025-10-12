@@ -24,6 +24,7 @@ This example demonstrates building a complete CRM SaaS platform using the 6-dime
 Organizations are the fundamental partitioning unit for multi-tenant SaaS. Every resource (thing, connection, event, knowledge) belongs to exactly one organization, providing perfect data isolation.
 
 **Enterprise Value:**
+
 - Each customer company is an organization
 - Zero cross-tenant data leaks (enforced at database level)
 - Independent billing, quotas, and rate limits
@@ -34,19 +35,19 @@ Organizations are the fundamental partitioning unit for multi-tenant SaaS. Every
 
 ```typescript
 interface Organization {
-  _id: Id<'organizations'>;
-  name: string;                    // "Acme Corporation"
-  slug: string;                    // "acme-corp" (URL-friendly)
-  domain?: string;                 // "crm.acme.com" (custom domain)
-  status: 'active' | 'suspended' | 'trial' | 'cancelled';
-  plan: 'starter' | 'pro' | 'enterprise';
+  _id: Id<"organizations">;
+  name: string; // "Acme Corporation"
+  slug: string; // "acme-corp" (URL-friendly)
+  domain?: string; // "crm.acme.com" (custom domain)
+  status: "active" | "suspended" | "trial" | "cancelled";
+  plan: "starter" | "pro" | "enterprise";
 
   // Resource Limits
   limits: {
-    users: number;                 // Max users in organization
-    storage: number;               // GB
-    apiCalls: number;              // Per month
-    inference: number;             // LLM calls per month
+    users: number; // Max users in organization
+    storage: number; // GB
+    apiCalls: number; // Per month
+    inference: number; // LLM calls per month
   };
 
   // Current Usage
@@ -59,8 +60,8 @@ interface Organization {
 
   // Billing Integration
   billing: {
-    customerId?: string;           // Stripe customer ID
-    subscriptionId?: string;       // Stripe subscription ID
+    customerId?: string; // Stripe customer ID
+    subscriptionId?: string; // Stripe subscription ID
     billingEmail?: string;
   };
 
@@ -89,18 +90,21 @@ People define who can do what within the system. In the 6-dimension architecture
 **Four Enterprise Roles:**
 
 1. **Platform Owner**
+
    - Owns the entire SaaS platform infrastructure
    - Can access all organizations (for support and debugging)
    - Manages platform-level services and billing
    - Revenue: 100% of platform fees + revenue share from organizations
 
 2. **Org Owner**
+
    - Owns and manages one or more customer organizations
    - Full control over users, permissions, and billing within their org
    - Can customize AI agents, branding, and features
    - Revenue: Percentage share of org subscription fees
 
 3. **Org User**
+
    - Works within a specific organization
    - Limited permissions defined by org owner
    - Can create content, manage leads, run AI agents (within quotas)
@@ -116,10 +120,10 @@ People define who can do what within the system. In the 6-dimension architecture
 
 ```typescript
 interface PersonThing {
-  _id: Id<'things'>;
-  thingType: 'creator';
-  name: string;                    // "Jane CEO"
-  organizationId: Id<'organizations'>;
+  _id: Id<"things">;
+  thingType: "creator";
+  name: string; // "Jane CEO"
+  organizationId: Id<"organizations">;
 
   properties: {
     email: string;
@@ -127,11 +131,11 @@ interface PersonThing {
     displayName: string;
 
     // CRITICAL: Role determines access level
-    role: 'platform_owner' | 'org_owner' | 'org_user' | 'customer';
+    role: "platform_owner" | "org_owner" | "org_user" | "customer";
 
     // Organization memberships (can belong to multiple orgs)
-    organizations: Id<'organizations'>[];
-    permissions?: string[];        // Custom permissions array
+    organizations: Id<"organizations">[];
+    permissions?: string[]; // Custom permissions array
 
     // Profile information
     bio?: string;
@@ -143,7 +147,7 @@ interface PersonThing {
     lastLoginAt?: number;
   };
 
-  status: 'active' | 'inactive' | 'suspended';
+  status: "active" | "inactive" | "suspended";
   createdAt: number;
   updatedAt: number;
 }
@@ -154,6 +158,7 @@ interface PersonThing {
 Things represent all entities in your CRM: leads, accounts, opportunities, AI agents, products, etc. The 66 pre-defined thing types cover most use cases, with extensibility via metadata.
 
 **Relevant Thing Types for CRM:**
+
 - `creator` - People (employees, customers)
 - `sales_agent` - AI-powered sales assistants
 - `support_agent` - AI-powered support agents
@@ -170,6 +175,7 @@ Things represent all entities in your CRM: leads, accounts, opportunities, AI ag
 Connections define how entities relate to each other. In a CRM, this includes ownership, communication, task assignment, and deal stages.
 
 **Relevant Connection Types for CRM:**
+
 - `owns` - Person owns account/opportunity
 - `member_of` - Person is member of organization
 - `assigned_to` - Task assigned to person
@@ -182,6 +188,7 @@ Connections define how entities relate to each other. In a CRM, this includes ow
 Events record every action in the system, providing compliance, analytics, and debugging capabilities.
 
 **Key Event Types for CRM:**
+
 - `user_created` - New user registered
 - `org_created` - New organization created
 - `communication_event` - Email/call/meeting logged
@@ -195,6 +202,7 @@ Events record every action in the system, providing compliance, analytics, and d
 Knowledge stores vectors, embeddings, and semantic search capabilities, enabling AI agents to provide context-aware assistance.
 
 **Knowledge Types:**
+
 - `label` - Tags and categories
 - `vector` - Embeddings for semantic search
 - `chunk` - Text chunks for RAG (Retrieval Augmented Generation)
@@ -218,14 +226,21 @@ export const createOrganization = mutation({
   args: {
     name: v.string(),
     ownerEmail: v.string(),
-    plan: v.optional(v.union(v.literal("starter"), v.literal("pro"), v.literal("enterprise"))),
+    plan: v.optional(
+      v.union(v.literal("starter"), v.literal("pro"), v.literal("enterprise"))
+    ),
   },
   handler: async (ctx, args) => {
     // Define plan limits
     const planLimits = {
       starter: { users: 5, storage: 10, apiCalls: 10000, inference: 5000 },
       pro: { users: 25, storage: 100, apiCalls: 100000, inference: 50000 },
-      enterprise: { users: 1000, storage: 1000, apiCalls: 1000000, inference: 500000 },
+      enterprise: {
+        users: 1000,
+        storage: 1000,
+        apiCalls: 1000000,
+        inference: 500000,
+      },
     };
 
     const plan = args.plan || "starter";
@@ -247,7 +262,7 @@ export const createOrganization = mutation({
       },
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      trialEndsAt: Date.now() + (14 * 24 * 60 * 60 * 1000), // 14-day trial
+      trialEndsAt: Date.now() + 14 * 24 * 60 * 60 * 1000, // 14-day trial
     });
 
     // Create org owner (person)
@@ -436,8 +451,12 @@ export const createLead = mutation({
     });
 
     // Generate knowledge chunks for RAG
-    const leadContext = `Lead: ${args.name} from ${args.company || "unknown company"}.
-Email: ${args.email}. Budget: $${args.budget || "unknown"}. Source: ${args.source || "manual"}.`;
+    const leadContext = `Lead: ${args.name} from ${
+      args.company || "unknown company"
+    }.
+Email: ${args.email}. Budget: $${args.budget || "unknown"}. Source: ${
+      args.source || "manual"
+    }.`;
 
     await generateKnowledge(ctx, {
       orgId: args.orgId,
@@ -658,9 +677,7 @@ export const getLeads = query({
       );
     }
 
-    const leads = await leadsQuery
-      .order("desc")
-      .take(args.limit || 50);
+    const leads = await leadsQuery.order("desc").take(args.limit || 50);
 
     // Get assigned users for each lead
     const leadsWithOwners = await Promise.all(
@@ -677,11 +694,13 @@ export const getLeads = query({
 
         return {
           ...lead,
-          owner: owner ? {
-            id: owner._id,
-            name: owner.name,
-            email: owner.properties.email,
-          } : null,
+          owner: owner
+            ? {
+                id: owner._id,
+                name: owner.name,
+                email: owner.properties.email,
+              }
+            : null,
         };
       })
     );
@@ -729,9 +748,8 @@ export const getOrganizationStats = query({
       (lead) => lead.properties.status === "won"
     ).length;
 
-    const conversionRate = leads.length > 0
-      ? (convertedLeads / leads.length) * 100
-      : 0;
+    const conversionRate =
+      leads.length > 0 ? (convertedLeads / leads.length) * 100 : 0;
 
     return {
       organization: {
@@ -772,8 +790,9 @@ export const getLeads = query({
     const leads = await ctx.db
       .query("things")
       .withIndex("by_org_type", (q) =>
-        q.eq("organizationId", args.orgId)  // Enforces isolation
-         .eq("thingType", "creator")
+        q
+          .eq("organizationId", args.orgId) // Enforces isolation
+          .eq("thingType", "creator")
       )
       .collect();
 
@@ -787,6 +806,7 @@ export const getLeads = query({
 ```
 
 **Benefits:**
+
 - Zero chance of cross-organization data leaks
 - Compliance with data privacy regulations (GDPR, CCPA)
 - Customer trust and confidence
@@ -812,7 +832,9 @@ export const checkQuota = async (
   const limit = org.limits[resourceType];
 
   if (current >= limit) {
-    throw new Error(`${resourceType} quota exceeded. Current: ${current}, Limit: ${limit}`);
+    throw new Error(
+      `${resourceType} quota exceeded. Current: ${current}, Limit: ${limit}`
+    );
   }
 
   return {
@@ -849,6 +871,7 @@ export const incrementUsage = async (
 ```
 
 **Benefits:**
+
 - Per-organization billing and invoicing
 - Prevent resource abuse and overages
 - Upgrade/downgrade plans without affecting others
@@ -880,8 +903,10 @@ export const updateBranding = mutation({
         ...org.settings,
         customBranding: {
           logo: args.logo || org.settings.customBranding?.logo,
-          primaryColor: args.primaryColor || org.settings.customBranding?.primaryColor,
-          accentColor: args.accentColor || org.settings.customBranding?.accentColor,
+          primaryColor:
+            args.primaryColor || org.settings.customBranding?.primaryColor,
+          accentColor:
+            args.accentColor || org.settings.customBranding?.accentColor,
         },
       },
       updatedAt: Date.now(),
@@ -924,6 +949,7 @@ export const customizeAIAgent = mutation({
 ```
 
 **Benefits:**
+
 - Each customer can brand their CRM instance
 - Custom AI agent personalities per organization
 - Feature flags and custom workflows
@@ -1012,6 +1038,7 @@ export const calculateRevenue = query({
 ```
 
 **Benefits:**
+
 - Clear revenue attribution per organization
 - Track costs (inference, storage, API calls)
 - Revenue sharing between platform and org owners
@@ -1037,11 +1064,14 @@ export const deleteOrganizationData = mutation({
     const user = await ctx.db.get(userId);
 
     const isPlatformOwner = user?.properties.role === "platform_owner";
-    const isOrgOwner = user?.properties.role === "org_owner"
-      && user?.organizationId === args.orgId;
+    const isOrgOwner =
+      user?.properties.role === "org_owner" &&
+      user?.organizationId === args.orgId;
 
     if (!isPlatformOwner && !isOrgOwner) {
-      throw new Error("Unauthorized: Only platform or org owner can delete org data");
+      throw new Error(
+        "Unauthorized: Only platform or org owner can delete org data"
+      );
     }
 
     // Verify confirmation code
@@ -1106,7 +1136,10 @@ export const deleteOrganizationData = mutation({
     await ctx.db.delete(args.orgId);
 
     // Log deletion (to a separate audit table not shown here)
-    console.log(`Organization ${args.orgId} deleted by ${userId}`, deletionCounts);
+    console.log(
+      `Organization ${args.orgId} deleted by ${userId}`,
+      deletionCounts
+    );
 
     return {
       success: true,
@@ -1176,17 +1209,21 @@ export const getAuditLog = query({
 
         return {
           ...event,
-          actor: actor ? {
-            id: actor._id,
-            name: actor.name,
-            email: actor.properties.email,
-            role: actor.properties.role,
-          } : null,
-          thing: thing ? {
-            id: thing._id,
-            name: thing.name,
-            type: thing.thingType,
-          } : null,
+          actor: actor
+            ? {
+                id: actor._id,
+                name: actor.name,
+                email: actor.properties.email,
+                role: actor.properties.role,
+              }
+            : null,
+          thing: thing
+            ? {
+                id: thing._id,
+                name: thing.name,
+                type: thing.thingType,
+              }
+            : null,
         };
       })
     );
@@ -1223,8 +1260,7 @@ export async function requireOrgAccess(
   const membership = await ctx.db
     .query("connections")
     .withIndex("from_type", (q) =>
-      q.eq("fromThingId", userId)
-       .eq("relationshipType", "member_of")
+      q.eq("fromThingId", userId).eq("relationshipType", "member_of")
     )
     .filter((q) => q.eq(q.field("metadata").organizationId, orgId))
     .first();
@@ -1383,8 +1419,8 @@ The 6-dimension ontology provides a complete, production-ready foundation for bu
 
 **Next Steps:**
 
-1. Review the [6-Dimension Ontology specification](/Users/toc/Server/ONE/one/connections/ontology.md)
-2. Explore the [Architecture documentation](/Users/toc/Server/ONE/one/things/architecture.md)
+1. Review the [6-Dimension Ontology specification](/Users/toc/Server/ONE/one/knowledge/ontology.md)
+2. Explore the [Architecture documentation](/Users/toc/Server/ONE/one/knowledge/architecture.md)
 3. Study additional [enterprise examples](/Users/toc/Server/ONE/one/examples/enterprise/)
 4. Start building your own SaaS platform with the ONE Platform
 

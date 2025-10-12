@@ -9,17 +9,20 @@
 ### 1. Clean Specification (`ontology-ui.md`)
 
 **What it defines:**
+
 - UI metadata for each thing type
 - Field rendering configs
 - Actions, layouts, views
 - Connection display rules
 
 **What it does NOT define:**
+
 - How components are built
 - Which UI library to use
 - Implementation details
 
 **Example:**
+
 ```typescript
 // Clean spec - says WHAT to render
 {
@@ -39,12 +42,14 @@
 ### 2. Implementation Uses shadcn/ui
 
 **Under the hood:**
+
 - Card uses `<Card>` from shadcn/ui
 - Field uses `<Badge>`, `<Avatar>`, etc. from shadcn/ui
 - Actions uses `<Button>` from shadcn/ui
 - All styled with Tailwind CSS
 
 **Developers don't need to know this!** They just write:
+
 ```tsx
 <Card thing={course} />
 ```
@@ -80,12 +85,14 @@ Developer thinks: "I just use Card, it handles everything"
 **Purpose:** Define UI metadata for all thing types
 
 **Contains:**
+
 - UI metadata schema (fields, views, actions)
 - Complete specs for top 5 types (course, lesson, product, post, person)
 - Field component types (Heading, Text, Price, Badge, etc.)
 - Usage examples
 
 **Does NOT contain:**
+
 - shadcn/ui component code
 - Implementation details
 - Tailwind classes
@@ -97,27 +104,31 @@ Developer thinks: "I just use Card, it handles everything"
 **Purpose:** Show how to build Card component
 
 **Contains:**
+
 - Full Card component code (uses shadcn/ui Card)
 - Field component code (uses shadcn/ui Badge, Avatar, etc.)
 - Actions component code (uses shadcn/ui Button)
 - Real-world examples
 
 **Imports from shadcn/ui:**
+
 ```tsx
-import { Card, CardContent, CardFooter } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Avatar } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 ```
 
 ### No Separate "shadcn Integration" Doc Needed
 
 **Old approach:**
+
 - `ontology-ui.md` - Spec
 - `ontology-ui-shadcn.md` - shadcn integration (redundant!)
 - `thingcard-shadcn.md` - More shadcn stuff (redundant!)
 
 **New approach:**
+
 - `ontology-ui.md` - Spec (mentions shadcn/ui briefly)
 - `card.md` - Implementation (uses shadcn/ui naturally)
 
@@ -130,8 +141,9 @@ import { Button } from '@/components/ui/button'
 ### Adding a New Thing Type
 
 **Step 1:** Add UI metadata to ontology
+
 ```typescript
-// one/connections/ontology-ui.md
+// one/knowledge/ontology-ui.md
 {
   type: "webinar",
   ui: {
@@ -150,6 +162,7 @@ import { Button } from '@/components/ui/button'
 ```
 
 **Step 2:** Use it
+
 ```tsx
 <Card thing={webinar} />
 ```
@@ -159,14 +172,13 @@ import { Button } from '@/components/ui/button'
 ### Customizing a Component
 
 **If you need custom styling:**
+
 ```tsx
-<Card
-  thing={course}
-  className="border-primary shadow-lg"
-/>
+<Card thing={course} className="border-primary shadow-lg" />
 ```
 
 **If you need different behavior:**
+
 ```tsx
 <Card
   thing={course}
@@ -177,6 +189,7 @@ import { Button } from '@/components/ui/button'
 ```
 
 **If you need to change implementation:**
+
 ```tsx
 // Just edit Card.tsx
 // It already uses shadcn/ui, modify as needed
@@ -259,6 +272,7 @@ case 'Price':
 ### 2. Easy to Change
 
 Want to swap shadcn/ui for something else?
+
 - Update `Card.tsx`, `Field.tsx`, etc.
 - Ontology spec stays the same
 - Developer usage stays the same
@@ -266,10 +280,12 @@ Want to swap shadcn/ui for something else?
 ### 3. Simple to Learn
 
 Developer learns:
+
 1. Ontology UI spec (what metadata to define)
 2. `<Card thing={x} />` (how to use it)
 
 Developer does NOT need to learn:
+
 - shadcn/ui API
 - Tailwind classes (unless customizing)
 - Radix UI primitives
@@ -278,11 +294,13 @@ Developer does NOT need to learn:
 ### 4. Less Documentation
 
 **Before:**
+
 - 3 documents (ontology-ui, shadcn integration, thingcard-shadcn)
 - ~15,000 lines total
 - Lots of redundancy
 
 **After:**
+
 - 2 documents (ontology-ui, thingcard)
 - ~8,000 lines total
 - No redundancy
@@ -325,10 +343,12 @@ npx shadcn-ui@latest add card button badge
 **Key Principle:** Ontology defines WHAT to render. Components use shadcn/ui to render it. Developers just use `<Card>`.
 
 **Documents:**
+
 1. `ontology-ui.md` - Clean spec (mentions shadcn/ui briefly)
 2. `card.md` - Implementation (uses shadcn/ui naturally)
 
 **Result:**
+
 - Clean specification
 - Simple developer experience
 - shadcn/ui benefits (beautiful, accessible)

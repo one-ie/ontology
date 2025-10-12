@@ -35,6 +35,7 @@ Implement the agent-based, ontology-driven workflow system described in `one/thi
 ## Ontology Validation
 
 ### Things (Entities)
+
 - ✅ `agent` - Engineering units with specific roles and responsibilities
 - ✅ `idea` - User concepts validated against ontology
 - ✅ `plan` - Collections of features with team assignments
@@ -45,6 +46,7 @@ Implement the agent-based, ontology-driven workflow system described in `one/thi
 - ✅ `lesson` - Knowledge captured from problem solving
 
 ### Connections (Relationships)
+
 - ✅ `validates` - Director validates ideas
 - ✅ `creates` - Director creates plans from ideas
 - ✅ `assigns_to` - Director assigns features to specialists
@@ -57,6 +59,7 @@ Implement the agent-based, ontology-driven workflow system described in `one/thi
 - ✅ `documents` - Documenter writes docs for completed features
 
 ### Events (State Changes)
+
 - ✅ `idea_validated` - Idea approved as plan
 - ✅ `plan_started` - Director begins plan
 - ✅ `feature_assigned` - Specialist receives feature
@@ -72,6 +75,7 @@ Implement the agent-based, ontology-driven workflow system described in `one/thi
 - ✅ `feature_complete` - Feature finished
 
 ### Knowledge (Intelligence)
+
 - ✅ Agent prompts define behavior and context requirements
 - ✅ Patterns library provides implementation guidance
 - ✅ Lessons learned accumulate institutional knowledge
@@ -85,17 +89,20 @@ Implement the agent-based, ontology-driven workflow system described in `one/thi
 **Scope:** Large (4-6 weeks for full implementation)
 
 **Phases:**
+
 1. **Phase 1 (Week 1-2):** Agent prompts + basic orchestrator + file structure
 2. **Phase 2 (Week 2-3):** Event coordination + quality loops
 3. **Phase 3 (Week 3-4):** Knowledge management + problem solver (ultrathink)
 4. **Phase 4 (Week 4-6):** Testing, refinement, documentation
 
 **Risk:** Medium
+
 - This is meta-work (building the system that builds systems)
 - Must be simple enough for humans and agents to understand
 - Must prove value immediately or development velocity suffers
 
 **Mitigation:**
+
 - Start with minimal viable workflow
 - Test on simple feature first
 - Iterate based on real usage
@@ -106,6 +113,7 @@ Implement the agent-based, ontology-driven workflow system described in `one/thi
 ## Success Criteria
 
 ### Immediate (MVP)
+
 - [ ] Director agent can validate ideas and create plans
 - [ ] Specialist agents can write features
 - [ ] Basic orchestrator executes 6-level flow
@@ -113,6 +121,7 @@ Implement the agent-based, ontology-driven workflow system described in `one/thi
 - [ ] Events logged to track progress
 
 ### Near-term (Month 1)
+
 - [ ] Quality agent defines tests and validates implementations
 - [ ] Design agent creates wireframes from test criteria
 - [ ] Problem solver handles test failures (ultrathink mode)
@@ -120,6 +129,7 @@ Implement the agent-based, ontology-driven workflow system described in `one/thi
 - [ ] Complete workflow from idea to implementation works
 
 ### Long-term (Quarter 1)
+
 - [ ] 98% context reduction vs old CASCADE system
 - [ ] 5x faster feature delivery
 - [ ] Quality improves with each feature (learning)
@@ -140,6 +150,7 @@ Implement the agent-based, ontology-driven workflow system described in `one/thi
 6. **Developer experience:** Clear process, autonomous agents, parallel execution
 
 **Cost-benefit:**
+
 - **Investment:** 4-6 weeks upfront
 - **Return:** 5x velocity improvement on every future feature
 - **Break-even:** ~2 weeks after completion
@@ -150,6 +161,7 @@ Implement the agent-based, ontology-driven workflow system described in `one/thi
 ## Next Steps
 
 **Director Agent Decision:**
+
 - ✅ Approved as Plan #1
 - ✅ Assign plan number: `1-create-workflow`
 - ✅ Create team structure:
@@ -158,6 +170,7 @@ Implement the agent-based, ontology-driven workflow system described in `one/thi
   - Integration Specialist (coordination, knowledge management)
 
 **Proceed to Level 2 (PLANS):**
+
 - Break into 6 features (one per major component)
 - Assign features to specialists
 - Create feature specifications
@@ -168,7 +181,7 @@ Implement the agent-based, ontology-driven workflow system described in `one/thi
 ## References
 
 - **Source:** `one/things/plans/workflow.md` (complete workflow specification)
-- **Ontology:** `one/connections/ontology-minimal.yaml` (types and patterns)
+- **Ontology:** `one/knowledge/ontology-minimal.yaml` (types and patterns)
 - **Philosophy:** The ontology IS the workflow. Agents collaborate. Everything else is noise.
 
 ---

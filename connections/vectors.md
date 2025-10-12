@@ -1,7 +1,7 @@
 # ONE Vectors — RAG Design and Implementation Guide
 
 Version: 1.0.0
-Scope: Complements one/connections/ontology.md by detailing how vectors (embeddings) and knowledge items power search and generation.
+Scope: Complements one/knowledge/ontology.md by detailing how vectors (embeddings) and knowledge items power search and generation.
 
 ## Overview
 
@@ -15,38 +15,47 @@ Scope: Complements one/connections/ontology.md by detailing how vectors (embeddi
 Knowledge table (see Ontology):
 
 ```typescript
-type KnowledgeType = 'label' | 'document' | 'chunk' | 'vector_only';
+type KnowledgeType = "label" | "document" | "chunk" | "vector_only";
 
 type Knowledge = {
-  _id: Id<'knowledge'>;
+  _id: Id<"knowledge">;
   knowledgeType: KnowledgeType;
-  text?: string;                   // omitted for vector_only
-  embedding?: number[];            // Float32 vector
-  embeddingModel?: string;         // e.g., 'text-embedding-3-large'
-  embeddingDim?: number;           // e.g., 3072
-  sourceThingId?: Id<'things'>;
-  sourceField?: string;            // e.g., 'content', 'transcript', 'title'
-  chunk?: { index: number; start?: number; end?: number; tokenCount?: number; overlap?: number };
-  labels?: string[];               // lightweight taxonomy (label knowledge also exists)
-  metadata?: Record<string, any>;  // language, mime, hash, version, protocol, etc.
-  createdAt: number; updatedAt: number; deletedAt?: number;
-}
+  text?: string; // omitted for vector_only
+  embedding?: number[]; // Float32 vector
+  embeddingModel?: string; // e.g., 'text-embedding-3-large'
+  embeddingDim?: number; // e.g., 3072
+  sourceThingId?: Id<"things">;
+  sourceField?: string; // e.g., 'content', 'transcript', 'title'
+  chunk?: {
+    index: number;
+    start?: number;
+    end?: number;
+    tokenCount?: number;
+    overlap?: number;
+  };
+  labels?: string[]; // lightweight taxonomy (label knowledge also exists)
+  metadata?: Record<string, any>; // language, mime, hash, version, protocol, etc.
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number;
+};
 ```
 
 Junction table:
 
 ```typescript
 type ThingKnowledge = {
-  _id: Id<'thingKnowledge'>;
-  thingId: Id<'things'>;
-  knowledgeId: Id<'knowledge'>;
-  role?: 'label' | 'summary' | 'chunk_of' | 'caption' | 'keyword';
-  metadata?: Record<string, any>;  // confidence, section, etc.
+  _id: Id<"thingKnowledge">;
+  thingId: Id<"things">;
+  knowledgeId: Id<"knowledge">;
+  role?: "label" | "summary" | "chunk_of" | "caption" | "keyword";
+  metadata?: Record<string, any>; // confidence, section, etc.
   createdAt: number;
-}
+};
 ```
 
 Recommended indexes:
+
 - `knowledge.by_type(knowledgeType)`
 - `knowledge.by_source(sourceThingId)`
 - `knowledge.by_created(createdAt)`
@@ -72,6 +81,7 @@ Recommended indexes:
 ## Ingestion Pipeline (Convex)
 
 Events/triggers:
+
 - On content write/update, log `content_changed` and schedule ingestion for affected fields.
 - Manual backfill via admin mutation.
 
@@ -89,7 +99,7 @@ export const embedText = internalAction({
 
 // mutation: schedule embedding work
 export const scheduleEmbeddingForThing = mutation({
-  args: { id: v.id('things'), fields: v.optional(v.array(v.string())) },
+  args: { id: v.id("things"), fields: v.optional(v.array(v.string())) },
   handler: async (ctx, { id, fields }) => {
     await ctx.scheduler.runAfter(0, internal.rag.ingestThing, { id, fields });
   },
@@ -97,22 +107,34 @@ export const scheduleEmbeddingForThing = mutation({
 
 // internal action: ingest a thing => chunks + vectors + links
 export const ingestThing = internalAction({
-  args: { id: v.id('things'), fields: v.optional(v.array(v.string())) },
+  args: { id: v.id("things"), fields: v.optional(v.array(v.string())) },
   handler: async (ctx, { id, fields }) => {
     const thing = await ctx.runQuery(internal.entities.get, { id });
     const texts = extractTexts(thing, fields); // [{ field, text, labels? }]
     let index = 0;
     for (const piece of chunk(texts, { size: 800, overlap: 200 })) {
-      const { embedding, model, dim } = await ctx.runAction(internal.rag.embedText, { text: piece.text });
+      const { embedding, model, dim } = await ctx.runAction(
+        internal.rag.embedText,
+        { text: piece.text }
+      );
       const knowledgeId = await ctx.runMutation(internal.rag.upsertKnowledge, {
         item: {
-          knowledgeType: 'chunk', text: piece.text, embedding, embeddingModel: model, embeddingDim: dim,
-          sourceThingId: id, sourceField: piece.field,
+          knowledgeType: "chunk",
+          text: piece.text,
+          embedding,
+          embeddingModel: model,
+          embeddingDim: dim,
+          sourceThingId: id,
+          sourceField: piece.field,
           chunk: { index, tokenCount: piece.tokens, overlap: 200 },
           labels: piece.labels,
         },
       });
-      await ctx.runMutation(internal.rag.linkThingKnowledge, { thingId: id, knowledgeId, role: 'chunk_of' });
+      await ctx.runMutation(internal.rag.linkThingKnowledge, {
+        thingId: id,
+        knowledgeId,
+        role: "chunk_of",
+      });
       index++;
     }
   },
@@ -120,6 +142,7 @@ export const ingestThing = internalAction({
 ```
 
 Required helpers:
+
 - `extractTexts(thing, fields?)`: normalize and select text fields by type (posts, lessons, transcripts, titles, descriptions).
 - `chunk(texts, opts)`: tokenization‑aware chunker with overlap.
 - `upsertKnowledge(item)`: dedupe by `metadata.hash` if present; update timestamps.
@@ -128,24 +151,26 @@ Required helpers:
 ## Retrieval
 
 Vector search:
+
 - Filter: `knowledgeType: 'chunk'`, `sourceThingId` in org scope, optional content types.
 - ANN search by `embedding`, k=5–20; score threshold configurable.
 - Hybrid: boost by label matches (industry/skill/topic) and recency.
 
 Answer assembly:
+
 - De‑duplicate overlapping chunks from same source; merge adjacents.
 - Respect token budget for downstream LLM; include citations via `sourceThingId` + offsets.
 
 Example (pseudo‑code):
 
 ```typescript
-const topK = await vectorSearch('knowledge', {
-  vectorField: 'embedding',
+const topK = await vectorSearch("knowledge", {
+  vectorField: "embedding",
   query: queryEmbedding,
-  filter: { knowledgeType: 'chunk', orgId },
+  filter: { knowledgeType: "chunk", orgId },
   k: 12,
 });
-return rerank(topK, { labelsBoost: ['industry:fitness', 'topic:seo'] });
+return rerank(topK, { labelsBoost: ["industry:fitness", "topic:seo"] });
 ```
 
 ## Governance & Lifecycle
@@ -164,9 +189,9 @@ return rerank(topK, { labelsBoost: ['industry:fitness', 'topic:seo'] });
 
 ## Backfill Plan
 
-1) Enumerate content things (posts, lessons, videos, podcasts, emails, pages).
-2) Extract text and labels; build chunks; embed; write `knowledge` + `thingKnowledge`.
-3) Schedule nightly drift detection to re‑embed changed sources.
+1. Enumerate content things (posts, lessons, videos, podcasts, emails, pages).
+2. Extract text and labels; build chunks; embed; write `knowledge` + `thingKnowledge`.
+3. Schedule nightly drift detection to re‑embed changed sources.
 
 ## Environment
 
@@ -180,4 +205,3 @@ EMBEDDING_API_KEY=...
 
 - Prefer knowledge labels over new enums for taxonomy changes.
 - Keep the ontology stable; push variance into `properties`, labels, and metadata.
-

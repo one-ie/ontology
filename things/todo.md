@@ -907,7 +907,7 @@ Human
     - [ ] Implement AP2 (Agent Payments Protocol)
     - [ ] Implement X402 (HTTP Micropayments)
     - [ ] Implement AG-UI (Generative UI Protocol)
-    - [ ] Document in `one/things/specifications.md`
+    - [ ] Document in `one/knowledge/specifications.md`
 
 ---
 
@@ -992,18 +992,18 @@ Human
 - **[one/connections/modes.md](../connections/modes.md)** - Standalone vs API mode
 - **[one/connections/development.md](../connections/development.md)** - Using `npx oneie` CLI with Claude Code
 - **[AGENTS.md](../../AGENTS.md)** - Convex development patterns
-- **[one/things/rules.md](./rules.md)** - Golden rules for AI code generation
+- **[one/knowledge/rules.md](./rules.md)** - Golden rules for AI code generation
 - **[one/connections/workflow.md](../connections/workflow.md)** - Ontology-driven development flow
 - **[one/connections/patterns.md](../connections/patterns.md)** - Proven code patterns
-- **[one/things/architecture.md](./architecture.md)** - System architecture & functional programming
+- **[one/knowledge/architecture.md](./architecture.md)** - System architecture & functional programming
 - **[one/things/frontend.md](./frontend.md)** - Astro frontend with content collections
 - **[one/connections/middleware.md](../connections/middleware.md)** - Convex hooks, API client, Effect.ts services
 - **[one/things/hono.md](./hono.md)** - Hono API backend with Effect.ts services
 - **[one/things/files.md](./files.md)** - File system map
 - **[one/things/strategy.md](./strategy.md)** - Platform vision & 8 core features
-- **[one/connections/ontology.md](../connections/ontology.md)** - 6-dimension data model
+- **[one/knowledge/ontology.md](../knowledge/ontology.md)** - 6-dimension data model
 - **[one/connections/dashboard.md](../connections/dashboard.md)** - Multi-tenant UI
-- **[one/things/specifications.md](./specifications.md)** - Protocol integration patterns
+- **[one/knowledge/specifications.md](./specifications.md)** - Protocol integration patterns
 - **[one/connections/implementation.md](../connections/implementation.md)** - 12-week roadmap
 
 ### API Documentation
@@ -1021,8 +1021,8 @@ Human
 
 - **CRUD Operations:** See `one/connections/patterns.md` - Entity CRUD
 - **Agent Communication:** See `one/connections/patterns.md` - A2A Protocol
-- **Multi-Chain:** See `one/things/architecture.md` - Multi-Chain Providers
-- **RAG Ingestion:** See `one/connections/ontology.md` - RAG Strategy
+- **Multi-Chain:** See `one/knowledge/architecture.md` - Multi-Chain Providers
+- **RAG Ingestion:** See `one/knowledge/ontology.md` - RAG Strategy
 
 ---
 
@@ -1196,7 +1196,7 @@ Human
 
 1. **Verify Convex Schema** (Director Agent)
 
-   - Compare `convex/schema.ts` to `one/connections/ontology.md`
+   - Compare `convex/schema.ts` to `one/knowledge/ontology.md`
    - Ensure all 66 thing types, 25 connections, 67 events are represented
    - Add `knowledge` table if missing
    - Deploy to Convex

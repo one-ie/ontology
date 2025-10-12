@@ -17,6 +17,7 @@ Downloads /one/ → Generates Frontend → Generates Backend → Configures AI �
 ```
 
 **Result:** A complete Astro + Effect.ts + Backend-of-Choice project where:
+
 - Every organization, person, thing, connection, event, and knowledge maps to the 6-dimension ontology
 - **Backend-agnostic frontend** works with Convex, WordPress, Notion, Supabase, or custom APIs
 - AI agents (Claude, GPT, MCPs) can generate features using the DSL
@@ -50,7 +51,7 @@ Downloads /one/ → Generates Frontend → Generates Backend → Configures AI �
     ↓
 ┌─────────────────────────────────────────────────────────────┐
 │  2. GENERATE FRONTEND (Astro 5 + React 19 + Effect.ts)    │
-│     📖 See: one/connections/ontology-frontend.md            │
+│     📖 See: one/knowledge/ontology-frontend.md            │
 │                                                              │
 │  frontend/                                                   │
 │  ├── src/                                                    │
@@ -73,7 +74,7 @@ Downloads /one/ → Generates Frontend → Generates Backend → Configures AI �
     ↓
 ┌─────────────────────────────────────────────────────────────┐
 │  3. GENERATE BACKEND (Convex + Effect.ts)                 │
-│     📖 See: one/connections/ontology-backend.md             │
+│     📖 See: one/knowledge/ontology-backend.md             │
 │                                                              │
 │  backend/                                                    │
 │  ├── convex/                                                 │
@@ -168,6 +169,7 @@ my-creator-platform/
 ```
 
 **Key Features:**
+
 - **5 Core Directories:** `/one/`, `/frontend/`, `/backend/`, `/docs/`, `/import/`
 - **Self-Contained:** All docs (ontology + 3rd party) included for offline AI access
 - **Backend-Agnostic:** Frontend works with Convex, WordPress, Notion, or custom backends
@@ -178,7 +180,7 @@ my-creator-platform/
 
 ## Frontend Architecture (Backend-Agnostic)
 
-**See: `one/connections/ontology-frontend.md` for complete implementation guide.**
+**See: `one/knowledge/ontology-frontend.md` for complete implementation guide.**
 
 ### DataProvider Pattern (Inspired by Astro Content Layer)
 
@@ -186,9 +188,9 @@ The CLI generates a **backend-agnostic frontend** using the DataProvider pattern
 
 ```typescript
 // astro.config.ts - Swap backends by changing ONE line
-import { defineConfig } from 'astro/config'
-import { one } from '@one/astro-integration'
-import { convexProvider } from './src/providers/convex'
+import { defineConfig } from "astro/config";
+import { one } from "@one/astro-integration";
+import { convexProvider } from "./src/providers/convex";
 // import { wordpressProvider } from './src/providers/wordpress'
 // import { notionProvider } from './src/providers/notion'
 
@@ -197,11 +199,11 @@ export default defineConfig({
     one({
       // ✅ Change this ONE line to swap backends
       provider: convexProvider({
-        url: import.meta.env.PUBLIC_BACKEND_URL
-      })
-    })
-  ]
-})
+        url: import.meta.env.PUBLIC_BACKEND_URL,
+      }),
+    }),
+  ],
+});
 ```
 
 ### Universal Ontology API
@@ -212,29 +214,43 @@ Every provider implements the same 6-dimension interface:
 // src/providers/DataProvider.ts
 export interface DataProvider {
   organizations: {
-    get: (id: string) => Effect.Effect<Organization, Error>
-    list: (params) => Effect.Effect<Organization[], Error>
-    update: (id: string, updates) => Effect.Effect<void, Error>
-  }
+    get: (id: string) => Effect.Effect<Organization, Error>;
+    list: (params) => Effect.Effect<Organization[], Error>;
+    update: (id: string, updates) => Effect.Effect<void, Error>;
+  };
   people: {
-    get, list, create, update, delete
-  }
+    get;
+    list;
+    create;
+    update;
+    delete;
+  };
   things: {
-    get, list, create, update, delete
-  }
+    get;
+    list;
+    create;
+    update;
+    delete;
+  };
   connections: {
-    create, getRelated, getCount, delete
-  }
+    create;
+    getRelated;
+    getCount;
+    delete;
+  };
   events: {
-    log, query
-  }
+    log;
+    query;
+  };
   knowledge: {
-    embed, search
-  }
+    embed;
+    search;
+  };
 }
 ```
 
 **Result:**
+
 - Frontend works with **any backend** (Convex, WordPress, Notion, Supabase)
 - Organizations can use their **existing infrastructure**
 - Swap backends without changing frontend code
@@ -245,47 +261,56 @@ export interface DataProvider {
 The CLI generates provider implementations for popular backends:
 
 #### Convex Provider (Default)
+
 ```typescript
 // src/providers/convex/ConvexProvider.ts
 export class ConvexProvider implements DataProvider {
   things = {
-    get: (id) => Effect.tryPromise(() =>
-      this.client.query(api.queries.things.get, { id })
-    ),
-    list: (params) => Effect.tryPromise(() =>
-      this.client.query(api.queries.things.list, params)
-    ),
+    get: (id) =>
+      Effect.tryPromise(() =>
+        this.client.query(api.queries.things.get, { id })
+      ),
+    list: (params) =>
+      Effect.tryPromise(() =>
+        this.client.query(api.queries.things.list, params)
+      ),
     // ... all 6 dimensions
-  }
+  };
 }
 ```
 
 #### WordPress Provider
+
 ```typescript
 // src/providers/wordpress/WordPressProvider.ts
 export class WordPressProvider implements DataProvider {
   things = {
-    get: (id) => Effect.gen(function* () {
-      // Map ONE thing → WordPress post
-      const response = yield* fetch(`${this.baseUrl}/wp-json/wp/v2/posts/${id}`)
-      const post = yield* response.json()
-      return transformToThing(post)
-    })
-  }
+    get: (id) =>
+      Effect.gen(function* () {
+        // Map ONE thing → WordPress post
+        const response = yield* fetch(
+          `${this.baseUrl}/wp-json/wp/v2/posts/${id}`
+        );
+        const post = yield* response.json();
+        return transformToThing(post);
+      }),
+  };
 }
 ```
 
 #### Notion Provider
+
 ```typescript
 // src/providers/notion/NotionProvider.ts
 export class NotionProvider implements DataProvider {
   things = {
-    get: (id) => Effect.gen(function* () {
-      // Map ONE thing → Notion page
-      const page = yield* this.notion.pages.retrieve({ page_id: id })
-      return transformToThing(page)
-    })
-  }
+    get: (id) =>
+      Effect.gen(function* () {
+        // Map ONE thing → Notion page
+        const page = yield* this.notion.pages.retrieve({ page_id: id });
+        return transformToThing(page);
+      }),
+  };
 }
 ```
 
@@ -452,6 +477,7 @@ await mcp.docs.read("convex", "mutations");
 Bootstrap new project with 5-directory structure.
 
 **Options:**
+
 - `--backend <type>` - Backend: `convex` (default), `wordpress`, `notion`, `supabase`, `none`
 - `--no-docs` - Skip cloning 3rd party docs to `/docs/`
 - `--no-install` - Skip `bun install`
@@ -480,6 +506,7 @@ npx oneie create my-platform --no-docs
 Generate feature from DSL.
 
 **Options:**
+
 - `--validate-only` - Only validate
 - `--dry-run` - Show what would be generated
 - `--output <dir>` - Custom output directory
@@ -511,6 +538,7 @@ npx oneie chat
 Query/update ontology.
 
 **Commands:**
+
 - `npx oneie ontology show` - Show full ontology
 - `npx oneie ontology query <type>` - Query types
 - `npx oneie ontology sync` - Sync from GitHub
@@ -559,8 +587,16 @@ export default defineSchema({
   organizations: defineTable({
     name: v.string(),
     slug: v.string(),
-    status: v.union(v.literal("active"), v.literal("suspended"), v.literal("trial")),
-    plan: v.union(v.literal("starter"), v.literal("pro"), v.literal("enterprise")),
+    status: v.union(
+      v.literal("active"),
+      v.literal("suspended"),
+      v.literal("trial")
+    ),
+    plan: v.union(
+      v.literal("starter"),
+      v.literal("pro"),
+      v.literal("enterprise")
+    ),
   }).index("by_slug", ["slug"]),
 
   // DIMENSION 2: PEOPLE (authorization, intent)
@@ -584,7 +620,7 @@ export default defineSchema({
       v.literal("lesson"),
       v.literal("product"),
       v.literal("token"),
-      v.literal("ai_clone"),
+      v.literal("ai_clone")
       // ... 66 total types
     ),
     name: v.string(),
@@ -606,7 +642,7 @@ export default defineSchema({
       v.literal("enrolled_in"),
       v.literal("owns"),
       v.literal("following"),
-      v.literal("member_of"),
+      v.literal("member_of")
       // ... 25 total types
     ),
     metadata: v.optional(v.any()),
@@ -622,10 +658,10 @@ export default defineSchema({
       v.literal("connection_created"),
       v.literal("tokens_purchased"),
       v.literal("chat_interaction"),
-      v.literal("course_completed"),
+      v.literal("course_completed")
       // ... 67 total types
     ),
-    actorId: v.id("people"),          // Person who did it
+    actorId: v.id("people"), // Person who did it
     targetId: v.optional(v.string()), // Thing/Person/Connection ID
     organizationId: v.id("organizations"),
     timestamp: v.number(),
@@ -671,21 +707,28 @@ export class TokenPurchaseService extends Effect.Service<TokenPurchaseService>()
       const blockchain = yield* BlockchainProvider;
 
       return {
-        execute: (fanId: Id<"entities">, tokenId: Id<"entities">, amount: number) =>
+        execute: (
+          fanId: Id<"entities">,
+          tokenId: Id<"entities">,
+          amount: number
+        ) =>
           Effect.gen(function* () {
             // Validation
             const fan = yield* Effect.tryPromise(() => db.get(fanId));
-            if (!fan) return yield* Effect.fail({ _tag: "NotFound", entity: "fan" });
+            if (!fan)
+              return yield* Effect.fail({ _tag: "NotFound", entity: "fan" });
 
             const token = yield* Effect.tryPromise(() => db.get(tokenId));
-            if (!token) return yield* Effect.fail({ _tag: "NotFound", entity: "token" });
+            if (!token)
+              return yield* Effect.fail({ _tag: "NotFound", entity: "token" });
 
-            if (amount <= 0) return yield* Effect.fail({ _tag: "InvalidAmount" });
+            if (amount <= 0)
+              return yield* Effect.fail({ _tag: "InvalidAmount" });
 
             // Parallel execution
             const [payment, mintTx] = yield* Effect.all([
               stripe.charge({ amount: amount * 100 }),
-              blockchain.mint({ tokenId, toAddress: fanId, amount })
+              blockchain.mint({ tokenId, toAddress: fanId, amount }),
             ]);
 
             // Record event
@@ -696,15 +739,23 @@ export class TokenPurchaseService extends Effect.Service<TokenPurchaseService>()
                 timestamp: Date.now(),
                 actorType: "user",
                 actorId: fanId,
-                metadata: { amount, paymentId: payment.id, txHash: mintTx.hash }
+                metadata: {
+                  amount,
+                  paymentId: payment.id,
+                  txHash: mintTx.hash,
+                },
               })
             );
 
             return { paymentId: payment.id, txHash: mintTx.hash };
-          })
+          }),
       };
     }),
-    dependencies: [ConvexDatabase.Default, StripeProvider.Default, BlockchainProvider.Default]
+    dependencies: [
+      ConvexDatabase.Default,
+      StripeProvider.Default,
+      BlockchainProvider.Default,
+    ],
   }
 ) {}
 ```
@@ -730,7 +781,7 @@ export const purchase = confect.mutation({
     Effect.gen(function* () {
       const service = yield* TokenPurchaseService;
       return yield* service.execute(args.fanId, args.tokenId, args.amount);
-    }).pipe(Effect.provide(MainLayer))
+    }).pipe(Effect.provide(MainLayer)),
 });
 ```
 
@@ -833,12 +884,7 @@ Generated `.claude/settings.local.json`:
     ]
   },
   "permissions": {
-    "allow": [
-      "Bash(bun:*)",
-      "Bash(bunx:*)",
-      "Bash(git:*)",
-      "mcp__*"
-    ]
+    "allow": ["Bash(bun:*)", "Bash(bunx:*)", "Bash(git:*)", "mcp__*"]
   }
 }
 ```
@@ -847,7 +893,7 @@ Generated `.claude/settings.local.json`:
 
 ```bash
 # .claude/hooks/pre.sh
-# Calculates hash of one/connections/ontology.md
+# Calculates hash of one/knowledge/ontology.md
 # If changed → increment inference score
 # Logs to one/things/inference_score.md
 ```
@@ -857,6 +903,7 @@ Generated `.claude/settings.local.json`:
 ## Why This Works
 
 **Traditional approach:**
+
 1. Manual setup (hours)
 2. Configure 10+ tools (days)
 3. Learn patterns (weeks)
@@ -864,6 +911,7 @@ Generated `.claude/settings.local.json`:
 5. Locked into one backend forever
 
 **ONE CLI approach:**
+
 1. `npx oneie create` (5 minutes)
 2. Everything pre-configured ✅
 3. AI learns from patterns ✅
@@ -873,6 +921,7 @@ Generated `.claude/settings.local.json`:
 **Key Innovations:**
 
 1. **5-Directory Structure**
+
    - `/one/` - Ontology docs cloned into project (AI can read)
    - `/frontend/` - Backend-agnostic Astro + React app
    - `/backend/` - Convex backend (or generate for any backend)
@@ -880,6 +929,7 @@ Generated `.claude/settings.local.json`:
    - `/import/` - Data import utilities
 
 2. **Universal Ontology API**
+
    - Frontend only knows 6 dimensions (organizations, people, things, connections, events, knowledge)
    - Backend provider pattern = swap Convex ↔ WordPress ↔ Notion
    - Same frontend code works with ANY backend
@@ -896,6 +946,7 @@ Generated `.claude/settings.local.json`:
 ## Roadmap
 
 ### Phase 1: Core Bootstrap (Q1 2025)
+
 - ✅ `npx oneie create` - Full scaffolding
 - ✅ 5-directory structure (`/one/`, `/frontend/`, `/backend/`, `/docs/`, `/import/`)
 - ✅ Ontology cloning from GitHub
@@ -907,18 +958,21 @@ Generated `.claude/settings.local.json`:
 - ✅ MCP server setup
 
 ### Phase 2: Feature Generation (Q2 2025)
+
 - ⏳ `npx oneie generate` - DSL compilation
 - ⏳ Plain English parser
 - ⏳ Ontology validator
 - ⏳ Claude Code SDK integration
 
 ### Phase 3: Conversational CLI (Q2 2025)
+
 - ⏳ `npx oneie chat` - Interactive mode
 - ⏳ Intent recognition
 - ⏳ Smart questions
 - ⏳ Progress feedback
 
 ### Phase 4: Advanced (Q3 2025)
+
 - 📋 `npx oneie deploy` - One-command deployment
 - 📋 `npx oneie upgrade` - Update ontology
 - 📋 `npx oneie migrate` - Schema migrations
@@ -928,12 +982,14 @@ Generated `.claude/settings.local.json`:
 ## Success Metrics
 
 **For Developers:**
+
 - ⏱️ 5 minutes → Project bootstrap to first feature
 - 🎯 100% type-safe → Generated code passes strict TypeScript
 - ✅ Tests included → Every feature has unit tests
 - 📖 AI-ready → Claude, GPT, Cursor understand it
 
 **For Non-Technical Users:**
+
 - 💬 Conversational → No commands to memorize
 - 🚀 1 minute → Feature idea to working code
 - 📱 Browser preview → See it immediately
@@ -944,12 +1000,14 @@ Generated `.claude/settings.local.json`:
 ## Related Documentation
 
 ### Architecture Guides
+
 - **[structure.md](../connections/structure.md)** - 📁 Repository & project structure (5-directory architecture)
-- **[ontology-frontend.md](../connections/ontology-frontend.md)** - 🔑 Frontend implementation (backend-agnostic)
-- **[ontology-backend.md](../connections/ontology-backend.md)** - Backend implementation (Convex + Effect.ts)
+- **[ontology-frontend.md](../knowledge/ontology-frontend.md)** - 🔑 Frontend implementation (backend-agnostic)
+- **[ontology-backend.md](../knowledge/ontology-backend.md)** - Backend implementation (Convex + Effect.ts)
 - **[Ontology.md](./ontology.md)** - 6-dimension data model (source of truth)
 
 ### Development Guides
+
 - **[dsl.md](./dsl.md)** - Technical DSL specification
 - **[dsl-english.md](./dsl-english.md)** - Plain English DSL
 - **[Rules.md](./rules.md)** - Golden rules for AI agents
