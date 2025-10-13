@@ -1,6 +1,8 @@
-# Organization (Thing)
+# Organisation: Multi-Tenant Platform Structure
 
-Purpose: Define the `organization` thing and its relationships, events, and queries as part of the single source of truth.
+**Organizations are the isolation boundary for multi-tenancy in the ONE Platform.**
+
+For details on the ONE organization (vision, strategy, revenue), see **[ONE Organization →](./one.md)**
 
 ## Overview
 

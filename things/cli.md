@@ -1,8 +1,31 @@
-# ONE CLI - Ontology-Driven Project Bootstrap
+<div align="center">
 
-**Version:** 1.0.0
-**Package:** `npx oneie` (ONE Intelligent Environment)
-**Purpose:** Bootstrap production-ready, AI-first projects with full ontology integration
+```
+     ██████╗ ███╗   ██╗███████╗
+    ██╔═══██╗████╗  ██║██╔════╝
+    ██║   ██║██╔██╗ ██║█████╗
+    ██║   ██║██║╚██╗██║██╔══╝
+    ╚██████╔╝██║ ╚████║███████╗
+     ╚═════╝ ╚═╝  ╚═══╝╚══════╝
+
+       Make Your Ideas Real
+
+   https://one.ie  •  npx oneie
+```
+
+**Version:** 1.0.0 | **Bootstrap AI-first projects in 30 seconds**
+
+</div>
+
+---
+
+## ✨ Get Started
+
+```bash
+npx oneie
+```
+
+That's it. Your complete ontology-driven platform is ready.
 
 ---
 
