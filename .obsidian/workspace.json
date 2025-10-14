@@ -171,6 +171,7 @@
   },
   "active": "613025f84d05f0e8",
   "lastOpenFiles": [
+    "knowledge/metadata-system.md",
     "things/vision/elegant-interface.md",
     "things/vision",
     "things/tests/2-1-test-analysis.md",
@@ -199,7 +200,6 @@
     "things/features/AUTH_HOOKS_IMPLEMENTATION.md",
     "things/features/2-tests.md",
     "things/features/2-design.md",
-    "things/features/2-cli.md",
     "things/cli",
     "things/cascade/docs/examples/1-6-numbering-structure",
     "things/cascade/docs/examples/1-5-quality-loops",
