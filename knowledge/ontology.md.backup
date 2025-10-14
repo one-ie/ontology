@@ -118,7 +118,7 @@ Purpose: Partition the system with perfect isolation and support nested groups (
 
 ## PEOPLE: Authorization & Governance
 
-Purpose: Define who can do what. People direct groups, customize AI agents, and govern access.
+Purpose: Define who can do what. People direct organizations, customize AI agents, and govern access.
 
 ### Person Structure
 
@@ -130,10 +130,10 @@ Purpose: Define who can do what. People direct groups, customize AI agents, and 
   displayName: string,
 
   // CRITICAL: Role determines access level
-  role: 'platform_owner' | 'group_owner' | 'group_user' | 'customer',
+  role: 'platform_owner' | 'org_owner' | 'org_user' | 'customer',
 
-  // Group context
-  groupId?: Id<'groups'>,  // Current/default group
+  // Organization context
+  organizationId?: Id<'organizations'>,  // Current/default org
   permissions?: string[],
 
   // Profile
@@ -141,7 +141,7 @@ Purpose: Define who can do what. People direct groups, customize AI agents, and 
   avatar?: string,
 
   // Multi-tenant tracking
-  groups: Id<'groups'>[],  // All groups this person belongs to
+  organizations: Id<'organizations'>[],  // All orgs this person belongs to
 
   createdAt: number,
   updatedAt: number,
@@ -153,18 +153,18 @@ Purpose: Define who can do what. People direct groups, customize AI agents, and 
 1. **Platform Owner** (Anthony)
    - Owns the ONE Platform
    - 100% revenue from platform-level services
-   - Can access all groups (support/debugging)
-   - Creates new groups
+   - Can access all organizations (support/debugging)
+   - Creates new organizations
 
-2. **Group Owner**
-   - Owns/manages one or more groups
-   - Controls users, permissions, billing within group
+2. **Org Owner**
+   - Owns/manages one or more organizations
+   - Controls users, permissions, billing within org
    - Customizes AI agents and frontend
    - Revenue sharing with platform
 
-3. **Group User**
-   - Works within a group
-   - Limited permissions (defined by group owner)
+3. **Org User**
+   - Works within an organization
+   - Limited permissions (defined by org owner)
    - Can create content, run agents (within quotas)
 
 4. **Customer**
@@ -175,7 +175,7 @@ Purpose: Define who can do what. People direct groups, customize AI agents, and 
 ### Why People Matter
 
 1. **Authorization:** Every action must have an actor (person)
-2. **Governance:** Group owners control who can do what
+2. **Governance:** Org owners control who can do what
 3. **Audit Trail:** Events log who did what when
 4. **Customization:** People teach AI agents their preferences
 
@@ -1188,7 +1188,7 @@ type EventType =
   | 'inference_failed'          // Inference failed
   | 'inference_quota_exceeded'  // Monthly limit hit
   | 'inference_revenue_collected' // Daily revenue sweep
-  | 'org_revenue_generated'     // Group generates platform revenue
+  | 'org_revenue_generated'     // Org generates platform revenue
   | 'revenue_share_distributed' // Revenue share paid out
 
   // BLOCKCHAIN EVENTS (5) - NEW
@@ -1578,11 +1578,11 @@ for (const label of labels) {
 Pattern: semantic search across chunks
 
 ```typescript
-// Given a query embedding, find top-k similar chunks for a group
+// Given a query embedding, find top-k similar chunks for an org
 const topK = await vectorSearch('knowledge', {
   vectorField: 'embedding',
   query: queryEmbedding,
-  filter: { 'sourceThingId.groupId': groupId, knowledgeType: 'chunk' },
+  filter: { 'sourceThingId.orgId': orgId, knowledgeType: 'chunk' },
   k: 10,
 });
 ```
@@ -2192,14 +2192,14 @@ Principle: Users can add to any type without breaking the ontology.
 - `connection` (state): Relationship between two entities (owns, member_of, transacted, fulfilled, delegated, communicated).
 - `event` (action): Time-stamped occurrence (content_changed, payment_event, communication_event, task_event, mandate_event).
 - `knowledge` (label/chunk): Classification and RAG units applied via `thingKnowledge` (labels like skill/industry/topic and chunks with embeddings).
-- `owner`: A `creator` with ownership responsibilities. Platform owner (platform_owner) or group owner (group_owner). See `one/people/owner.md`.
-- `group`: Multi-tenant container for users and resources with hierarchical nesting. See `one/people/organisation.md`.
+- `owner`: A `creator` with ownership responsibilities. Platform owner (platform_owner) or organization owner (org_owner). See `one/people/owner.md`.
+- `organization`: Multi-tenant container for users and resources. See `one/people/organisation.md`.
 
 ---
 
 ## Summary Statistics
 
-**Dimensions:** 6 total (groups, people, things, connections, events, knowledge)
+**Dimensions:** 6 total (organizations, people, things, connections, events, knowledge)
 
 **Thing Types:** 66 total
 - Core: 4 (creator, ai_clone, audience_member, organization)
@@ -2220,13 +2220,13 @@ Principle: Users can add to any type without breaking the ontology.
 - 18 specific semantic types
 - 7 consolidated types with metadata variants
 - Protocol-agnostic via metadata.protocol
-- Includes group membership with role-based metadata
+- Includes organization membership with role-based metadata
 
 **Event Types:** 67 total (Hybrid approach)
 - 4 Thing lifecycle
 - 5 User events
 - 6 Authentication events
-- 5 Group events (formerly "Organization events")
+- 5 Group events
 - 4 Dashboard & UI events
 - 4 AI/Clone events
 - 4 Agent events
@@ -2256,23 +2256,15 @@ Policy: Default is free-form, user-extensible knowledge labels for maximum flexi
 
 - Curated label prefixes (recommended): `skill:*`, `industry:*`, `topic:*`, `format:*`, `goal:*`, `audience:*`, `technology:*`, `status:*`, `capability:*`, `protocol:*`, `payment_method:*`, `network:*`.
 - Validation: Enforce label hygiene (no duplicates within scope); allow synonyms via an alias list if needed.
-- Ownership: Platform/group owners may curate official labels; users can still apply ad‑hoc labels.
+- Ownership: Platform/organization owners may curate official labels; users can still apply ad‑hoc labels.
 - Hygiene: Periodically consolidate low-usage duplicates; do not delete knowledge items with active references—mark deprecated instead.
 
 ---
 
 ## Changelog
 
-- 2025-10-14
-  - Updated terminology from "organizations" to "groups" throughout Frontend Integration Examples, Summary Statistics, Philosophy, Knowledge Governance, and Glossary sections.
-  - Updated all code examples to use `groups` table and `groupId` references instead of organizations/orgId.
-  - Changed event category from "Organization events" to "Group events" in Summary Statistics.
-  - Updated role references from `org_owner` to `group_owner` throughout examples.
-  - Clarified that groups scale hierarchically from friend circles to governments.
-  - Updated RAG ingestion strategy to use "group" filtering instead of "org".
-
 - 2025-10-07
-  - Canonicalized terminology: "things" as the conceptual term; kept implementation table/fields as `entities` for compatibility.
+  - Canonicalized terminology: “things” as the conceptual term; kept implementation table/fields as `entities` for compatibility.
   - Merged protocol integration requirements; clarified consolidated events/connections with `metadata.protocol`.
   - Added Event Retention & Archival guidance for scale.
   - Added Extensibility rules and a compact Glossary.
@@ -2299,7 +2291,7 @@ Policy: Default is free-form, user-extensible knowledge labels for maximum flexi
 - 18 specific semantic types
 - 7 consolidated types with metadata variants
 - Protocol-agnostic via metadata.protocol
-- Includes group membership with role-based metadata
+- Includes organization membership with role-based metadata
 
 **Event Types:** 63 total (Hybrid approach)
 
@@ -2343,7 +2335,7 @@ Policy: Default is free-form, user-extensible knowledge labels for maximum flexi
 
 This ontology proves that you don't need hundreds of tables or complex schemas to build a complete AI-native platform. You need:
 
-1. **6 dimensions** (groups, people, things, connections, events, knowledge)
+1. **6 dimensions** (organizations, people, things, connections, events, knowledge)
 2. **66 thing types** (every "thing")
 3. **25 connection types** (every relationship)
 4. **67 event types** (every action)
@@ -2364,7 +2356,7 @@ That's it. Everything else is just data.
 **ONE's approach:**
 
 - Map every feature to 6 dimensions
-- Groups partition the space (from friend circles to governments)
+- Organizations partition the space
 - People authorize and govern
 - Things, connections, events flow from there
 - Knowledge understands it all
@@ -2376,7 +2368,7 @@ That's it. Everything else is just data.
 A database schema that:
 
 - Scales from lemonade stands to global enterprises
-- Children can understand: "I own (group), I'm the boss (person), I sell lemonade (things)"
+- Children can understand: "I own (org), I'm the boss (person), I sell lemonade (things)"
 - Enterprises can rely on: Multi-tenant isolation, clear governance, infinite scale
 - AI agents can reason about completely
 - Never needs breaking changes
@@ -2399,25 +2391,25 @@ The Astro frontend (documented in `Frontend.md`) uses this ontology through:
 **Example: Multi-Tenant Dashboard**
 
 ```typescript
-// Frontend Component (src/components/admin/GroupList.tsx)
+// Frontend Component (src/components/admin/OrganizationList.tsx)
 import { useQuery } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 
-export function GroupList() {
-  // Query groups (table: "groups")
-  const groups = useQuery(api.queries.admin.listGroups);
+export function OrganizationList() {
+  // Query organizations (type: "organization")
+  const orgs = useQuery(api.queries.admin.listOrganizations);
 
   return (
     <div>
-      {groups?.map(group => (
-        <Card key={group._id}>
+      {orgs?.map(org => (
+        <Card key={org._id}>
           <CardHeader>
-            <CardTitle>{group.name}</CardTitle>
-            <Badge>{group.settings.plan}</Badge>
+            <CardTitle>{org.name}</CardTitle>
+            <Badge>{org.properties.plan}</Badge>
           </CardHeader>
           <CardContent>
-            <p>{group.metadata.userCount || 0} / {group.settings.limits.users} users</p>
-            <p>Status: {group.status}</p>
+            <p>{org.properties.usage.users} / {org.properties.limits.users} users</p>
+            <p>Status: {org.properties.status}</p>
           </CardContent>
         </Card>
       ))}
@@ -2488,37 +2480,37 @@ export function PasswordResetForm() {
 }
 ```
 
-**Example: Group Membership Check**
+**Example: Organization Membership Check**
 
 ```typescript
-// Check if user is group_owner (Middleware.md pattern)
-export const checkGroupOwner = query({
-  args: { userId: v.id('things'), groupId: v.id('groups') },
-  handler: async (ctx, { userId, groupId }) => {
+// Check if user is org_owner (Middleware.md pattern)
+export const checkOrgOwner = query({
+  args: { userId: v.id('entities'), orgId: v.id('entities') },
+  handler: async (ctx, { userId, orgId }) => {
     // Query connection with role metadata
     const membership = await ctx.db
       .query('connections')
       .withIndex('from_type', (q) =>
         q
           .eq('fromThingId', userId)
-          .eq('toThingId', groupId)
+          .eq('toThingId', orgId)
           .eq('relationshipType', 'member_of')
       )
       .first();
 
-    return membership?.metadata?.role === 'group_owner';
+    return membership?.metadata?.role === 'org_owner';
   },
 });
 
 // Frontend usage in middleware
 import { ConvexHttpClient } from 'convex/browser';
 
-export async function checkAccess(userId: string, groupId: string) {
+export async function checkAccess(userId: string, orgId: string) {
   const convex = new ConvexHttpClient(env.CONVEX_URL);
-  const isOwner = await convex.query(api.auth.checkGroupOwner, { userId, groupId });
+  const isOwner = await convex.query(api.auth.checkOrgOwner, { userId, orgId });
 
   if (!isOwner) {
-    throw new Error('Forbidden: Group owner access required');
+    throw new Error('Forbidden: Org owner access required');
   }
 }
 ```
@@ -2527,20 +2519,20 @@ export async function checkAccess(userId: string, groupId: string) {
 
 ```typescript
 // Query events for analytics (Dashboard.md pattern)
-export const getGroupAnalytics = query({
-  args: { groupId: v.id('groups'), days: v.number() },
-  handler: async (ctx, { groupId, days }) => {
+export const getOrgAnalytics = query({
+  args: { orgId: v.id('entities'), days: v.number() },
+  handler: async (ctx, { orgId, days }) => {
     const since = Date.now() - days * 24 * 60 * 60 * 1000;
 
-    // Get all dashboard_viewed events for group users
-    const groupMembers = await ctx.db
+    // Get all dashboard_viewed events for org users
+    const orgMembers = await ctx.db
       .query('connections')
       .withIndex('to_type', (q) =>
-        q.eq('toThingId', groupId).eq('relationshipType', 'member_of')
+        q.eq('toThingId', orgId).eq('relationshipType', 'member_of')
       )
       .collect();
 
-    const memberIds = groupMembers.map((m) => m.fromThingId);
+    const memberIds = orgMembers.map((m) => m.fromThingId);
 
     const dashboardViews = await ctx.db
       .query('events')
@@ -2673,9 +2665,9 @@ const agentsCollection = defineCollection({
 **2. Real-time Dashboard Stats**
 
 ```tsx
-export function DashboardStats({ groupId }) {
+export function DashboardStats({ orgId }) {
   // Subscribes to changes - auto-updates when events are logged!
-  const stats = useQuery(api.queries.dashboard.getStats, { groupId });
+  const stats = useQuery(api.queries.dashboard.getStats, { orgId });
 
   return <StatsCards data={stats} />;
 }
@@ -2684,13 +2676,13 @@ export function DashboardStats({ groupId }) {
 **3. Permission-Based Rendering**
 
 ```tsx
-export function AdminPanel({ userId, groupId }) {
-  const membership = useQuery(api.queries.groups.getMembership, {
+export function AdminPanel({ userId, orgId }) {
+  const membership = useQuery(api.queries.orgs.getMembership, {
     userId,
-    groupId,
+    orgId,
   });
 
-  if (membership?.metadata?.role !== 'group_owner') {
+  if (membership?.metadata?.role !== 'org_owner') {
     return <div>Access denied</div>;
   }
 
@@ -2702,30 +2694,30 @@ export function AdminPanel({ userId, groupId }) {
 
 ```astro
 ---
-// src/pages/group/[groupId]/dashboard.astro
+// src/pages/org/[orgId]/dashboard.astro
 import { ConvexHttpClient } from 'convex/browser';
 import { api } from '@/convex/_generated/api';
 
 const convex = new ConvexHttpClient(import.meta.env.PUBLIC_CONVEX_URL);
 
-// Fetch group
-const group = await convex.query(api.queries.groups.get, {
-  id: Astro.params.groupId,
+// Fetch organization entity
+const org = await convex.query(api.queries.entities.get, {
+  id: Astro.params.orgId,
 });
 
-// Fetch group members (connections where relationshipType = "member_of")
-const members = await convex.query(api.queries.groups.getMembers, {
-  groupId: Astro.params.groupId,
+// Fetch org members (connections where relationshipType = "member_of")
+const members = await convex.query(api.queries.orgs.getMembers, {
+  orgId: Astro.params.orgId,
 });
 ---
 
-<Layout title={group.name}>
-  <h1>{group.name} Dashboard</h1>
-  <p>Plan: {group.settings.plan}</p>
-  <p>Members: {members.length} / {group.settings.limits.users}</p>
+<Layout title={org.name}>
+  <h1>{org.name} Dashboard</h1>
+  <p>Plan: {org.properties.plan}</p>
+  <p>Members: {members.length} / {org.properties.limits.users}</p>
 
   <!-- Real-time stats component -->
-  <GroupStats client:load groupId={group._id} />
+  <OrgStats client:load orgId={org._id} />
 </Layout>
 ```
 
@@ -2776,7 +2768,7 @@ Objective: attach vectors to every relevant piece of content to enable high‑qu
 - Event log: `content_changed` on source updates triggers re‑embedding (debounced) via scheduler.
 
 5) Query + retrieval
-- Vector search over `knowledge` filtered by group, creator, and content type; k‑NN approximate index when available, else provider‑side search.
+- Vector search over `knowledge` filtered by org, creator, and content type; k‑NN approximate index when available, else provider‑side search.
 - Hybrid scoring: combine semantic similarity with lexical signals from `labels` and metadata.
 
 6) Governance + lifecycle

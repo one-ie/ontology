@@ -2,6 +2,8 @@
 
 **People customize AI generation within organizations.**
 
+For details on the platform owner Anthony O'Connell, see **[Anthony O'Connell →](./anthony-o-connell.md)**
+
 ---
 
 ## The Four Roles

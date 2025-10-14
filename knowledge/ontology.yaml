@@ -1,7 +1,7 @@
 # ONE Platform - Ontology Specification (YAML)
 
 version: 2.0.0
-status: Complete - Reality-Aware Architecture
+status: Complete - Groups-Based Reality Model
 principle: This ontology models reality in six dimensions. All protocols map TO this ontology via metadata.
 
 # ======================================================================
@@ -9,13 +9,13 @@ principle: This ontology models reality in six dimensions. All protocols map TO 
 # ======================================================================
 
 dimensions:
-  - name: organizations
-    description: Multi-tenant isolation boundary - who owns what at org level
-    purpose: Partition the system for multi-tenant scale
+  - name: groups
+    description: Multi-tenant isolation boundary with hierarchical nesting - who owns what at group level
+    purpose: Partition the system with perfect isolation, supporting nested groups (groups within groups)
 
   - name: people
-    description: Authorization & governance - platform owner, org owners
-    purpose: Define who can do what. People direct organizations, customize AI agents, and govern access
+    description: Authorization & governance - platform owner, group owners
+    purpose: Define who can do what. People direct groups, customize AI agents, and govern access
 
   - name: things
     description: Every "thing" - users, agents, content, tokens, courses
@@ -35,60 +35,60 @@ dimensions:
 
 golden_rule: "If you can't map your feature to these 6 dimensions, you're thinking about it wrong."
 
-simplicity: "ONE is six dimensions — organizations partition, people authorize, things exist, connections relate, events record, and knowledge understands. Everything composes from these building blocks."
+simplicity: "ONE is six dimensions — groups partition, people authorize, things exist, connections relate, events record, and knowledge understands. Everything composes from these building blocks."
 
 # ======================================================================
-# ORGANIZATIONS: The Isolation Boundary
+# GROUPS: The Isolation Boundary with Nesting
 # ======================================================================
 
-organizations:
+groups:
   structure:
-    _id: Id<'organizations'>
+    _id: Id<'groups'>
+    slug: string              # REQUIRED: URL identifier (/group/slug)
     name: string              # REQUIRED: Display name
-    slug: string              # REQUIRED: URL identifier (/org/slug)
-    domain: string?           # OPTIONAL: Custom domain
-    logo: string?             # OPTIONAL: Organization logo
+    type:
+      - friend_circle
+      - business
+      - community
+      - dao
+      - government
+      - organization          # Legacy type for backward compatibility
+    parentGroupId: Id<'groups'>?  # OPTIONAL: Parent group for nesting
     description: string?      # OPTIONAL: About text
+    metadata: Record<string, any>
+    settings:
+      visibility:
+        - public
+        - private
+      joinPolicy:
+        - open
+        - invite_only
+        - approval_required
+      plan:
+        - starter
+        - pro
+        - enterprise
+      limits:
+        users: number
+        storage: number         # GB
+        apiCalls: number
     status:
       - active
-      - suspended
-      - trial
-      - cancelled
-    plan:
-      - starter
-      - pro
-      - enterprise
-    limits:
-      users: number
-      storage: number         # GB
-      apiCalls: number
-      inference: number       # Monthly LLM calls
-    usage:
-      users: number
-      storage: number
-      apiCalls: number
-      inference: number
-    billing:
-      customerId: string?     # Stripe customer
-      subscriptionId: string?
-    settings:
-      allowSignups: boolean
-      requireEmailVerification: boolean
-      enableTwoFactor: boolean
+      - archived
     createdAt: number
     updatedAt: number
-    trialEndsAt: number?
 
   common_fields:
-    identity: [name, slug]
-    web: [slug, name, logo, description, domain]
-    operations: [status, plan, limits, usage, settings]
+    identity: [slug, name]
+    web: [slug, name, description]
+    operations: [status, type, settings, parentGroupId]
 
   why_matters:
-    - Multi-Tenant Isolation: Each org's data is completely separate
-    - Resource Quotas: Control costs and usage per organization
-    - Custom Branding: Each org can have unique frontend/domain
-    - Billing Flexibility: Per-org subscriptions and revenue sharing
+    - Multi-Tenant Isolation: Each group's data is completely separate
+    - Hierarchical Nesting: Groups can contain sub-groups for complex organizations
+    - Flexible Types: From friend circles to DAOs to governments
+    - Resource Quotas: Control costs and usage per group
+    - Privacy Control: Groups can be public or private with controlled access
 
 # ======================================================================
 # PEOPLE: Authorization & Governance
@@ -102,14 +102,14 @@ people:
     displayName: string       # REQUIRED: Display name
     role:
       - platform_owner
-      - org_owner
-      - org_user
+      - group_owner
+      - group_user
       - customer
-    organizationId: Id<'organizations'>?  # Current/default org
+    groupId: Id<'groups'>?  # Current/default group
     permissions: string[]?    # Additional permissions
     bio: string?              # OPTIONAL: About text
     avatar: string?           # OPTIONAL: Profile image
-    organizations: Id<'organizations'>[]  # All orgs this person belongs to
+    groups: Id<'groups'>[]  # All groups this person belongs to
     createdAt: number
     updatedAt: number
 
@@ -117,24 +117,24 @@ people:
     identity: [email, username, displayName]
     auth: [email, username, role, permissions]
     web: [username, displayName, avatar, bio]
-    governance: [role, organizationId, organizations, permissions]
+    governance: [role, groupId, groups, permissions]
 
   roles:
     platform_owner:
       description: Owns the ONE Platform
       revenue: 100% from platform-level services
-      access: Can access all organizations (support/debugging)
-      capabilities: Creates new organizations
+      access: Can access all groups (support/debugging)
+      capabilities: Creates new groups
 
-    org_owner:
-      description: Owns/manages one or more organizations
-      control: Users, permissions, billing within org
+    group_owner:
+      description: Owns/manages one or more groups
+      control: Users, permissions, billing within group
       customization: AI agents and frontend
       revenue: Revenue sharing with platform
 
-    org_user:
-      description: Works within an organization
-      permissions: Limited permissions (defined by org owner)
+    group_user:
+      description: Works within a group
+      permissions: Limited permissions (defined by group owner)
       capabilities: Can create content, run agents (within quotas)
 
     customer:
@@ -144,7 +144,7 @@ people:
 
   why_matters:
     - Authorization: Every action must have an actor (person)
-    - Governance: Org owners control who can do what
+    - Governance: Group owners control who can do what
     - Audit Trail: Events log who did what when
     - Customization: People teach AI agents their preferences
 
@@ -250,10 +250,10 @@ things:
 
   types:
     core:
-      - creator          # Human creator (role: platform_owner, org_owner, org_user, customer)
+      - creator          # Human creator (role: platform_owner, group_owner, group_user, customer)
       - ai_clone         # Digital twin of creator
       - audience_member  # Fan/user (role: customer)
-      - organization     # Multi-tenant organization
+      - organization     # DEPRECATED: Legacy - Use type='organization' group instead
 
     business_agents:
       - strategy_agent      # Vision, planning, OKRs
@@ -357,13 +357,13 @@ things:
       totalRevenue: number
       role:
         - platform_owner
-        - org_owner
-        - org_user
+        - group_owner
+        - group_user
         - customer
-      organizationId: Id<"things">?
+      groupId: Id<"groups">?
       permissions: string[]?
 
-    organization:
+    organization:  # DEPRECATED: Legacy type for backward compatibility
       name: string
       slug: string
       domain: string?
@@ -554,14 +554,14 @@ connections:
           balance: 1000
           acquiredAt: timestamp
 
-    org_membership:
-      description: User is member of organization with role
+    group_membership:
+      description: User is member of group with role
       example:
         fromThingId: userId
-        toThingId: organizationId
+        toThingId: groupId
         relationshipType: member_of
         metadata:
-          role: org_owner  # or org_user
+          role: group_owner  # or group_user
           permissions: [read, write, admin]
           invitedBy: userId?
           joinedAt: timestamp
@@ -619,12 +619,12 @@ events:
       - two_factor_enabled
       - two_factor_disabled
 
-    organization_events:
-      - organization_created
-      - organization_updated
-      - user_invited_to_org
-      - user_joined_org
-      - user_removed_from_org
+    group_events:
+      - group_created
+      - group_updated
+      - user_invited_to_group
+      - user_joined_group
+      - user_removed_from_group
 
     dashboard_ui_events:
       - dashboard_viewed
@@ -902,7 +902,7 @@ statistics:
     entity_lifecycle: 4
     user: 5
     authentication: 6
-    organization: 5
+    group: 5
     dashboard_ui: 4
     ai_clone: 4
     agent: 4
@@ -949,7 +949,7 @@ philosophy:
 
     one_approach:
       - Map every feature to 6 dimensions
-      - Organizations partition the space
+      - Groups partition the space
       - People authorize and govern
       - Things, connections, events flow from there
       - Knowledge understands it all
@@ -983,18 +983,18 @@ extensibility:
 # ======================================================================
 
 universal_fields:
-  description: "Fields that EVERY person/org has for auth and web generation"
+  description: "Fields that EVERY person/group has for auth and web generation"
 
-  organizations_require:
-    identity: [name, slug]        # Who they are + URL
-    web: [slug, logo?, description?, domain?]
-    operations: [status, plan, limits, usage]
+  groups_require:
+    identity: [slug, name]        # Who they are + URL
+    web: [slug, name, description?]
+    operations: [status, type, settings, parentGroupId?]
 
   people_require:
     identity: [email, username, displayName]  # Who they are + URL
     auth: [email, username, role]             # Authentication
     web: [username, displayName, avatar?, bio?]
-    governance: [role, organizationId?, organizations]
+    governance: [role, groupId?, groups]
 
   things_require:
     identity: [type, name]        # What it is
@@ -1002,15 +1002,15 @@ universal_fields:
     status: enum                  # Visibility/state
 
   web_generation_pattern: |
-    Every person/org can be a website:
-    - Organizations: /org/{slug} → generated from org data
+    Every person/group can be a website:
+    - Groups: /group/{slug} → generated from group data
     - People: /{username} → generated from person data
-    - Things: Rendered in context of their owner (org or person)
+    - Things: Rendered in context of their owner (group or person)
 
     Required for ANY web page:
     1. URL identifier (slug/username in properties)
     2. Display name (name field)
-    3. Visual identity (logo/avatar in properties)
+    3. Visual identity (description in properties)
     4. Description (bio/description in properties)
     5. Visibility (status field)
 
