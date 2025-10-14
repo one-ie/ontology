@@ -209,7 +209,7 @@ Everything begins with identity and organizational scope. This isn't just metada
 ### Ownership Hierarchy Example
 
 ```
-organisations/acme-corp (the container)
+groups/acme-corp (the container - type: organization)
   ├─ owned_by → people/anthony-o-connell (the owner)
   ├─ member_of → people/sarah-thompson (member, role: analyst)
   │

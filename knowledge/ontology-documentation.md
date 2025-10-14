@@ -7,10 +7,10 @@
 ## The Flow
 
 ```
-Organisations → People → Things → Connections → Events → Knowledge
-     ↓            ↓         ↓           ↓            ↓          ↓
-   Own &      Customize   Create     Relate      Log &      Power
-  Delegate    with AI    Entities   Entities    Track    Intelligence
+Groups → People → Things → Connections → Events → Knowledge
+  ↓         ↓         ↓           ↓            ↓          ↓
+Scope   Authorize  Create     Relate      Log &      Power
+& Own   with AI    Entities   Entities    Track    Intelligence
 ```
 
 ---
@@ -19,10 +19,10 @@ Organisations → People → Things → Connections → Events → Knowledge
 
 ### Core Concepts (Start Here)
 
-1. **[organisation.md](./organisation.md)** - Multi-tenant containers
+1. **[groups.md](../groups/groups.md)** - Multi-tenant containers
 
-   - Organisations own things
-   - Delegate ownership to people
+   - Groups own things
+   - Hierarchical nesting (6 types)
    - Track usage & quotas
    - Manage billing & revenue sharing
 
@@ -98,7 +98,7 @@ Organisations → People → Things → Connections → Events → Knowledge
 
 ### For Developers
 
-1. Start with **[organisation.md](./organisation.md)** - Understand multi-tenancy
+1. Start with **[groups.md](../groups/groups.md)** - Understand multi-tenancy & hierarchical groups
 2. Read **[people.md](./people.md)** - Understand roles & permissions
 3. Skim **[things.md](./things.md)** - See what entities exist
 4. Review **[connections.md](./connections.md)** - See how things relate
@@ -108,7 +108,7 @@ Organisations → People → Things → Connections → Events → Knowledge
 
 ### For Product Managers
 
-1. **[organisation.md](./organisation.md)** - How customers are isolated
+1. **[groups.md](../groups/groups.md)** - How customers are isolated
 2. **[people.md](./people.md)** - How users, roles & permissions work
 3. **[knowledge.md](./knowledge.md)** - How AI inference generates revenue
 4. **[events.md](./events.md)** - What gets tracked & analyzed
@@ -121,7 +121,7 @@ Organisations → People → Things → Connections → Events → Knowledge
 
 Everything in ONE exists in one of 6 dimensions:
 
-- **organizations** - multi-tenant isolation (ownership partitioning)
+- **groups** - multi-tenant isolation (hierarchical containers with 6 types)
 - **people** - authorization & governance (who can do what)
 - **things** - entities (66 types)
 - **connections** - relationships (25 types)
@@ -147,14 +147,14 @@ All protocols map TO the ontology via metadata:
 - Core ontology remains stable
 - Infinite protocol extensibility
 
-### 4. Organisation-Scoped
+### 4. Group-Scoped
 
 Multi-tenant isolation:
 
-- Every resource belongs to an organization
+- Every resource belongs to a group
 - Permissions enforced via membership connections
-- Usage tracked per organization
-- Revenue sharing configurable per organization
+- Usage tracked per group
+- Revenue sharing configurable per group
 
 ### 5. Event-Driven
 
@@ -171,7 +171,7 @@ Complete audit trail:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  1. Organization Scope                           │
+│  1. Group Scope                                  │
 │     Define the context for all operations        │
 └──────────────────┬──────────────────────────────┘
                    ↓
@@ -211,7 +211,7 @@ Complete audit trail:
 └─────────────────────────────────────────────────┘
 ```
 
-Knowledge makes generation **context-aware**, organizations make it **multi-tenant**, and people make it **governed**.
+Knowledge makes generation **context-aware**, groups make it **multi-tenant**, and people make it **governed**.
 
 ---
 
@@ -220,7 +220,7 @@ Knowledge makes generation **context-aware**, organizations make it **multi-tena
 **Simplicity is the ultimate sophistication.**
 
 - **6 dimensions** (not 50+ tables)
-- **Organizations** partition the space
+- **Groups** partition the space (6 types, hierarchical)
 - **People** authorize and govern
 - **66 thing types** (covers everything)
 - **25 connection types** (all relationships)
@@ -353,4 +353,4 @@ When adding features:
 
 ---
 
-**Welcome to ONE. Where organisations own, people customize, and knowledge powers everything.**
+**Welcome to ONE. Where groups contain, people customize, and knowledge powers everything.**

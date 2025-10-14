@@ -43,7 +43,7 @@ npx oneie
 ║                                                                  ║
 ╚══════════════════════════════════════════════════════════════════╝
 
-✨ Welcome to ONE Platform!
+✨ Welcome to ONE!
 
 Let's set up your environment with the 6-dimension ontology.
 
@@ -59,21 +59,20 @@ After user enters name:
 ```
 Great to meet you, Anthony! 👋
 
-What's your email address? anthony@one.ie
-What username would you like? anthony
-What's your website URL? (optional): https://one.ie
+What's your email address? tony@one.ie
 
-🏢 Step 2: Organization Setup
 
-What's your organization name? (e.g., ONE Platform): ONE Platform
-Organization slug (URL-friendly): one
-Organization domain: one.ie
+🏢 Step 2: Organisation Setup
+
+What's your organization name? (e.g., My Company): Company Name
+Organization slug (URL-friendly): company-name
+Organization Website: https://my-company.com
 
 Creating your profile...
 ✓ Created one/people/anthony-o-connell.md
-✓ Created one/organisation/one.md
-✓ Linked anthony → owns → ONE Platform
-✓ Linked anthony → member_of → ONE Platform (role: org_owner)
+✓ Created one/groups/my-company.md
+✓ Linked anthony → owns → My Company
+✓ Linked anthony → member_of → My Company (role: group_owner)
 ```
 
 ### Phase 3: Ontology Sync
@@ -146,11 +145,11 @@ Your ONE environment is ready:
    Role: org_owner
    File: one/people/anthony-o-connell.md
 
-🏢 Your Organization:
+🏢 Your Group:
    Name: ONE Platform
    Slug: one
    Domain: one.ie
-   File: one/organisation/one.md
+   File: one/groups/one.md
 
 🚀 Next Steps:
 
@@ -525,9 +524,9 @@ ${profile.website ? `- **Website:** ${profile.website}\n` : ""}
 
 ## See Also
 
-- [Organization Profile](../organisation/${filename}.md)
+- [Group Profile](../groups/${filename}.md)
 - [People Roles](./people.md)
-- [Organizations](../organisation/organisation.md)
+- [Groups](../groups/groups.md)
 `;
 
   // Write file
@@ -539,14 +538,14 @@ ${profile.website ? `- **Website:** ${profile.website}\n` : ""}
 }
 ```
 
-**Organization Profile:** `one/organisation/{name}.md`
+**Group Profile:** `one/groups/{name}.md`
 
 ```typescript
-// cli/src/create-org-profile.ts
+// cli/src/create-group-profile.ts
 import fs from "fs/promises";
 import path from "path";
 
-interface OrgProfile {
+interface GroupProfile {
   name: string;
   slug: string;
   domain: string;
@@ -554,10 +553,10 @@ interface OrgProfile {
   ownerUsername: string;
 }
 
-export async function createOrgProfile(profile: OrgProfile) {
+export async function createGroupProfile(profile: GroupProfile) {
   const filePath = path.join(
     process.cwd(),
-    `one/organisation/${profile.slug}.md`
+    `one/groups/${profile.slug}.md`
   );
 
   // Create directory
@@ -585,20 +584,21 @@ export async function createOrgProfile(profile: OrgProfile) {
 
 ---
 
-## The Organization Entity
+## The Group Entity
 
 \`\`\`typescript
 {
-  type: "organization",
+  _id: Id<"groups">,
   name: "${profile.name}",
+  type: "organization",  // One of 6 group types
+  parentGroupId: undefined,  // Top-level group
   properties: {
     // Identity
     slug: "${profile.slug}",
     domain: "${profile.domain}",
-    description: "Organization created via ONE CLI",
+    description: "Group created via ONE CLI",
 
     // Status & Plan
-    status: "active",
     plan: "enterprise",
 
     // Limits & Usage
@@ -625,7 +625,6 @@ export async function createOrgProfile(profile: OrgProfile) {
 
     // Public info
     website: "https://${profile.domain}",
-    createdAt: Date.now(),
   },
   status: "active",
   createdAt: Date.now(),
@@ -662,7 +661,7 @@ export async function createOrgProfile(profile: OrgProfile) {
   toThingId: ${profile.slug}Id,
   relationshipType: "member_of",
   metadata: {
-    role: "org_owner",
+    role: "group_owner",
     permissions: ["*"],  // All permissions
     joinedAt: Date.now(),
   },
@@ -674,17 +673,18 @@ export async function createOrgProfile(profile: OrgProfile) {
 
 ## Key Principles
 
-- **Multi-Tenant Isolation** - Organization partitions the data space
+- **Multi-Tenant Isolation** - Group partitions the data space
 - **Owner Control** - ${profile.ownerName} has full control (100% ownership)
 - **Enterprise Plan** - Unlimited resources for growth
-- **Ontology Mapping** - Dimension 1 (Organizations) in the 6-dimension model
+- **Ontology Mapping** - Dimension 1 (Groups) in the 6-dimension model
+- **6 Group Types** - friend_circle, business, community, dao, government, organization
 
 ---
 
 ## See Also
 
 - [Owner Profile](../people/${profile.ownerUsername}.md)
-- [Organization Structure](./organisation.md)
+- [Group Structure](./groups.md)
 - [Multi-Tenancy](../connections/multitenant.md)
 `;
 
@@ -977,22 +977,22 @@ async function main() {
   });
   spinner.succeed(`Created ${userProfilePath}`);
 
-  spinner = ora("Creating organization profile...").start();
-  const orgProfilePath = await createOrgProfile({
+  spinner = ora("Creating group profile...").start();
+  const groupProfilePath = await createGroupProfile({
     name: orgAnswers.name,
     slug: orgAnswers.slug,
     domain: orgAnswers.domain,
     ownerName: userAnswers.name,
     ownerUsername: userAnswers.username,
   });
-  spinner.succeed(`Created ${orgProfilePath}`);
+  spinner.succeed(`Created ${groupProfilePath}`);
 
-  spinner = ora("Linking user to organization...").start();
+  spinner = ora("Linking user to group...").start();
   spinner.succeed(
     `Linked ${userAnswers.username} → owns → ${orgAnswers.name}`
   );
   spinner.succeed(
-    `Linked ${userAnswers.username} → member_of → ${orgAnswers.name} (role: org_owner)`
+    `Linked ${userAnswers.username} → member_of → ${orgAnswers.name} (role: group_owner)`
   );
 
   // Step 5: Website setup (optional)
@@ -1064,11 +1064,11 @@ async function main() {
   console.log(`   Role: org_owner`);
   console.log(`   File: ${userProfilePath}\n`);
 
-  console.log(chalk.cyan("🏢 Your Organization:"));
+  console.log(chalk.cyan("🏢 Your Group:"));
   console.log(`   Name: ${orgAnswers.name}`);
   console.log(`   Slug: ${orgAnswers.slug}`);
   console.log(`   Domain: ${orgAnswers.domain}`);
-  console.log(`   File: ${orgProfilePath}\n`);
+  console.log(`   File: ${groupProfilePath}\n`);
 
   console.log(chalk.bold("🚀 Next Steps:\n"));
   if (buildWebsite) {
@@ -1163,9 +1163,9 @@ main().catch((error) => {
    # Verify correct formatting and connections
    ```
 
-4. **Test org profile creation:**
+4. **Test group profile creation:**
    ```bash
-   cat one/organisation/one.md
+   cat one/groups/one.md
    # Verify correct formatting and connections
    ```
 
@@ -1227,7 +1227,7 @@ npx oneie create --template=marketplace
 - [CLI Overview](../cli.md) - Complete CLI architecture
 - [Ontology](../../knowledge/ontology.md) - 6-dimension ontology
 - [People](../../people/people.md) - People & roles
-- [Organizations](../../organisation/organisation.md) - Organization structure
+- [Groups](../../groups/groups.md) - Group structure (6 types, hierarchical)
 - [Agents](../agents/agent-director.md) - AI agent definitions
 
 ---
