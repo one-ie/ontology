@@ -611,16 +611,127 @@ User: "Add ecommerce store"
 - `CLAUDE.md` - Claude Code instructions
 - `.claude/commands/release.md` - Release process
 
-## Status
+## Implementation Status
 
-- [x] Plan created
-- [ ] CLI prompts implemented
-- [ ] Frontend detection implemented
-- [ ] Backend control implemented
-- [ ] AI prompt system implemented
-- [ ] Documentation updated
-- [ ] User testing completed
-- [ ] Production release
+### Phase 1: CLI Enhancement ✅ COMPLETE
+
+- [x] Added reserved name validation (one, onegroup, one.ie)
+- [x] Created `isReservedName`, `isReservedFolder`, `isReservedWebsite` validators
+- [x] Updated init command to use validation
+- [x] Created `updateOrgEnvFile` function for org-specific env vars
+- [x] CLI now creates `.env.local` with:
+  - `ORG_NAME` (validated against reserved)
+  - `ORG_WEBSITE` (validated against reserved)
+  - `ORG_FOLDER` (validated against reserved)
+  - `ONE_BACKEND=off` (default)
+
+**Files Modified:**
+- `cli/src/utils/validation.ts` - Added reserved name validation
+- `cli/src/commands/init.ts` - Added validation to prompts
+- `cli/src/utils/installation-setup.ts` - Added `updateOrgEnvFile` function
+
+### Phase 2: Frontend Detection ✅ COMPLETE
+
+- [x] Created `GetStartedPrompt` component for customer orgs
+- [x] Created `MinimalSidebar` component (Blog + License only)
+- [x] Updated `Layout.astro` to detect `ORG_NAME` environment variable
+- [x] Updated `index.astro` to conditionally render homepage
+- [x] ONE Platform (ORG_NAME=one): Full homepage
+- [x] Customer Org (ORG_NAME=acme): GetStartedPrompt
+
+**Files Created:**
+- `web/src/components/GetStartedPrompt.tsx` - Simple prompt interface
+- `web/src/components/MinimalSidebar.tsx` - Minimal navigation
+
+**Files Modified:**
+- `web/src/layouts/Layout.astro` - Conditional sidebar rendering
+- `web/src/pages/index.astro` - Conditional homepage rendering
+
+### Phase 3: Backend Control ✅ COMPLETE
+
+- [x] Environment variable `ONE_BACKEND` controls backend availability
+- [x] Default: `off` (frontend-only mode, no Convex)
+- [x] Optional: `on` (full platform with backend)
+- [x] `.env.local.example` template with comprehensive documentation
+
+**Files Created:**
+- `web/.env.local.example` - Complete configuration template with examples
+
+### Phase 4: Documentation ✅ COMPLETE
+
+- [x] Comprehensive plan document (`one/things/plans/start-new.md`)
+- [x] `.env.local.example` with inline documentation
+- [x] Implementation status tracking
+- [x] User journey examples
+
+### Remaining Work
+
+- [ ] AI prompt system implementation (Phase 4 from original plan)
+- [ ] Template system setup (`web/src/templates/`)
+- [ ] User testing with real customers
+- [ ] Production release announcement
+
+## Usage
+
+### For ONE Platform
+
+```bash
+# .env.local
+ORG_NAME=one
+ORG_WEBSITE=https://one.ie
+ORG_FOLDER=onegroup
+ONE_BACKEND=on
+```
+
+Result: Full ONE Platform homepage with complete navigation.
+
+### For Customer Org
+
+```bash
+# .env.local
+ORG_NAME=acme
+ORG_WEBSITE=https://acme.com
+ORG_FOLDER=acme
+ONE_BACKEND=off
+```
+
+Result: Simple "Get Started" prompt with minimal navigation.
+
+### CLI Validation
+
+```bash
+npx oneie
+
+Organization name: one
+❌ Error: Organization name "one" is reserved for ONE Platform
+
+Organization name: acme
+✓ Valid
+
+Website: https://one.ie
+❌ Error: Website one.ie is reserved for ONE Platform
+
+Website: https://acme.com
+✓ Valid
+```
+
+## Next Steps
+
+1. **Test the flow:**
+   ```bash
+   cd cli && bun run build
+   cd ../web && cp .env.local.example .env.local
+   # Edit .env.local with custom org name
+   bun run dev
+   ```
+
+2. **Implement AI prompt handling** in `GetStartedPrompt.tsx`
+
+3. **Create template system** in `web/src/templates/`
+
+4. **User testing** with 3-5 organizations
+
+5. **Release:** Merge to main and deploy
 
 ---
 
