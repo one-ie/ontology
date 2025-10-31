@@ -26,7 +26,7 @@ ONE separates concerns while enabling exponential growth:
 │   ├── connections/ # Relationships, workflows, integrations
 │   ├── events/      # Milestones, triggers, achievements
 │   └── knowledge/   # Documentation, architecture, guides
-├── frontend/        # Edge Distribution (git: one-ie/frontend)
+├── web/        # Edge Distribution (git: one-ie/web)
 ├── backend/         # API Layer (git: one-ie/backend)
 ├── apps/            # Application repos
 │   ├── bullfm/      # (git: bull-fm/bullfm)
