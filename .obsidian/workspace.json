@@ -84,7 +84,7 @@
                   },
                   "pinned": true,
                   "icon": "terminal",
-                  "title": "Terminal: ✳ System Organization Project"
+                  "title": "Terminal: zsh"
                 }
               }
             ]
@@ -241,6 +241,12 @@
   },
   "active": "9fe06062be0bda38",
   "lastOpenFiles": [
+    "things/plans/ontology-refine.md",
+    "events/wave1-backend-implementation-complete.md",
+    "things/plans/wave1-orchestration-summary.md",
+    "things/plans/wave1-specialist-assignments.md",
+    "things/plans/wave1-onboarding-100-inferences.md",
+    "things/plans/wave1-onboarding-vision.md",
     "things/plans/effect-patterns-reference.md",
     "things/plans/execution-strategy.md",
     "things/plans/phase-1-foundation.md",
@@ -262,12 +268,6 @@
     "things/todo-api.md",
     "things/todo-mail.md",
     "things/todo-ecommerce-frontend.md",
-    "things/todo-assignment.md",
-    "things/todo-workflow.md",
-    "things/master-workflow-plan.md",
-    "things/todo-acp-integration.md",
-    "things/todo-master-plan.md",
-    "things/master-build-plan-summary.md",
     "connections/x402-Baazar.txt",
     "things/files.yaml",
     "things/files.yaml.tmp.40358.1761761141598",
